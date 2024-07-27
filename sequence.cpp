@@ -24,7 +24,7 @@ using my_inplace_vector = sequence<T,
 int main()
 {
 	sequence<int> s;
-	s.show();
+	show(s);
 	println("");
 
 	constexpr sequence_traits<unsigned char> st{
@@ -34,7 +34,7 @@ int main()
 	};
 
 	sequence<int, st> s2;
-	s2.show();
+	show(s2);
 	println("");
 
 	sequence<int,
@@ -44,7 +44,7 @@ int main()
 			.capacity = 16,
 			.location = sequence_lits::BACK,
 		}> s3;
-	s3.show();
+	show(s3);
 	println("");
 
 	sequence<int,
@@ -53,14 +53,14 @@ int main()
 			.growth = sequence_lits::LINEAR,
 			.increment = 256,
 		}> s4;
-	s4.show();
+	show(s4);
 	println("");
 
 	my_vector<int> s5;
-	s5.show();
+	show(s5);
 	println("");
 
 	my_inplace_vector<int, 10> s6;
-	s6.show();
+	show(s6);
 	println("");
 }
