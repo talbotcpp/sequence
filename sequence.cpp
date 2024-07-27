@@ -21,21 +21,24 @@ using my_inplace_vector = sequence<T,
 	}>;
 
 
+
 int main()
 {
+
 	sequence<int> s;
 	show(s);
-	println("");
+	println("--------------------------------");
 
 	constexpr sequence_traits<unsigned char> st{
 		.dynamic = false,
+		.variable = false,
 		.capacity = 128,
 		.location = sequence_lits::MIDDLE,
 	};
 
 	sequence<int, st> s2;
 	show(s2);
-	println("");
+	println("--------------------------------");
 
 	sequence<int,
 		sequence_traits<unsigned short> {
@@ -45,7 +48,7 @@ int main()
 			.location = sequence_lits::BACK,
 		}> s3;
 	show(s3);
-	println("");
+	println("--------------------------------");
 
 	sequence<int,
 		sequence_traits<> {
@@ -54,13 +57,13 @@ int main()
 			.increment = 256,
 		}> s4;
 	show(s4);
-	println("");
+	println("--------------------------------");
 
 	my_vector<int> s5;
 	show(s5);
-	println("");
+	println("--------------------------------");
 
 	my_inplace_vector<int, 10> s6;
 	show(s6);
-	println("");
+	println("--------------------------------");
 }

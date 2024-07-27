@@ -27,19 +27,82 @@ struct sequence_traits
 								// Note: size_t (not size_type) since SBO may be small but the max size large.
 };
 
+template<bool DYN, bool VAR, typename SIZE, SIZE CAP>
+class sequence_storage
+{
+public:
+	void id() const
+	{
+		std::println("sequence_storage, primary template");
+		std::println("Size Type:\t{}", typeid(SIZE).name());
+		std::println("Capacity:\t{}", CAP);
+		std::println("");
+	}
+};
+
+template<typename SIZE, SIZE CAP>
+class sequence_storage<true, false, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_storage, dynamic, fixed");
+		std::println("Size Type:\t{}", typeid(SIZE).name());
+		std::println("Capacity:\t{}", CAP);
+		std::println("");
+	}
+};
+
+template<typename SIZE, SIZE CAP>
+class sequence_storage<true, true, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_storage, dynamic, variable");
+		std::println("Size Type:\t{}", typeid(SIZE).name());
+		std::println("Capacity:\t{}", CAP);
+		std::println("");
+	}
+};
+
+template<typename SIZE, SIZE CAP>
+class sequence_storage<false, false, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_storage, static, fixed");
+		std::println("Size Type:\t{}", typeid(SIZE).name());
+		std::println("Capacity:\t{}", CAP);
+		std::println("");
+	}
+};
+
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence
+class sequence : public sequence_storage<TRAITS.dynamic, TRAITS.variable, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
 public:
 
 	using traits_type = decltype(TRAITS);
 	static constexpr traits_type traits = TRAITS;
+
+	// Local storage implies fixed capacity. Allowing this would be harmless,
+	// but it would always be a programming error (or a misunderstanding).
+	static_assert(!(traits.dynamic == false && traits.variable == true),
+				  "A sequence with local storage must have a fixed capacity.");
+
+private:
+
+
 };
 
 template<typename SEQ>
 void show(const SEQ& seq)
 {
 	using traits_type = SEQ::traits_type;
+
+	seq.id();
 
 	std::println("Size Type:\t{}", typeid(traits_type::size_type).name());
 
