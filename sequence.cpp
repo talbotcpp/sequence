@@ -9,7 +9,6 @@ using my_vector = sequence<T,
 	sequence_traits<> {
 		.dynamic = true,
 		.variable = true,
-		.location = sequence_lits::FRONT,
 		.growth = sequence_lits::VECTOR,
 	}>;
 
@@ -20,15 +19,49 @@ using my_inplace_vector = sequence<T,
 		.variable = false,
 	}>;
 
+template<typename T, size_t S>
+using my_small_vector = sequence<T,
+	sequence_traits<size_t, S> {
+		.dynamic = true,
+		.variable = true,
+	}>;
 
 
 int main()
 {
-
+	println("---- default --------------------------------");
 	sequence<int> s;
 	show(s);
-	println("--------------------------------");
 
+	println("---- vector ---------------------------------");
+	my_vector<int> s5;
+	show(s5);
+
+	println("---- inplace_vector -------------------------");
+	my_inplace_vector<int, 10> s6;
+	show(s6);
+
+	println("---- small_vector ---------------------------");
+	my_small_vector<int, 15> s7;
+	show(s7);
+
+	//println("---- test -----------------------------------");
+	//sequence<int,
+	//	sequence_traits<unsigned short> {
+	//		.dynamic = false,
+	//		.variable = false,
+	//		.capacity = 16,
+	//		.location = sequence_lits::BACK,
+	//		.growth = sequence_lits::EXPONENTIAL,
+	//		.factor = 1,
+	//	}> s3;
+	//show(s3);
+}
+
+
+
+
+/*
 	constexpr sequence_traits<unsigned char> st{
 		.dynamic = false,
 		.variable = false,
@@ -36,6 +69,7 @@ int main()
 		.location = sequence_lits::MIDDLE,
 	};
 
+	println("---- default --------------------------------");
 	sequence<int, st> s2;
 	show(s2);
 	println("--------------------------------");
@@ -58,12 +92,4 @@ int main()
 		}> s4;
 	show(s4);
 	println("--------------------------------");
-
-	my_vector<int> s5;
-	show(s5);
-	println("--------------------------------");
-
-	my_inplace_vector<int, 10> s6;
-	show(s6);
-	println("--------------------------------");
-}
+*/
