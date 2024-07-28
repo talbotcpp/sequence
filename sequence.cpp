@@ -26,6 +26,40 @@ using my_small_vector = sequence<T,
 		.variable = true,
 	}>;
 
+template<bool B>
+struct thing {
+};
+
+struct base1 {
+	void id() const
+	{
+		std::println("base1");
+	}
+};
+
+struct base2 {
+	void id() const
+	{
+		std::println("base2");
+	}
+};
+
+template<>
+struct thing<true> : base1 {
+	void id() const
+	{
+		std::println("thing<true>");
+		base1::id();
+	}
+};
+template<>
+struct thing<false> : base2 {
+	void id() const
+	{
+		std::println("thing<false>");
+		base2::id();
+	}
+};
 
 int main()
 {
@@ -45,23 +79,39 @@ int main()
 	my_small_vector<int, 15> s7;
 	show(s7);
 
-	//println("---- test -----------------------------------");
-	//sequence<int,
-	//	sequence_traits<unsigned short> {
-	//		.dynamic = false,
-	//		.variable = false,
-	//		.capacity = 16,
-	//		.location = sequence_lits::BACK,
-	//		.growth = sequence_lits::EXPONENTIAL,
-	//		.factor = 1,
-	//	}> s3;
-	//show(s3);
+	println("---- test -----------------------------------");
+	sequence<int,
+		sequence_traits<> {
+			.dynamic = true,
+			.variable = false,
+			.capacity = 16,
+			.location = sequence_lits::BACK,
+		}> s3;
+	show(s3);
+
+	println("---------------------------------------------");
+
+	thing<true> tt;
+	tt.id();
+	thing<false> tf;
+	tf.id();
 }
 
 
 
 
 /*
+	struct foo {
+		char c;
+	};
+	struct bar {
+		unsigned char size;
+		foo data[15];
+	};
+
+	std::println("Size of foo:\t{}", sizeof(foo));
+	std::println("Size of bar:\t{}", sizeof(bar));
+
 	constexpr sequence_traits<unsigned char> st{
 		.dynamic = false,
 		.variable = false,

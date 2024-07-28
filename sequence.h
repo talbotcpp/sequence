@@ -106,7 +106,8 @@ public:
 	}
 };
 
-// Dynamic, variable memory allocation. This is like std::vector. The SIZE and CAP parameters are ignored.
+// Dynamic, variable memory allocation. This is like std::vector.
+// The SIZE and CAP parameters are ignored.
 
 template<typename SIZE>
 class sequence_storage<true, true, SIZE, size_t(0)>
@@ -121,6 +122,9 @@ public:
 	}
 };
 
+// Dynamic, fixed memory allocation. This is like std::vector if you pre-reserve memory,
+// but supports immovable objects. The SIZE parameter is ignored.
+
 template<typename SIZE, size_t CAP>
 class sequence_storage<true, false, SIZE, CAP>
 {
@@ -133,6 +137,8 @@ public:
 		std::println("");
 	}
 };
+
+// Local, fixed memory allocation. This is like std::inplace_vector (or boost::static_vector).
 
 template<typename SIZE, size_t CAP>
 class sequence_storage<false, false, SIZE, CAP>
@@ -147,8 +153,66 @@ public:
 	}
 };
 
+// sequence_management - Base class for sequence which provides the different element management strategies.
+// The LOC sequence_lits parameter specifies which element management strategy to use. The remaining parameters
+// are passed on the sequence_storage base class.
+
+// The primary template. This is never instantiated.
+
+template<sequence_lits LOC, bool DYN, bool VAR, typename SIZE, size_t CAP>
+class sequence_management : public sequence_storage<DYN, VAR, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_management: primary template");
+		sequence_storage<DYN, VAR, SIZE, CAP>::id();
+	}
+};
+
+// FRONT element location.
+
+template<bool DYN, bool VAR, typename SIZE, size_t CAP>
+class sequence_management<sequence_lits::FRONT, DYN, VAR, SIZE, CAP> : public sequence_storage<DYN, VAR, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_management: FRONT");
+		sequence_storage<DYN, VAR, SIZE, CAP>::id();
+	}
+};
+
+// MIDDLE element location.
+
+template<bool DYN, bool VAR, typename SIZE, size_t CAP>
+class sequence_management<sequence_lits::MIDDLE, DYN, VAR, SIZE, CAP> : public sequence_storage<DYN, VAR, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_management: MIDDLE");
+		sequence_storage<DYN, VAR, SIZE, CAP>::id();
+	}
+};
+
+// BACK element location.
+
+template<bool DYN, bool VAR, typename SIZE, size_t CAP>
+class sequence_management<sequence_lits::BACK, DYN, VAR, SIZE, CAP> : public sequence_storage<DYN, VAR, SIZE, CAP>
+{
+public:
+	void id() const
+	{
+		std::println("sequence_management: BACK");
+		sequence_storage<DYN, VAR, SIZE, CAP>::id();
+	}
+};
+
+// sequence - This is the main class template.
+
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence : public sequence_storage<TRAITS.dynamic, TRAITS.variable, typename decltype(TRAITS)::size_type, TRAITS.capacity>
+class sequence : public sequence_management<TRAITS.location, TRAITS.dynamic, TRAITS.variable, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
 public:
 
