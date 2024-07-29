@@ -26,6 +26,73 @@ using my_small_vector = sequence<T,
 		.variable = true,
 	}>;
 
+
+struct immovable {
+	immovable() = default;
+	immovable(const immovable&) = delete;
+	immovable(immovable&&) = delete;
+	immovable& operator=(const immovable&) = delete;
+	immovable& operator=(immovable&&) = delete;
+};
+
+struct unmakeable {
+	unmakeable() = delete;
+	char c;
+};
+
+int main()
+{
+	println("---- default --------------------------------");
+	sequence<int> s;
+	show(s);
+
+	println("---- vector ---------------------------------");
+	my_vector<int> s5;
+	show(s5);
+
+	println("---- inplace_vector -------------------------");
+	my_inplace_vector<int, 10> s6;
+	show(s6);
+
+	println("---- small_vector ---------------------------");
+	my_small_vector<int, 15> s7;
+	show(s7);
+
+	println("---- test -----------------------------------");
+	sequence<char,
+		sequence_traits<unsigned char> {
+			.dynamic = false,
+			.variable = false,
+			.capacity = 15,
+			.location = sequence_lits::FRONT,
+		}> s3;
+	show(s3);
+
+	std::println("Size of s3:\t{}", sizeof(s3));
+
+	println("---------------------------------------------");
+
+
+
+	immovable i1;
+	immovable i2;
+	vector<immovable> v;
+
+}
+
+
+
+
+/*
+
+	union fred {
+		unmakeable m[5];
+		unsigned char s;
+	};
+
+	std::println("Size of unmakeable:\t{}", sizeof(unmakeable));
+	std::println("Size of fred:\t\t{}", sizeof(fred));
+ 
 template<bool B>
 struct thing {
 };
@@ -60,57 +127,26 @@ struct thing<false> : base2 {
 		base2::id();
 	}
 };
-
-int main()
-{
-	println("---- default --------------------------------");
-	sequence<int> s;
-	show(s);
-
-	println("---- vector ---------------------------------");
-	my_vector<int> s5;
-	show(s5);
-
-	println("---- inplace_vector -------------------------");
-	my_inplace_vector<int, 10> s6;
-	show(s6);
-
-	println("---- small_vector ---------------------------");
-	my_small_vector<int, 15> s7;
-	show(s7);
-
-	println("---- test -----------------------------------");
-	sequence<int,
-		sequence_traits<> {
-			.dynamic = true,
-			.variable = false,
-			.capacity = 16,
-			.location = sequence_lits::BACK,
-		}> s3;
-	show(s3);
-
-	println("---------------------------------------------");
-
 	thing<true> tt;
 	tt.id();
 	thing<false> tf;
 	tf.id();
-}
 
-
-
-
-/*
 	struct foo {
 		char c;
 	};
 	struct bar {
-		unsigned char size;
+		size_t size;
 		foo data[15];
+		unsigned char start;
+	};
+	struct pho {
+		bar b1, b2;
 	};
 
 	std::println("Size of foo:\t{}", sizeof(foo));
 	std::println("Size of bar:\t{}", sizeof(bar));
+	std::println("Size of pho:\t{}", sizeof(pho));
 
 	constexpr sequence_traits<unsigned char> st{
 		.dynamic = false,
