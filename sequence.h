@@ -82,13 +82,8 @@ template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
 class sequence_storage
 {
 public:
-	void id() const
-	{
-		std::println("sequence_storage: primary template");
-		std::println("Size Type:\t{}", typeid(SIZE).name());
-		std::println("Capacity:\t{}", CAP);
-		std::println("");
-	}
+	constexpr static size_t capacity() { return 0; }
+	size_t size() { return 0; }
 };
 
 // Dynamic, variable memory allocation with small object optimization. This is like boost::small_vector.
@@ -97,13 +92,8 @@ template<typename T, typename SIZE, size_t CAP>
 class sequence_storage<true, true, T, SIZE, CAP>
 {
 public:
-	void id() const
-	{
-		std::println("sequence_storage: dynamic, variable with SBO");
-		std::println("Size Type:\t{}", typeid(SIZE).name());
-		std::println("Capacity:\t{}", CAP);
-		std::println("");
-	}
+	constexpr static size_t capacity() { return 0; }
+	size_t size() { return 0; }
 };
 
 // Dynamic, variable memory allocation. This is like std::vector.
@@ -113,13 +103,8 @@ template<typename T, typename SIZE>
 class sequence_storage<true, true, T, SIZE, size_t(0)>
 {
 public:
-	void id() const
-	{
-		std::println("sequence_storage: dynamic, variable");
-		std::println("Size Type:\t{}", typeid(SIZE).name());
-		std::println("Capacity:\t{}", size_t(0));
-		std::println("");
-	}
+	constexpr static size_t capacity() { return 0; }
+	size_t size() { return 0; }
 };
 
 // Dynamic, fixed memory allocation. This is like std::vector if you pre-reserve memory,
@@ -128,14 +113,17 @@ public:
 template<typename T, typename SIZE, size_t CAP>
 class sequence_storage<true, false, T, SIZE, CAP>
 {
+	using value_type = T;
+	using size_type = SIZE;
+
 public:
-	void id() const
-	{
-		std::println("sequence_storage: dynamic, fixed");
-		std::println("Size Type:\t{}", typeid(SIZE).name());
-		std::println("Capacity:\t{}", CAP);
-		std::println("");
-	}
+
+	constexpr static size_t capacity() { return CAP; }
+	size_t size() { return m_size; }
+
+private:
+
+	size_type m_size = 0;
 };
 
 // Local, fixed memory allocation. This is like std::inplace_vector (or boost::static_vector).
@@ -143,19 +131,34 @@ public:
 template<typename T, typename SIZE, size_t CAP>
 class sequence_storage<false, false, T, SIZE, CAP>
 {
+	using value_type = T;
 	using size_type = SIZE;
+
 public:
-	void id() const
+
+	constexpr static size_t capacity() { return CAP; }
+	size_t size() { return m_size; }
+
+protected:
+
+	value_type* capacity_start() const { return m_elements; }
+	value_type* capacity_end() const { return m_elements + CAP; }
+
+	void add_back(const value_type& e)
 	{
-		std::println("sequence_storage: static, fixed");
-		std::println("Size Type:\t{}", typeid(SIZE).name());
-		std::println("Capacity:\t{}", CAP);
-		std::println("");
+		assert(size() < capacity());
+		new(m_elements + m_size++) value_type;
 	}
+	void reallocate()
+	{
+		throw std::bad_alloc;
+	}
+
 private:
-	size_type size;
+
+	size_type m_size = 0;
 	union {
-		T elements[CAP];
+		value_type m_elements[CAP];
 		unsigned char unused;
 	};
 };
@@ -167,13 +170,12 @@ private:
 // The primary template. This is never instantiated.
 
 template<sequence_lits LOC, bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
-class sequence_management /*: public sequence_storage<DYN, VAR, T, SIZE, CAP>*/
+class sequence_management
 {
 public:
 	void id() const
 	{
 		std::println("sequence_management: primary template");
-		sequence_storage<DYN, VAR, SIZE, CAP>::id();
 	}
 };
 
@@ -182,12 +184,29 @@ public:
 template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
 class sequence_management<sequence_lits::FRONT, DYN, VAR, T, SIZE, CAP> : public sequence_storage<DYN, VAR, T, SIZE, CAP>
 {
+	using value_type = T;
+
 public:
 	void id() const
 	{
 		std::println("sequence_management: FRONT");
-		sequence_storage<DYN, VAR, T, SIZE, CAP>::id();
 	}
+
+	void push_front(const value_type& e)
+	{
+
+	}
+	void push_back(const value_type& e)
+	{
+		if (size() == capacity());
+		//	reallocate();
+		add_back(e);
+	}
+
+protected:
+
+	//value_type* data_start() const { return capacity_start(); }
+	//value_type* data_end() const { return capacity_start() + size(); }
 };
 
 // MIDDLE element location.
@@ -199,7 +218,6 @@ public:
 	void id() const
 	{
 		std::println("sequence_management: MIDDLE");
-		sequence_storage<DYN, VAR, T, SIZE, CAP>::id();
 	}
 };
 
@@ -212,7 +230,6 @@ public:
 	void id() const
 	{
 		std::println("sequence_management: BACK");
-		sequence_storage<DYN, VAR, T, SIZE, CAP>::id();
 	}
 };
 
@@ -223,6 +240,14 @@ class sequence : public sequence_management<TRAITS.location, TRAITS.dynamic, TRA
 											T, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
 public:
+
+	using value_type = T;
+
+	~sequence()
+	{
+		//for (auto next(data_start()), end(data_end()); next != end; ++next)
+		//	next->~value_type();
+	}
 
 	using traits_type = decltype(TRAITS);
 	static constexpr traits_type traits = TRAITS;
@@ -236,6 +261,11 @@ public:
 				  "Linear capacity growth must be greater than 0.");
 	static_assert(traits.factor > 1.0f,
 				  "Exponential capacity growth must be greater than 1.0.");
+
+	// Maintaining elements in the middle of the capacity is more or less useless without the ability to shift.
+	static_assert(traits.location != sequence_lits::MIDDLE || std::move_constructible<T>,
+				  "Middle element location requires move-constructible types.");
+
 
 private:
 

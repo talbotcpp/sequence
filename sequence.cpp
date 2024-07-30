@@ -35,48 +35,59 @@ struct immovable {
 	immovable& operator=(immovable&&) = delete;
 };
 
+struct copy_only {
+	copy_only() = default;
+	copy_only(const copy_only&) = default;
+	copy_only(copy_only&&) = delete;
+	copy_only& operator=(const copy_only&) = default;
+	copy_only& operator=(copy_only&&) = delete;
+};
+
 struct unmakeable {
 	unmakeable() = delete;
 	char c;
 };
 
+struct base {
+	void foo() { println("base::foo"); }
+};
+struct has_foo : public base {
+	void foo() { println("has_foo::foo"); }
+};
+struct no_foo : public base {
+};
+
 int main()
 {
-	println("---- default --------------------------------");
-	sequence<int> s;
-	show(s);
+	//println("---- default --------------------------------");
+	//sequence<int> s;
+	//show(s);
 
-	println("---- vector ---------------------------------");
-	my_vector<int> s5;
-	show(s5);
+	//println("---- vector ---------------------------------");
+	//my_vector<int> s5;
+	//show(s5);
 
-	println("---- inplace_vector -------------------------");
-	my_inplace_vector<int, 10> s6;
-	show(s6);
+	//println("---- inplace_vector -------------------------");
+	//my_inplace_vector<int, 10> s6;
+	//show(s6);
 
-	println("---- small_vector ---------------------------");
-	my_small_vector<int, 15> s7;
-	show(s7);
+	//println("---- small_vector ---------------------------");
+	//my_small_vector<int, 15> s7;
+	//show(s7);
 
 	println("---- test -----------------------------------");
-	sequence<char,
-		sequence_traits<unsigned char> {
-			.dynamic = false,
-			.variable = false,
-			.capacity = 15,
-			.location = sequence_lits::FRONT,
-		}> s3;
-	show(s3);
+	//sequence<int,
+	//	sequence_traits<unsigned char> {
+	//		.dynamic = false,
+	//		.variable = false,
+	//		.capacity = 15,
+	//		.location = sequence_lits::MIDDLE,
+	//	}> s3;
+	//show(s3);
 
-	std::println("Size of s3:\t{}", sizeof(s3));
+	//std::println("Size of s3:\t{}", sizeof(s3));
 
 	println("---------------------------------------------");
-
-
-
-	immovable i1;
-	immovable i2;
-	vector<immovable> v;
 
 }
 
@@ -84,6 +95,30 @@ int main()
 
 
 /*
+* 
+
+	base b;
+	b.foo();
+	has_foo hf;
+	hf.foo();
+	no_foo nf;
+	nf.foo();
+
+	immovable i1;
+	immovable i2;
+	vector<immovable> v;
+
+	println("std::move_constructible<int> = {}", std::move_constructible<int>);
+	println("std::move_constructible<immovable> = {}", std::move_constructible<immovable>);
+	println("std::move_constructible<string> = {}", std::move_constructible<string>);
+	println("std::move_constructible<copy_only> = {}", std::move_constructible<copy_only>);
+
+	copy_only c1;
+	copy_only c2;
+	vector<copy_only> c;
+	c2 = c1;
+	//c.emplace_back();
+
 
 	union fred {
 		unmakeable m[5];
