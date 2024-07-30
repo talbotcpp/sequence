@@ -67,9 +67,11 @@ int main()
 	//my_vector<int> s5;
 	//show(s5);
 
-	//println("---- inplace_vector -------------------------");
-	//my_inplace_vector<int, 10> s6;
-	//show(s6);
+	println("---- inplace_vector -------------------------");
+	my_inplace_vector<int, 10> s6;
+	show(s6);
+	println("");
+
 
 	//println("---- small_vector ---------------------------");
 	//my_small_vector<int, 15> s7;

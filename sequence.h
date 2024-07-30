@@ -185,6 +185,12 @@ template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
 class sequence_management<sequence_lits::FRONT, DYN, VAR, T, SIZE, CAP> : public sequence_storage<DYN, VAR, T, SIZE, CAP>
 {
 	using value_type = T;
+	using inherited = sequence_storage<DYN, VAR, T, SIZE, CAP>;
+
+	using inherited::capacity;
+	using inherited::size;
+	using inherited::reallocate;
+	using inherited::capacity_start;
 
 public:
 	void id() const
@@ -198,15 +204,15 @@ public:
 	}
 	void push_back(const value_type& e)
 	{
-		if (size() == capacity());
-		//	reallocate();
+		if (size() == capacity())
+			reallocate();
 		add_back(e);
 	}
 
 protected:
 
-	//value_type* data_start() const { return capacity_start(); }
-	//value_type* data_end() const { return capacity_start() + size(); }
+	value_type* data_start() const { return capacity_start(); }
+	value_type* data_end() const { return capacity_start() + size(); }
 };
 
 // MIDDLE element location.
@@ -239,6 +245,11 @@ template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
 class sequence : public sequence_management<TRAITS.location, TRAITS.dynamic, TRAITS.variable,
 											T, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
+	using inherited = sequence_management<TRAITS.location, TRAITS.dynamic, TRAITS.variable,
+										T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
+	using inherited::data_start;
+	using inherited::data_end;
+
 public:
 
 	using value_type = T;
@@ -266,6 +277,8 @@ public:
 	static_assert(traits.location != sequence_lits::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
 
+	const value_type* begin() const { return data_start(); }
+	const value_type* end() const { return data_end(); }
 
 private:
 
