@@ -5,6 +5,8 @@
 *	Alan Talbot
 */
 
+#include <assert.h>
+
 // sequence_lits - Literals used to specify the values of various sequence traits.
 // These are hoisted out of the class template to avoid template dependencies.
 // See sequence_traits below for a detailed discussion of these values.
@@ -137,21 +139,48 @@ class sequence_storage<false, false, T, SIZE, CAP>
 public:
 
 	constexpr static size_t capacity() { return CAP; }
-	size_t size() { return m_size; }
+	size_t size() const { return m_size; }
 
 protected:
 
-	value_type* capacity_start() const { return m_elements; }
-	value_type* capacity_end() const { return m_elements + CAP; }
+	value_type* capacity_start() { return m_elements; }
+	value_type* capacity_end() { return m_elements + CAP; }
+	const value_type* capacity_start() const { return m_elements; }
+	const value_type* capacity_end() const { return m_elements + CAP; }
 
-	void add_back(const value_type& e)
+	void add(value_type* p, const value_type& e)
 	{
 		assert(size() < capacity());
-		new(m_elements + m_size++) value_type;
+		new(p) value_type(e);
+		++m_size;
+	}
+	void shift(value_type* beg, value_type* end, ptrdiff_t dist)
+	{
+		if (dist > 0)
+		{
+			assert(beg >= capacity_start());
+			assert(end + dist <= capacity_end());
+			for (auto dst = end; end > beg; --dst)
+			{
+				new(dst) value_type(*--end);
+				end->~value_type();
+			}
+			return;
+		}
+		if (dist < 0)
+		{
+			assert(beg - dist >= capacity_start());
+			assert(end <= capacity_end());
+			for (auto dst = beg + dist; beg < end; ++dst, ++beg)
+			{
+				new(dst) value_type(*beg);
+				beg->~value_type();
+			}
+		}
 	}
 	void reallocate()
 	{
-		throw std::bad_alloc;
+		throw std::bad_alloc();
 	}
 
 private:
@@ -189,30 +218,32 @@ class sequence_management<sequence_lits::FRONT, DYN, VAR, T, SIZE, CAP> : public
 
 	using inherited::capacity;
 	using inherited::size;
-	using inherited::reallocate;
 	using inherited::capacity_start;
+	using inherited::add;
+	using inherited::shift;
+	using inherited::reallocate;
 
 public:
-	void id() const
-	{
-		std::println("sequence_management: FRONT");
-	}
-
 	void push_front(const value_type& e)
 	{
-
+		if (size() == capacity())
+			reallocate();
+		shift(data_start(), data_end(), 1);
+		add(data_start(), e);
 	}
 	void push_back(const value_type& e)
 	{
 		if (size() == capacity())
 			reallocate();
-		add_back(e);
+		add(data_end(), e);
 	}
 
 protected:
 
-	value_type* data_start() const { return capacity_start(); }
-	value_type* data_end() const { return capacity_start() + size(); }
+	value_type* data_start() { return capacity_start(); }
+	value_type* data_end() { return capacity_start() + size(); }
+	const value_type* data_start() const { return capacity_start(); }
+	const value_type* data_end() const { return capacity_start() + size(); }
 };
 
 // MIDDLE element location.
@@ -220,11 +251,16 @@ protected:
 template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
 class sequence_management<sequence_lits::MIDDLE, DYN, VAR, T, SIZE, CAP> : public sequence_storage<DYN, VAR, T, SIZE, CAP>
 {
+	using value_type = T;
+	using inherited = sequence_storage<DYN, VAR, T, SIZE, CAP>;
+
+	using inherited::capacity;
+	using inherited::size;
+	using inherited::capacity_start;
+	using inherited::add;
+	using inherited::shift;
+	using inherited::reallocate;
 public:
-	void id() const
-	{
-		std::println("sequence_management: MIDDLE");
-	}
 };
 
 // BACK element location.
@@ -232,11 +268,38 @@ public:
 template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
 class sequence_management<sequence_lits::BACK, DYN, VAR, T, SIZE, CAP> : public sequence_storage<DYN, VAR, T, SIZE, CAP>
 {
+	using value_type = T;
+	using inherited = sequence_storage<DYN, VAR, T, SIZE, CAP>;
+
+	using inherited::capacity;
+	using inherited::size;
+	using inherited::capacity_end;
+	using inherited::add;
+	using inherited::shift;
+	using inherited::reallocate;
+
 public:
-	void id() const
+
+	void push_front(const value_type& e)
 	{
-		std::println("sequence_management: BACK");
+		if (size() == capacity())
+			reallocate();
+		add(data_start() - 1, e);
 	}
+	void push_back(const value_type& e)
+	{
+		if (size() == capacity())
+			reallocate();
+		shift(data_start(), data_end(), -1);
+		add(data_end() - 1, e);
+	}
+
+protected:
+
+	value_type* data_start() { return capacity_end() - size(); }
+	value_type* data_end() { return capacity_end(); }
+	const value_type* data_start() const { return capacity_end() - size(); }
+	const value_type* data_end() const { return capacity_end(); }
 };
 
 // sequence - This is the main class template.
@@ -289,8 +352,6 @@ template<typename SEQ>
 void show(const SEQ& seq)
 {
 	using traits_type = SEQ::traits_type;
-
-	seq.id();
 
 	std::println("Size Type:\t{}", typeid(traits_type::size_type).name());
 

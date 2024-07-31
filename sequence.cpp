@@ -67,10 +67,9 @@ int main()
 	//my_vector<int> s5;
 	//show(s5);
 
-	println("---- inplace_vector -------------------------");
-	my_inplace_vector<int, 10> s6;
-	show(s6);
-	println("");
+	//println("---- inplace_vector -------------------------");
+	//my_inplace_vector<int, 10> s6;
+	//show(s6);
 
 
 	//println("---- small_vector ---------------------------");
@@ -78,16 +77,32 @@ int main()
 	//show(s7);
 
 	println("---- test -----------------------------------");
-	//sequence<int,
-	//	sequence_traits<unsigned char> {
-	//		.dynamic = false,
-	//		.variable = false,
-	//		.capacity = 15,
-	//		.location = sequence_lits::MIDDLE,
-	//	}> s3;
-	//show(s3);
+	sequence<int,
+		sequence_traits<> {
+			.dynamic = false,
+			.variable = false,
+			.capacity = 10,
+			.location = sequence_lits::BACK,
+		}> s3;
+	show(s3);
 
-	//std::println("Size of s3:\t{}", sizeof(s3));
+	std::println("Size of s3:\t{}", sizeof(s3));
+	println("");
+
+	for (int i = 1; i < 6; ++i)
+		s3.push_front(i);
+
+	//try {
+	//	s3.push_back(42);
+	//}
+	//catch (std::bad_alloc& e)
+	//{
+	//	println("Oops!");
+	//}
+
+	for (auto&& e : s3)
+		print("{}\t", e);
+	println("");
 
 	println("---------------------------------------------");
 
