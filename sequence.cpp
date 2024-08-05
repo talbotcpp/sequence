@@ -77,20 +77,21 @@ int main()
 	//show(s7);
 
 	println("---- test -----------------------------------");
+
 	sequence<int,
 		sequence_traits<> {
 			.dynamic = false,
 			.variable = false,
 			.capacity = 10,
-			.location = sequence_lits::BACK,
+			.location = sequence_lits::MIDDLE,
 		}> s3;
 	show(s3);
 
 	std::println("Size of s3:\t{}", sizeof(s3));
 	println("");
 
-	for (int i = 1; i < 6; ++i)
-		s3.push_front(i);
+	for (int i = 1; i <= 10; ++i)
+		s3.push_back(i);
 
 	//try {
 	//	s3.push_back(42);
@@ -103,6 +104,8 @@ int main()
 	for (auto&& e : s3)
 		print("{}\t", e);
 	println("");
+
+	s3.~sequence();
 
 	println("---------------------------------------------");
 

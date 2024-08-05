@@ -160,9 +160,10 @@ protected:
 		{
 			assert(beg >= capacity_start());
 			assert(end + dist <= capacity_end());
-			for (auto dst = end; end > beg; --dst)
+			for (auto dst = end + dist; end > beg; --dst)
 			{
 				new(dst) value_type(*--end);
+				*end = 99999;	// !!!
 				end->~value_type();
 			}
 			return;
@@ -174,6 +175,7 @@ protected:
 			for (auto dst = beg + dist; beg < end; ++dst, ++beg)
 			{
 				new(dst) value_type(*beg);
+				*beg = 99999;	// !!!
 				beg->~value_type();
 			}
 		}
@@ -252,6 +254,7 @@ template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
 class sequence_management<sequence_lits::MIDDLE, DYN, VAR, T, SIZE, CAP> : public sequence_storage<DYN, VAR, T, SIZE, CAP>
 {
 	using value_type = T;
+	using size_type = SIZE;
 	using inherited = sequence_storage<DYN, VAR, T, SIZE, CAP>;
 
 	using inherited::capacity;
@@ -260,7 +263,46 @@ class sequence_management<sequence_lits::MIDDLE, DYN, VAR, T, SIZE, CAP> : publi
 	using inherited::add;
 	using inherited::shift;
 	using inherited::reallocate;
+
 public:
+
+	void push_front(const value_type& e)
+	{
+		if (size() == capacity())
+			reallocate();
+		if (m_offset == 0)
+		{
+			auto offset = (capacity() - size()) / 2u;
+			shift(data_start(), data_end(), offset);
+			m_offset = offset;
+		}
+		else --m_offset;
+		add(data_start(), e);
+	}
+	void push_back(const value_type& e)
+	{
+		if (size() == capacity())
+			reallocate();
+		if (back_gap() == 0)
+		{
+			auto offset = m_offset / 2;
+			shift(data_start(), data_end(), -ptrdiff_t(m_offset - offset));
+			m_offset = offset;
+		}
+		add(data_end(), e);
+	}
+
+protected:
+
+	value_type* data_start() { return capacity_start() + m_offset; }
+	value_type* data_end() { return capacity_start() + m_offset + size(); }
+	const value_type* data_start() const { return capacity_start() + m_offset; }
+	const value_type* data_end() const { return capacity_start() + m_offset + size(); }
+	size_type back_gap() const { return capacity() - (m_offset + size()); }
+
+private:
+
+	size_type m_offset = CAP / 2;
 };
 
 // BACK element location.
@@ -319,8 +361,11 @@ public:
 
 	~sequence()
 	{
-		//for (auto next(data_start()), end(data_end()); next != end; ++next)
-		//	next->~value_type();
+		for (auto next(data_start()), end(data_end()); next != end; ++next)
+		{
+			*next = 99999;	// !!!
+			next->~value_type();
+		}
 	}
 
 	using traits_type = decltype(TRAITS);
