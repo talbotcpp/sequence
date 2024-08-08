@@ -76,9 +76,14 @@ int main()
 	//my_small_vector<int, 15> s7;
 	//show(s7);
 
+	struct foo {
+		foo() : n(42) {}
+		int n;
+	};
+
 	println("---- test -----------------------------------");
 
-	sequence<int,
+	sequence<foo,
 		sequence_traits<> {
 			.dynamic = false,
 			.variable = false,
@@ -91,7 +96,7 @@ int main()
 	println("");
 
 	for (int i = 1; i <= 10; ++i)
-		s3.push_back(i);
+		s3.push_back(foo());
 
 	//try {
 	//	s3.push_back(42);
@@ -102,20 +107,50 @@ int main()
 	//}
 
 	for (auto&& e : s3)
-		print("{}\t", e);
+		print("{}\t", e.n);
 	println("");
 
-	s3.~sequence();
+///	s3.~sequence();
 
 	println("---------------------------------------------");
 
+
+	union storage_type {
+		storage_type() {}
+		foo element;
+		unsigned char unused;
+	};
+	println("sizeof(st) = {}", sizeof(storage_type));
+
+	int x = 10;
+	auto p = new storage_type[x];
+	auto e = p + x;
+	for (auto i = p; i != e; ++i)
+		print("{}\t", i->element.n);
+	println("");
+	delete[] p;
 }
 
 
 
 
 /*
-* 
+
+	union storage_type {
+		unsigned char unused;
+		int element;
+	};
+	println("sizeof(st) = {}", sizeof(storage_type));
+
+	int x = 10;
+	auto p = new storage_type[x];
+	auto e = p + x;
+	for (auto i = p; i != e; ++i)
+		print("{}\t", i->element);
+	println("");
+	delete[] p;
+
+
 
 	base b;
 	b.foo();

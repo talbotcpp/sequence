@@ -99,18 +99,39 @@ public:
 };
 
 // Dynamic, variable memory allocation. This is like std::vector.
-// The SIZE and CAP parameters are ignored.
+// The CAP parameter is ignored. The SIZE parameter is used only
+// for the offset value when the management mode is MIDDLE.
 
 template<typename T, typename SIZE>
 class sequence_storage<true, true, T, SIZE, size_t(0)>
 {
+	using value_type = T;
+
 public:
+
+	void resize(size_t new_size)
+	{}
+	void reserve(size_t new_capacity)
+	{}
+	void shrink_to_fit()
+	{}
+
 	constexpr static size_t capacity() { return 0; }
 	size_t size() { return 0; }
+
+private:
+
+	union storage_type {
+		storage_type() {}
+		value_type element;
+		unsigned char unused;
+	};
+
+
 };
 
 // Dynamic, fixed memory allocation. This is like std::vector if you pre-reserve memory,
-// but supports immovable objects. The SIZE parameter is ignored.
+// and never allow it to grow past the reserve, but it supports immovable objects.
 
 template<typename T, typename SIZE, size_t CAP>
 class sequence_storage<true, false, T, SIZE, CAP>
@@ -143,10 +164,10 @@ public:
 
 protected:
 
-	value_type* capacity_start() { return m_elements; }
-	value_type* capacity_end() { return m_elements + CAP; }
-	const value_type* capacity_start() const { return m_elements; }
-	const value_type* capacity_end() const { return m_elements + CAP; }
+	value_type* capacity_start() { return m_storage.elements; }
+	value_type* capacity_end() { return m_storage.elements + CAP; }
+	const value_type* capacity_start() const { return m_storage.elements; }
+	const value_type* capacity_end() const { return m_storage.elements + CAP; }
 
 	void add(value_type* p, const value_type& e)
 	{
@@ -163,7 +184,7 @@ protected:
 			for (auto dst = end + dist; end > beg; --dst)
 			{
 				new(dst) value_type(*--end);
-				*end = 99999;	// !!!
+///				*end = 99999;	// !!!
 				end->~value_type();
 			}
 			return;
@@ -175,7 +196,7 @@ protected:
 			for (auto dst = beg + dist; beg < end; ++dst, ++beg)
 			{
 				new(dst) value_type(*beg);
-				*beg = 99999;	// !!!
+///				*beg = 99999;	// !!!
 				beg->~value_type();
 			}
 		}
@@ -188,10 +209,11 @@ protected:
 private:
 
 	size_type m_size = 0;
-	union {
-		value_type m_elements[CAP];
+	union storage_type {
+		storage_type() {}
+		value_type elements[CAP];
 		unsigned char unused;
-	};
+	} m_storage;
 };
 
 // sequence_management - Base class for sequence which provides the different element management strategies.
@@ -363,7 +385,7 @@ public:
 	{
 		for (auto next(data_start()), end(data_end()); next != end; ++next)
 		{
-			*next = 99999;	// !!!
+///			*next = 99999;	// !!!
 			next->~value_type();
 		}
 	}
