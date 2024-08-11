@@ -115,15 +115,10 @@ int main()
 	println("---------------------------------------------");
 
 
-	union storage_type {
-		storage_type() {}
-		foo element;
-		unsigned char unused;
-	};
-	println("sizeof(st) = {}", sizeof(storage_type));
+	println("sizeof(st) = {}", sizeof(sequence_storage_type<int, 9>));
 
 	int x = 10;
-	auto p = new storage_type[x];
+	auto p = new sequence_storage_type<foo, 1>[x];
 	auto e = p + x;
 	for (auto i = p; i != e; ++i)
 		print("{}\t", i->element.n);

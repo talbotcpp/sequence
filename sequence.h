@@ -74,6 +74,26 @@ struct sequence_traits
 	float factor = 1.5;
 };
 
+// sequence_storage_type - This union template provides uninitialized storage for any capacity.
+// The specialization for capacity == 1 supports dynamically allocated arrays for variable capacity.
+// Note that it does not provide storage for the container size--that is the responsibility of
+// the sequence_storage template specializations.
+
+template<typename T, size_t CAP> requires (CAP != 0)
+union sequence_storage_type {
+	sequence_storage_type() {}
+	T elements[CAP];
+	unsigned char unused;
+};
+
+template<typename T>
+union sequence_storage_type<T, 1> {
+	sequence_storage_type() {}
+	T element;
+	unsigned char unused;
+};
+
+
 // sequence_storage - Base class for sequence which provides the different memory allocation strategies.
 // The DYN and VAR boolean parameters are sequence_traits::dynamic and sequence_traits::variable respectively.
 // The SIZE type parameter is sequence_traits::size_type. The CAP unsigned parameter is sequence_traits::capacity.
@@ -106,6 +126,7 @@ template<typename T, typename SIZE>
 class sequence_storage<true, true, T, SIZE, size_t(0)>
 {
 	using value_type = T;
+	using storage_type = sequence_storage_type<T, 1>;
 
 public:
 
@@ -119,15 +140,29 @@ public:
 	constexpr static size_t capacity() { return 0; }
 	size_t size() { return 0; }
 
+protected:
+
+	value_type* capacity_start() { return m_cap_begin; }
+	value_type* capacity_end() { return m_cap_end; }
+	const value_type* capacity_start() const { return m_cap_begin; }
+	const value_type* capacity_end() const { return m_cap_end; }
+
+	void add(value_type* p, const value_type& e)
+	{
+		assert(size() < capacity());
+		new(p) value_type(e);
+///		++m_size;
+	}
+	void reallocate()
+	{
+		throw std::bad_alloc();
+	}
+
 private:
 
-	union storage_type {
-		storage_type() {}
-		value_type element;
-		unsigned char unused;
-	};
-
-
+	storage_type* m_cap_begin = nullptr;	// The start of the capacity.
+	storage_type* m_data_edge = nullptr;	// The start of the data for BACK, otherwise the end+1 of the data.
+	storage_type* m_cap_end = nullptr;		// The end+1 of the capacity.
 };
 
 // Dynamic, fixed memory allocation. This is like std::vector if you pre-reserve memory,
@@ -208,12 +243,8 @@ protected:
 
 private:
 
+	sequence_storage_type<T, CAP> m_storage;
 	size_type m_size = 0;
-	union storage_type {
-		storage_type() {}
-		value_type elements[CAP];
-		unsigned char unused;
-	} m_storage;
 };
 
 // sequence_management - Base class for sequence which provides the different element management strategies.
@@ -252,8 +283,8 @@ public:
 	{
 		if (size() == capacity())
 			reallocate();
-		shift(data_start(), data_end(), 1);
-		add(data_start(), e);
+		shift(data_begin(), data_end(), 1);
+		add(data_begin(), e);
 	}
 	void push_back(const value_type& e)
 	{
@@ -264,9 +295,9 @@ public:
 
 protected:
 
-	value_type* data_start() { return capacity_start(); }
+	value_type* data_begin() { return capacity_start(); }
 	value_type* data_end() { return capacity_start() + size(); }
-	const value_type* data_start() const { return capacity_start(); }
+	const value_type* data_begin() const { return capacity_start(); }
 	const value_type* data_end() const { return capacity_start() + size(); }
 };
 
@@ -292,14 +323,14 @@ public:
 	{
 		if (size() == capacity())
 			reallocate();
-		if (m_offset == 0)
+		if (front_gap() == 0)
 		{
 			auto offset = (capacity() - size()) / 2u;
-			shift(data_start(), data_end(), offset);
+			shift(data_begin(), data_end(), offset);
 			m_offset = offset;
 		}
 		else --m_offset;
-		add(data_start(), e);
+		add(data_begin(), e);
 	}
 	void push_back(const value_type& e)
 	{
@@ -308,7 +339,7 @@ public:
 		if (back_gap() == 0)
 		{
 			auto offset = m_offset / 2;
-			shift(data_start(), data_end(), -ptrdiff_t(m_offset - offset));
+			shift(data_begin(), data_end(), -ptrdiff_t(m_offset - offset));
 			m_offset = offset;
 		}
 		add(data_end(), e);
@@ -316,10 +347,11 @@ public:
 
 protected:
 
-	value_type* data_start() { return capacity_start() + m_offset; }
+	value_type* data_begin() { return capacity_start() + m_offset; }
 	value_type* data_end() { return capacity_start() + m_offset + size(); }
-	const value_type* data_start() const { return capacity_start() + m_offset; }
+	const value_type* data_begin() const { return capacity_start() + m_offset; }
 	const value_type* data_end() const { return capacity_start() + m_offset + size(); }
+	size_type front_gap() const { return m_offset; }
 	size_type back_gap() const { return capacity() - (m_offset + size()); }
 
 private:
@@ -348,21 +380,21 @@ public:
 	{
 		if (size() == capacity())
 			reallocate();
-		add(data_start() - 1, e);
+		add(data_begin() - 1, e);
 	}
 	void push_back(const value_type& e)
 	{
 		if (size() == capacity())
 			reallocate();
-		shift(data_start(), data_end(), -1);
+		shift(data_begin(), data_end(), -1);
 		add(data_end() - 1, e);
 	}
 
 protected:
 
-	value_type* data_start() { return capacity_end() - size(); }
+	value_type* data_begin() { return capacity_end() - size(); }
 	value_type* data_end() { return capacity_end(); }
-	const value_type* data_start() const { return capacity_end() - size(); }
+	const value_type* data_begin() const { return capacity_end() - size(); }
 	const value_type* data_end() const { return capacity_end(); }
 };
 
@@ -374,7 +406,7 @@ class sequence : public sequence_management<TRAITS.location, TRAITS.dynamic, TRA
 {
 	using inherited = sequence_management<TRAITS.location, TRAITS.dynamic, TRAITS.variable,
 										T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
-	using inherited::data_start;
+	using inherited::data_begin;
 	using inherited::data_end;
 
 public:
@@ -383,7 +415,7 @@ public:
 
 	~sequence()
 	{
-		for (auto next(data_start()), end(data_end()); next != end; ++next)
+		for (auto next(data_begin()), end(data_end()); next != end; ++next)
 		{
 ///			*next = 99999;	// !!!
 			next->~value_type();
@@ -407,7 +439,7 @@ public:
 	static_assert(traits.location != sequence_lits::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
 
-	const value_type* begin() const { return data_start(); }
+	const value_type* begin() const { return data_begin(); }
 	const value_type* end() const { return data_end(); }
 
 private:
