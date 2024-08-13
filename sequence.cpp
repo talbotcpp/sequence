@@ -39,7 +39,7 @@ int main()
 	sequence<int,
 		sequence_traits<> {
 			.storage = sequence_lits::LOCAL,
-			.location = sequence_lits::MIDDLE,
+			.location = sequence_lits::FRONT,
 			.capacity = 10,
 		}> s3;
 	show(s3);

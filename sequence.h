@@ -13,7 +13,7 @@
 
 enum class sequence_lits {
 	LOCAL, FIXED, VARIABLE,			// See sequence_traits::storage.
-	FRONT, MIDDLE, BACK,			// See sequence_traits::location.
+	FRONT, BACK, MIDDLE,			// See sequence_traits::location.
 	LINEAR, EXPONENTIAL, VECTOR,	// See sequence_traits::growth.
 };
 
@@ -41,8 +41,8 @@ struct sequence_traits
 
 	// 'location' specifies how the data are managed within the capacity:
 	//		FRONT:	Data starts at the lowest memory location. This makes push_back most efficient (like std::vector).
-	//		MIDDLE:	Data floats in the middle of the capacity. This makes both push_back and push_front efficient (similar to std::deque).
 	//		BACK:	Data ends at the highest memory location. This makes push_front most efficient.
+	//		MIDDLE:	Data floats in the middle of the capacity. This makes both push_back and push_front efficient (similar to std::deque).
 
 	sequence_lits location = sequence_lits::FRONT;
 
@@ -242,6 +242,14 @@ public:
 	}
 };
 
+template<typename T>
+union sequence_storage_type<T, 1> {
+	sequence_storage_type() {}
+	T element;
+	unsigned char unused;
+};
+
+
 */
 
 // The shift_... functions move sequential elements in memory by the requested amount.
@@ -283,48 +291,60 @@ void shift_reverse(T* begin, T* end, size_t distance)
 // Note that it does not provide storage for the container size--that is the responsibility of
 // the sequence_storage template specializations.
 
+
+// sequence_elements
+
 template<typename T, size_t CAP> requires (CAP != 0)
-union sequence_storage_type {
-	sequence_storage_type() {}
-	T elements[CAP];
-	unsigned char unused;
-};
-
-template<typename T>
-union sequence_storage_type<T, 1> {
-	sequence_storage_type() {}
-	T element;
-	unsigned char unused;
-};
-
-
-// sequence_implementation - This is the main class template.
-
-template<sequence_lits STO, sequence_lits LOC, typename T, typename SIZE, size_t CAP>
-class sequence_implementation
+class sequence_elements
 {
-	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
-};
+	using value_type = T;
 
-// LOCAL storage specializations. These are like std::inplace_vector (or boost::static_vector).
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::LOCAL, sequence_lits::FRONT, T, SIZE, CAP>
-{
 public:
 
-	using value_type = T;
-	using size_type = SIZE;
+	sequence_elements() {}
 
 	constexpr static size_t capacity() { return CAP; }
-	size_t size() const { return m_size; }
 
 protected:
 
-	value_type* capacity_begin() { return m_storage.elements; }
-	value_type* capacity_end() { return m_storage.elements + CAP; }
-	const value_type* capacity_begin() const { return m_storage.elements; }
-	const value_type* capacity_end() const { return m_storage.elements + CAP; }
+	value_type* capacity_begin() { return elements; }
+	value_type* capacity_end() { return elements + CAP; }
+	const value_type* capacity_begin() const { return elements; }
+	const value_type* capacity_end() const { return elements + CAP; }
+
+private:
+
+	union
+	{
+		value_type elements[CAP];
+		unsigned char unused;
+	};
+};
+
+
+// sequence_storage - This is the main class template.
+
+template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
+class sequence_storage
+{
+	static_assert(false, "An unimplemented specialization of sequence_storage was instantiated.");
+};
+
+
+template<typename T, typename SIZE, size_t CAP>
+class sequence_storage<sequence_lits::FRONT, T, SIZE, CAP> : sequence_elements<T, CAP>
+{
+	using value_type = T;
+	using size_type = SIZE;
+	using inherited = sequence_elements<T, CAP>;
+	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+
+public:
+
+	size_t size() const { return m_size; }
+
 	value_type* data_begin() { return capacity_begin(); }
 	value_type* data_end() { return capacity_begin() + m_size; }
 	const value_type* data_begin() const { return capacity_begin(); }
@@ -347,34 +367,68 @@ protected:
 		new(data_end()) value_type(e);
 		++m_size;
 	}
-	void reallocate()
-	{
-		throw std::bad_alloc();
-	}
 
 private:
 
-	sequence_storage_type<T, CAP> m_storage;
 	size_type m_size = 0;
 };
 
 template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::LOCAL, sequence_lits::MIDDLE, T, SIZE, CAP>
+class sequence_storage<sequence_lits::BACK, T, SIZE, CAP> : sequence_elements<T, CAP>
 {
-public:
-
 	using value_type = T;
 	using size_type = SIZE;
+	using inherited = sequence_elements<T, CAP>;
+	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
 
-	constexpr static size_t capacity() { return CAP; }
+public:
+
+	size_t size() const { return m_size; }
+
+	value_type* data_begin() { return capacity_end() - m_size; }
+	value_type* data_end() { return capacity_end(); }
+	const value_type* data_begin() const { return capacity_end() - m_size; }
+	const value_type* data_end() const { return capacity_end(); }
+
+	void add_front(const value_type& e)
+	{
+		assert(size() < capacity());
+
+		new(data_begin() - 1) value_type(e);
+		++m_size;
+	}
+	void add_back(const value_type& e)
+	{
+		assert(size() < capacity());
+		assert(data_begin() > capacity_begin());
+		assert(data_end() <= capacity_end());
+
+		shift_reverse(data_begin(), data_end(), 1);
+		new(data_end() - 1) value_type(e);
+		++m_size;
+	}
+
+private:
+
+	size_type m_size = 0;
+};
+
+template<typename T, typename SIZE, size_t CAP>
+class sequence_storage<sequence_lits::MIDDLE, T, SIZE, CAP> : sequence_elements<T, CAP>
+{
+	using value_type = T;
+	using size_type = SIZE;
+	using inherited = sequence_elements<T, CAP>;
+	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+
+public:
+
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 
-protected:
-
-	value_type* capacity_begin() { return m_storage.elements; }
-	value_type* capacity_end() { return m_storage.elements + CAP; }
-	const value_type* capacity_begin() const { return m_storage.elements; }
-	const value_type* capacity_end() const { return m_storage.elements + CAP; }
 	value_type* data_begin() { return capacity_begin() + m_front_gap; }
 	value_type* data_end() { return capacity_end() - m_back_gap; }
 	const value_type* data_begin() const { return capacity_begin() + m_front_gap; }
@@ -412,6 +466,43 @@ protected:
 		else --m_back_gap;
 		new(data_end() - 1) value_type(e);
 	}
+
+private:
+
+	size_type m_front_gap = CAP / 2;
+	size_type m_back_gap = CAP - CAP / 2;
+};
+
+// sequence_implementation - This is the main class template.
+
+template<sequence_lits STO, sequence_lits LOC, typename T, typename SIZE, size_t CAP>
+class sequence_implementation
+{
+	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
+};
+
+// LOCAL storage specializations. These are like std::inplace_vector (or boost::static_vector).
+
+template<typename T, typename SIZE, size_t CAP>
+class sequence_implementation<sequence_lits::LOCAL, sequence_lits::FRONT, T, SIZE, CAP>
+{
+public:
+
+	using value_type = T;
+	using size_type = SIZE;
+
+	constexpr static size_t capacity() { return CAP; }
+	size_t size() const { return m_storage.size(); }
+
+protected:
+
+	void add_front(const value_type& e) { m_storage.add_front(e); }
+	void add_back(const value_type& e) { m_storage.add_back(e); }
+	auto data_begin() { return m_storage.data_begin(); }
+	auto data_end() { return m_storage.data_end(); }
+	auto data_begin() const { return m_storage.data_begin(); }
+	auto data_end() const { return m_storage.data_end(); }
+
 	void reallocate()
 	{
 		throw std::bad_alloc();
@@ -419,9 +510,7 @@ protected:
 
 private:
 
-	sequence_storage_type<T, CAP> m_storage;
-	size_type m_front_gap = CAP / 2;
-	size_type m_back_gap = CAP - CAP / 2;
+	sequence_storage<sequence_lits::FRONT, T, SIZE, CAP> m_storage;
 };
 
 template<typename T, typename SIZE, size_t CAP>
@@ -433,36 +522,17 @@ public:
 	using size_type = SIZE;
 
 	constexpr static size_t capacity() { return CAP; }
-	size_t size() const { return m_size; }
+	size_t size() const { return m_storage.size(); }
 
 protected:
 
-	value_type* capacity_begin() { return m_storage.elements; }
-	value_type* capacity_end() { return m_storage.elements + CAP; }
-	const value_type* capacity_begin() const { return m_storage.elements; }
-	const value_type* capacity_end() const { return m_storage.elements + CAP; }
-	value_type* data_begin() { return capacity_end() - m_size; }
-	value_type* data_end() { return capacity_end(); }
-	const value_type* data_begin() const { return capacity_end() - m_size; }
-	const value_type* data_end() const { return capacity_end(); }
+	void add_front(const value_type& e) { m_storage.add_front(e); }
+	void add_back(const value_type& e) { m_storage.add_back(e); }
+	auto data_begin() { return m_storage.data_begin(); }
+	auto data_end() { return m_storage.data_end(); }
+	auto data_begin() const { return m_storage.data_begin(); }
+	auto data_end() const { return m_storage.data_end(); }
 
-	void add_front(const value_type& e)
-	{
-		assert(size() < capacity());
-
-		new(data_begin() - 1) value_type(e);
-		++m_size;
-	}
-	void add_back(const value_type& e)
-	{
-		assert(size() < capacity());
-		assert(data_begin() > capacity_begin());
-		assert(data_end() <= capacity_end());
-
-		shift_reverse(data_begin(), data_end(), 1);
-		new(data_end() - 1) value_type(e);
-		++m_size;
-	}
 	void reallocate()
 	{
 		throw std::bad_alloc();
@@ -470,8 +540,37 @@ protected:
 
 private:
 
-	sequence_storage_type<T, CAP> m_storage;
-	size_type m_size = 0;
+	sequence_storage<sequence_lits::BACK, T, SIZE, CAP> m_storage;
+};
+
+template<typename T, typename SIZE, size_t CAP>
+class sequence_implementation<sequence_lits::LOCAL, sequence_lits::MIDDLE, T, SIZE, CAP>
+{
+public:
+
+	using value_type = T;
+	using size_type = SIZE;
+
+	constexpr static size_t capacity() { return CAP; }
+	size_t size() const { return m_storage.size(); }
+
+protected:
+
+	void add_front(const value_type& e) { m_storage.add_front(e); }
+	void add_back(const value_type& e) { m_storage.add_back(e); }
+	auto data_begin() { return m_storage.data_begin(); }
+	auto data_end() { return m_storage.data_end(); }
+	auto data_begin() const { return m_storage.data_begin(); }
+	auto data_end() const { return m_storage.data_end(); }
+
+	void reallocate()
+	{
+		throw std::bad_alloc();
+	}
+
+private:
+
+	sequence_storage<sequence_lits::MIDDLE, T, SIZE, CAP> m_storage;
 };
 
 // FIXED storage specializations.
@@ -531,8 +630,8 @@ template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
 class sequence : public sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
 	using inherited = sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
-	using inherited::capacity_begin;
-	using inherited::capacity_end;
+	//using inherited::capacity_begin;
+	//using inherited::capacity_end;
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::add_front;
@@ -544,15 +643,6 @@ public:
 	using inherited::size;
 	using inherited::capacity;
 	using inherited::reallocate;
-
-	~sequence()
-	{
-		for (auto next(data_begin()), end(data_end()); next != end; ++next)
-		{
-			*next = 99999;	// !!!
-			next->~value_type();
-		}
-	}
 
 	using traits_type = decltype(TRAITS);
 	static constexpr traits_type traits = TRAITS;
@@ -566,6 +656,15 @@ public:
 	// Maintaining elements in the middle of the capacity is more or less useless without the ability to shift.
 	static_assert(traits.location != sequence_lits::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
+
+	~sequence()
+	{
+		for (auto next(data_begin()), end(data_end()); next != end; ++next)
+		{
+			*next = 99999;	// !!!
+			next->~value_type();
+		}
+	}
 
 	const value_type* begin() const { return data_begin(); }
 	const value_type* end() const { return data_end(); }
