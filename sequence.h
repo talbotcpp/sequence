@@ -57,8 +57,8 @@ struct sequence_traits
 	sequence_lits growth = sequence_lits::VECTOR;
 
 	// 'capacity' is the size of the fixed or local (SBO) capacity. For storages LOCAL and FIXED, it must be non-zero.
-	// For storage VARIABLE: if 'capacity' is zero then the capacity is always dynamically allocated; if 'capacity' is
-	// non-zero then it is the size of the small object optimization buffer (SBO).
+	// For storage VARIABLE: if 'capacity' is zero then the capacity is always dynamically allocated (like std::vector);
+	// if 'capacity' is non-zero then it is the size of the small object optimization buffer (SBO).
 
 	size_t capacity = CAP;
 
@@ -72,185 +72,6 @@ struct sequence_traits
 	float factor = 1.5;
 };
 
-/*
-// sequence_storage - Base class for sequence which provides the different memory allocation strategies.
-// The DYN and VAR boolean parameters are sequence_traits::dynamic and sequence_traits::variable respectively.
-// The SIZE type parameter is sequence_traits::size_type. The CAP unsigned parameter is sequence_traits::capacity.
-
-// The primary template. This is never instantiated.
-
-template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
-class sequence_storage
-{
-public:
-	constexpr static size_t capacity() { return 0; }
-	size_t size() { return 0; }
-};
-
-// Dynamic, variable memory allocation with small object optimization. This is like boost::small_vector.
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_storage<true, true, T, SIZE, CAP>
-{
-public:
-	constexpr static size_t capacity() { return 0; }
-	size_t size() { return 0; }
-};
-
-// Dynamic, variable memory allocation. This is like std::vector.
-// The CAP parameter is ignored. The SIZE parameter is used only
-// for the offset value when the management mode is MIDDLE.
-
-template<typename T, typename SIZE>
-class sequence_storage<true, true, T, SIZE, size_t(0)>
-{
-	using value_type = T;
-	using storage_type = sequence_storage_type<T, 1>;
-
-public:
-
-	void resize(size_t new_size)
-	{}
-	void reserve(size_t new_capacity)
-	{}
-	void shrink_to_fit()
-	{}
-
-	constexpr static size_t capacity() { return 0; }
-	size_t size() { return 0; }
-
-protected:
-
-	value_type* capacity_start() { return m_cap_begin; }
-	value_type* capacity_end() { return m_cap_end; }
-	const value_type* capacity_start() const { return m_cap_begin; }
-	const value_type* capacity_end() const { return m_cap_end; }
-
-	void add(value_type* p, const value_type& e)
-	{
-		assert(size() < capacity());
-		new(p) value_type(e);
-///		++m_size;
-	}
-	void reallocate()
-	{
-		throw std::bad_alloc();
-	}
-
-private:
-
-	storage_type* m_cap_begin = nullptr;	// The start of the capacity.
-	storage_type* m_data_edge = nullptr;	// The start of the data for BACK, otherwise the end+1 of the data.
-	storage_type* m_cap_end = nullptr;		// The end+1 of the capacity.
-};
-
-// Dynamic, fixed memory allocation. This is like std::vector if you pre-reserve memory,
-// and never allow it to grow past the reserve, but it supports immovable objects.
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_storage<true, false, T, SIZE, CAP>
-{
-	using value_type = T;
-	using size_type = SIZE;
-
-public:
-
-	constexpr static size_t capacity() { return CAP; }
-	size_t size() { return m_size; }
-
-private:
-
-	size_type m_size = 0;
-};
-
-// Local, fixed memory allocation. This is like std::inplace_vector (or boost::static_vector).
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_storage<false, false, T, SIZE, CAP>
-{
-	using value_type = T;
-	using size_type = SIZE;
-
-public:
-
-	constexpr static size_t capacity() { return CAP; }
-	size_t size() const { return m_size; }
-
-protected:
-
-	value_type* capacity_start() { return m_storage.elements; }
-	value_type* capacity_end() { return m_storage.elements + CAP; }
-	const value_type* capacity_start() const { return m_storage.elements; }
-	const value_type* capacity_end() const { return m_storage.elements + CAP; }
-
-	void add(value_type* p, const value_type& e)
-	{
-		assert(size() < capacity());
-		new(p) value_type(e);
-		++m_size;
-	}
-	void shift(value_type* beg, value_type* end, ptrdiff_t dist)
-	{
-		if (dist > 0)
-		{
-			assert(beg >= capacity_start());
-			assert(end + dist <= capacity_end());
-			for (auto dst = end + dist; end > beg; --dst)
-			{
-				new(dst) value_type(*--end);
-///				*end = 99999;	// !!!
-				end->~value_type();
-			}
-			return;
-		}
-		if (dist < 0)
-		{
-			assert(beg - dist >= capacity_start());
-			assert(end <= capacity_end());
-			for (auto dst = beg + dist; beg < end; ++dst, ++beg)
-			{
-				new(dst) value_type(*beg);
-///				*beg = 99999;	// !!!
-				beg->~value_type();
-			}
-		}
-	}
-	void reallocate()
-	{
-		throw std::bad_alloc();
-	}
-
-private:
-
-	sequence_storage_type<T, CAP> m_storage;
-	size_type m_size = 0;
-};
-
-// sequence_management - Base class for sequence which provides the different element management strategies.
-// The LOC sequence_lits parameter specifies which element management strategy to use. The remaining parameters
-// are passed on the sequence_storage base class.
-
-// The primary template. This is never instantiated.
-
-template<sequence_lits LOC, bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
-class sequence_management
-{
-public:
-	void id() const
-	{
-		std::println("sequence_management: primary template");
-	}
-};
-
-template<typename T>
-union sequence_storage_type<T, 1> {
-	sequence_storage_type() {}
-	T element;
-	unsigned char unused;
-};
-
-
-*/
 
 // The shift_... functions move sequential elements in memory by the requested amount.
 // Forward is toward the end (increasing memory). Reverse is toward the beginning (decreasing memory).
@@ -286,12 +107,6 @@ void shift_reverse(T* begin, T* end, size_t distance)
 }
 
 
-// sequence_storage_type - This union template provides uninitialized storage for any capacity.
-// The specialization for capacity == 1 supports dynamically allocated arrays for variable capacity.
-// Note that it does not provide storage for the container size--that is the responsibility of
-// the sequence_storage template specializations.
-
-
 // sequence_elements
 
 template<typename T, size_t CAP> requires (CAP != 0)
@@ -322,7 +137,7 @@ private:
 };
 
 
-// sequence_storage - This is the main class template.
+// sequence_storage - Helper class for sequence which provides the 3 different element management strategies.
 
 template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
 class sequence_storage
@@ -473,7 +288,8 @@ private:
 	size_type m_back_gap = CAP - CAP / 2;
 };
 
-// sequence_implementation - This is the main class template.
+
+// sequence_implementation - Base class for sequence which provides the 4 different memory allocation strategies.
 
 template<sequence_lits STO, sequence_lits LOC, typename T, typename SIZE, size_t CAP>
 class sequence_implementation
@@ -481,15 +297,14 @@ class sequence_implementation
 	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
 };
 
-// LOCAL storage specializations. These are like std::inplace_vector (or boost::static_vector).
+// LOCAL storage specialization (like std::inplace_vector or boost::static_vector).
 
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::LOCAL, sequence_lits::FRONT, T, SIZE, CAP>
+template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
+class sequence_implementation<sequence_lits::LOCAL, LOC, T, SIZE, CAP>
 {
 public:
 
 	using value_type = T;
-	using size_type = SIZE;
 
 	constexpr static size_t capacity() { return CAP; }
 	size_t size() const { return m_storage.size(); }
@@ -510,28 +325,40 @@ protected:
 
 private:
 
-	sequence_storage<sequence_lits::FRONT, T, SIZE, CAP> m_storage;
+	sequence_storage<LOC, T, SIZE, CAP> m_storage;
 };
 
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::LOCAL, sequence_lits::BACK, T, SIZE, CAP>
+// FIXED storage specialization. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
+
+template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
+class sequence_implementation<sequence_lits::FIXED, LOC, T, SIZE, CAP>
 {
+	using value_type = T;
+	using storage_type = sequence_storage<LOC, T, SIZE, CAP>;
+
 public:
 
-	using value_type = T;
-	using size_type = SIZE;
-
 	constexpr static size_t capacity() { return CAP; }
-	size_t size() const { return m_storage.size(); }
+	size_t size() const { return m_storage ? m_storage->size() : 0; }
 
 protected:
 
-	void add_front(const value_type& e) { m_storage.add_front(e); }
-	void add_back(const value_type& e) { m_storage.add_back(e); }
-	auto data_begin() { return m_storage.data_begin(); }
-	auto data_end() { return m_storage.data_end(); }
-	auto data_begin() const { return m_storage.data_begin(); }
-	auto data_end() const { return m_storage.data_end(); }
+	void add_front(const value_type& e)
+	{
+		if (!m_storage)
+			m_storage.reset(new storage_type);
+		m_storage->add_front(e);
+	}
+	void add_back(const value_type& e)
+	{
+		if (!m_storage)
+			m_storage.reset(new storage_type);
+		m_storage->add_back(e);
+	}
+	auto data_begin() { return m_storage ? m_storage->data_begin() : nullptr; }
+	auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
+	auto data_begin() const { return m_storage ? m_storage->data_begin() : nullptr; }
+	auto data_end() const { return m_storage ? m_storage->data_end() : nullptr; }
 
 	void reallocate()
 	{
@@ -540,57 +367,10 @@ protected:
 
 private:
 
-	sequence_storage<sequence_lits::BACK, T, SIZE, CAP> m_storage;
+	std::unique_ptr<storage_type> m_storage;
 };
 
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::LOCAL, sequence_lits::MIDDLE, T, SIZE, CAP>
-{
-public:
-
-	using value_type = T;
-	using size_type = SIZE;
-
-	constexpr static size_t capacity() { return CAP; }
-	size_t size() const { return m_storage.size(); }
-
-protected:
-
-	void add_front(const value_type& e) { m_storage.add_front(e); }
-	void add_back(const value_type& e) { m_storage.add_back(e); }
-	auto data_begin() { return m_storage.data_begin(); }
-	auto data_end() { return m_storage.data_end(); }
-	auto data_begin() const { return m_storage.data_begin(); }
-	auto data_end() const { return m_storage.data_end(); }
-
-	void reallocate()
-	{
-		throw std::bad_alloc();
-	}
-
-private:
-
-	sequence_storage<sequence_lits::MIDDLE, T, SIZE, CAP> m_storage;
-};
-
-// FIXED storage specializations.
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::FIXED, sequence_lits::FRONT, T, SIZE, CAP>
-{
-};
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::FIXED, sequence_lits::MIDDLE, T, SIZE, CAP>
-{
-};
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::FIXED, sequence_lits::BACK, T, SIZE, CAP>
-{
-};
-
-// VARIABLE storage specializations supporting a small object buffer optimization.
+// VARIABLE storage specializations supporting a small object buffer optimization (like boost::small_vector).
 
 template<typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::FRONT, T, SIZE, CAP>
@@ -624,14 +404,13 @@ class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::BACK, T, S
 {
 };
 
+
 // sequence - This is the main class template.
 
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
 class sequence : public sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
 	using inherited = sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
-	//using inherited::capacity_begin;
-	//using inherited::capacity_end;
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::add_front;
@@ -682,10 +461,20 @@ public:
 		add_back(e);
 	}
 
+	void resize(size_t new_size)
+	{}
+	void reserve(size_t new_capacity)
+	{}
+	void shrink_to_fit()
+	{}
+
 private:
 
 
 };
+
+
+// show - Debugging display for sequence traits.
 
 template<typename SEQ>
 void show(const SEQ& seq)
