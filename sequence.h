@@ -242,87 +242,38 @@ public:
 	}
 };
 
-
-// MIDDLE element location.
-
-template<bool DYN, bool VAR, typename T, typename SIZE, size_t CAP>
-class sequence_management<sequence_lits::MIDDLE, DYN, VAR, T, SIZE, CAP> : public sequence_storage<DYN, VAR, T, SIZE, CAP>
-{
-	using value_type = T;
-	using size_type = SIZE;
-	using inherited = sequence_storage<DYN, VAR, T, SIZE, CAP>;
-
-	using inherited::capacity;
-	using inherited::size;
-	using inherited::capacity_start;
-	using inherited::add;
-	using inherited::shift;
-	using inherited::reallocate;
-
-public:
-
-	void push_front(const value_type& e)
-	{
-		if (size() == capacity())
-			reallocate();
-		if (front_gap() == 0)
-		{
-			auto offset = (capacity() - size()) / 2u;
-			shift(data_begin(), data_end(), offset);
-			m_offset = offset;
-		}
-		else --m_offset;
-		add(data_begin(), e);
-	}
-	void push_back(const value_type& e)
-	{
-		if (size() == capacity())
-			reallocate();
-		if (back_gap() == 0)
-		{
-			auto offset = m_offset / 2;
-			shift(data_begin(), data_end(), -ptrdiff_t(m_offset - offset));
-			m_offset = offset;
-		}
-		add(data_end(), e);
-	}
-
-protected:
-
-	value_type* data_begin() { return capacity_start() + m_offset; }
-	value_type* data_end() { return capacity_start() + m_offset + size(); }
-	const value_type* data_begin() const { return capacity_start() + m_offset; }
-	const value_type* data_end() const { return capacity_start() + m_offset + size(); }
-	size_type front_gap() const { return m_offset; }
-	size_type back_gap() const { return capacity() - (m_offset + size()); }
-
-private:
-
-	size_type m_offset = CAP / 2;
-};
-
 */
 
+// The shift_... functions move sequential elements in memory by the requested amount.
+// Forward is toward the end (increasing memory). Reverse is toward the beginning (decreasing memory).
+// The preconditions are:
+//		end is not prior to begin
+//		distance is non-zero (this algorithm is destructive for zero distance)
+//		distance does not result in overflowing the array
+
 template<typename T>
-void shift(T* begin, T* end, ptrdiff_t distance)
+void shift_forward(T* begin, T* end, size_t distance)
 {
-	if (distance > 0)
+	assert(distance != 0);
+
+	for (auto dest = end + distance; end > begin;)
 	{
-		for (auto dest = end + distance; end > begin;)
-		{
-			new(--dest) T(*--end);
-			*end = 99999;	// !!!
-			end->~T();
-		}
+		new(--dest) T(*--end);
+		*end = 99999;	// !!!
+		end->~T();
 	}
-	else if (distance < 0)
+}
+
+template<typename T>
+void shift_reverse(T* begin, T* end, size_t distance)
+{
+	assert(distance != 0);
+
+	for (auto dest = begin - distance; begin < end; ++dest, ++begin)
 	{
-		for (auto dest = begin + distance; begin < end; ++dest, ++begin)
-		{
-			new(dest) T(*begin);
-			*begin = 99999;	// !!!
-			begin->~T();
-		}
+		new(dest) T(*begin);
+		*begin = 99999;	// !!!
+		begin->~T();
 	}
 }
 
@@ -385,7 +336,7 @@ protected:
 		assert(data_begin() >= capacity_begin());
 		assert(data_end() < capacity_end());
 
-		shift(data_begin(), data_end(), 1);
+		shift_forward(data_begin(), data_end(), 1);
 		new(data_begin()) value_type(e);
 		++m_size;
 	}
@@ -439,7 +390,7 @@ protected:
 			auto offset = m_back_gap;
 			m_back_gap /= 2u;
 			offset -= m_back_gap;
-			shift(data_begin(), data_end(), offset);
+			shift_forward(data_begin(), data_end(), offset);
 			m_front_gap = offset - 1;
 		}
 		else --m_front_gap;
@@ -455,7 +406,7 @@ protected:
 			auto offset = m_front_gap;
 			m_front_gap /= 2u;
 			offset -= m_front_gap;
-			shift(data_begin(), data_end(), -ptrdiff_t(offset));
+			shift_reverse(data_begin(), data_end(), offset);
 			m_back_gap = offset - 1;
 		}
 		else --m_back_gap;
@@ -508,7 +459,7 @@ protected:
 		assert(data_begin() > capacity_begin());
 		assert(data_end() <= capacity_end());
 
-		shift(data_begin(), data_end(), -1);
+		shift_reverse(data_begin(), data_end(), 1);
 		new(data_end() - 1) value_type(e);
 		++m_size;
 	}
