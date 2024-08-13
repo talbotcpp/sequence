@@ -4,29 +4,83 @@ import std;
 
 using namespace std;
 
-template<typename T>
-using my_vector = sequence<T,
-	sequence_traits<> {
-		.dynamic = true,
-		.variable = true,
-		.growth = sequence_lits::VECTOR,
-	}>;
+//template<typename T>
+//using my_vector = sequence<T,
+//	sequence_traits<> {
+//		.dynamic = true,
+//		.variable = true,
+//		.growth = sequence_lits::VECTOR,
+//	}>;
+//
+//template<typename T, size_t S>
+//using my_inplace_vector = sequence<T,
+//	sequence_traits<size_t, S> {
+//		.dynamic = false,
+//		.variable = false,
+//	}>;
+//
+//template<typename T, size_t S>
+//using my_small_vector = sequence<T,
+//	sequence_traits<size_t, S> {
+//		.dynamic = true,
+//		.variable = true,
+//	}>;
 
-template<typename T, size_t S>
-using my_inplace_vector = sequence<T,
-	sequence_traits<size_t, S> {
-		.dynamic = false,
-		.variable = false,
-	}>;
 
-template<typename T, size_t S>
-using my_small_vector = sequence<T,
-	sequence_traits<size_t, S> {
-		.dynamic = true,
-		.variable = true,
-	}>;
+int main()
+{
+	struct foo {
+		foo() : n(42) {}
+		int n;
+	};
+
+	println("---- test -----------------------------------");
+
+	sequence<foo,
+		sequence_traits<> {
+			.storage = sequence_lits::VARIABLE,
+			.location = sequence_lits::FRONT,
+			//.capacity = 10,
+		}> s3;
+	show(s3);
+
+	println("");
+
+	//for (int i = 1; i <= 10; ++i)
+	//	s3.push_back(foo());
+
+	//try {
+	//	s3.push_back(42);
+	//}
+	//catch (std::bad_alloc& e)
+	//{
+	//	println("Oops!");
+	//}
+
+	//for (auto&& e : s3)
+	//	print("{}\t", e.n);
+	//println("");
+
+///	s3.~sequence();
+
+	println("---------------------------------------------");
 
 
+	//println("sizeof(st) = {}", sizeof(sequence_storage_type<int, 9>));
+
+	//int x = 10;
+	//auto p = new sequence_storage_type<foo, 1>[x];
+	//auto e = p + x;
+	//for (auto i = p; i != e; ++i)
+	//	print("{}\t", i->element.n);
+	//println("");
+	//delete[] p;
+}
+
+
+
+
+/*
 struct immovable {
 	immovable() = default;
 	immovable(const immovable&) = delete;
@@ -57,79 +111,6 @@ struct has_foo : public base {
 struct no_foo : public base {
 };
 
-int main()
-{
-	//println("---- default --------------------------------");
-	//sequence<int> s;
-	//show(s);
-
-	//println("---- vector ---------------------------------");
-	//my_vector<int> s5;
-	//show(s5);
-
-	//println("---- inplace_vector -------------------------");
-	//my_inplace_vector<int, 10> s6;
-	//show(s6);
-
-
-	//println("---- small_vector ---------------------------");
-	//my_small_vector<int, 15> s7;
-	//show(s7);
-
-	struct foo {
-		foo() : n(42) {}
-		int n;
-	};
-
-	println("---- test -----------------------------------");
-
-	sequence<foo,
-		sequence_traits<> {
-			.dynamic = false,
-			.variable = false,
-			.capacity = 10,
-			.location = sequence_lits::MIDDLE,
-		}> s3;
-	show(s3);
-
-	std::println("Size of s3:\t{}", sizeof(s3));
-	println("");
-
-	for (int i = 1; i <= 10; ++i)
-		s3.push_back(foo());
-
-	//try {
-	//	s3.push_back(42);
-	//}
-	//catch (std::bad_alloc& e)
-	//{
-	//	println("Oops!");
-	//}
-
-	for (auto&& e : s3)
-		print("{}\t", e.n);
-	println("");
-
-///	s3.~sequence();
-
-	println("---------------------------------------------");
-
-
-	println("sizeof(st) = {}", sizeof(sequence_storage_type<int, 9>));
-
-	int x = 10;
-	auto p = new sequence_storage_type<foo, 1>[x];
-	auto e = p + x;
-	for (auto i = p; i != e; ++i)
-		print("{}\t", i->element.n);
-	println("");
-	delete[] p;
-}
-
-
-
-
-/*
 
 	union storage_type {
 		unsigned char unused;
