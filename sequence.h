@@ -378,6 +378,32 @@ protected:
 };
 */
 
+template<typename T>
+void shift(T* begin, T* end, ptrdiff_t distance)
+{
+	if (distance > 0)
+	{
+		for (auto dest = end + distance; end > begin;)
+		{
+			new(--dest) T(*--end);
+			*end = 99999;	// !!!
+			end->~T();
+		}
+	}
+	else if (distance < 0)
+	{
+		//assert(beg - dist >= capacity_begin());
+		//assert(end <= capacity_end());
+		for (auto dest = begin + distance; begin < end; ++dest, ++begin)
+		{
+			new(dest) T(*begin);
+			*begin = 99999;	// !!!
+			begin->~T();
+		}
+	}
+}
+
+
 // sequence_storage_type - This union template provides uninitialized storage for any capacity.
 // The specialization for capacity == 1 supports dynamically allocated arrays for variable capacity.
 // Note that it does not provide storage for the container size--that is the responsibility of
@@ -406,9 +432,56 @@ class sequence_implementation
 	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
 };
 
+// LOCAL storage specializations. These are like std::inplace_vector (or boost::static_vector).
+
 template<typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::LOCAL, sequence_lits::FRONT, T, SIZE, CAP>
 {
+public:
+
+	using value_type = T;
+	using size_type = SIZE;
+
+	constexpr static size_t capacity() { return CAP; }
+	size_t size() const { return m_size; }
+
+protected:
+
+	value_type* capacity_begin() { return m_storage.elements; }
+	value_type* capacity_end() { return m_storage.elements + CAP; }
+	const value_type* capacity_begin() const { return m_storage.elements; }
+	const value_type* capacity_end() const { return m_storage.elements + CAP; }
+	value_type* data_begin() { return capacity_begin(); }
+	value_type* data_end() { return capacity_begin() + size(); }
+	const value_type* data_begin() const { return capacity_begin(); }
+	const value_type* data_end() const { return capacity_begin() + size(); }
+
+	void add_front(const value_type& e)
+	{
+		assert(size() < capacity());
+		assert(data_begin() >= capacity_begin());
+		assert(data_end() <= capacity_end());
+
+		shift(data_begin(), data_end(), 1);
+		new(data_begin()) value_type(e);
+		++m_size;
+	}
+	void add_back(const value_type& e)
+	{
+		assert(size() < capacity());
+
+		new(data_end()) value_type(e);
+		++m_size;
+	}
+	void reallocate()
+	{
+		throw std::bad_alloc();
+	}
+
+private:
+
+	sequence_storage_type<T, CAP> m_storage;
+	size_type m_size = 0;
 };
 
 template<typename T, typename SIZE, size_t CAP>
@@ -420,6 +493,8 @@ template<typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::LOCAL, sequence_lits::BACK, T, SIZE, CAP>
 {
 };
+
+// FIXED storage specializations.
 
 template<typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::FIXED, sequence_lits::FRONT, T, SIZE, CAP>
@@ -436,6 +511,8 @@ class sequence_implementation<sequence_lits::FIXED, sequence_lits::BACK, T, SIZE
 {
 };
 
+// VARIABLE storage specializations supporting a small object buffer optimization.
+
 template<typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::FRONT, T, SIZE, CAP>
 {
@@ -450,6 +527,8 @@ template<typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::BACK, T, SIZE, CAP>
 {
 };
+
+// VARIABLE storage specializations with no small object buffer optimization (like std::vector).
 
 template<typename T, typename SIZE>
 class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::FRONT, T, SIZE, 0>
@@ -472,12 +551,19 @@ template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
 class sequence : public sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>
 {
 	using inherited = sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
-	//using inherited::data_begin;
-	//using inherited::data_end;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+	using inherited::data_begin;
+	using inherited::data_end;
+	using inherited::add_front;
+	using inherited::add_back;
 
 public:
 
 	using value_type = T;
+	using inherited::size;
+	using inherited::capacity;
+	using inherited::reallocate;
 
 //	~sequence()
 //	{
@@ -501,8 +587,21 @@ public:
 	static_assert(traits.location != sequence_lits::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
 
-	//const value_type* begin() const { return data_begin(); }
-	//const value_type* end() const { return data_end(); }
+	const value_type* begin() const { return data_begin(); }
+	const value_type* end() const { return data_end(); }
+
+	void push_front(const value_type& e)
+	{
+		if (size() == capacity())
+			reallocate();
+		add_front(e);
+	}
+	void push_back(const value_type& e)
+	{
+		if (size() == capacity())
+			reallocate();
+		add_back(e);
+	}
 
 private:
 

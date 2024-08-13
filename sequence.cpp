@@ -36,17 +36,18 @@ int main()
 
 	println("---- test -----------------------------------");
 
-	sequence<foo,
+	sequence<int,
 		sequence_traits<> {
-			.storage = sequence_lits::VARIABLE,
+			.storage = sequence_lits::LOCAL,
 			.location = sequence_lits::FRONT,
-			//.capacity = 10,
+			.capacity = 10,
 		}> s3;
 	show(s3);
 
 	println("");
 
-	//for (int i = 1; i <= 10; ++i)
+	for (int i = 1; i <= 10; ++i)
+		s3.push_front(i);
 	//	s3.push_back(foo());
 
 	//try {
@@ -57,9 +58,9 @@ int main()
 	//	println("Oops!");
 	//}
 
-	//for (auto&& e : s3)
-	//	print("{}\t", e.n);
-	//println("");
+	for (auto&& e : s3)
+		print("{}\t", e);
+	println("");
 
 ///	s3.~sequence();
 
