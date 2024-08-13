@@ -39,7 +39,7 @@ int main()
 	sequence<int,
 		sequence_traits<> {
 			.storage = sequence_lits::LOCAL,
-			.location = sequence_lits::FRONT,
+			.location = sequence_lits::MIDDLE,
 			.capacity = 10,
 		}> s3;
 	show(s3);
@@ -48,6 +48,7 @@ int main()
 
 	for (int i = 1; i <= 10; ++i)
 		s3.push_front(i);
+		//s3.push_back(i);
 	//	s3.push_back(foo());
 
 	//try {
@@ -62,7 +63,7 @@ int main()
 		print("{}\t", e);
 	println("");
 
-///	s3.~sequence();
+	s3.~sequence();
 
 	println("---------------------------------------------");
 
