@@ -107,16 +107,16 @@ void shift_reverse(T* begin, T* end, size_t distance)
 }
 
 
-// sequence_elements
+// fixed_capacity
 
 template<typename T, size_t CAP> requires (CAP != 0)
-class sequence_elements
+class fixed_capacity
 {
 	using value_type = T;
 
 public:
 
-	sequence_elements() {}
+	fixed_capacity() {}
 
 	constexpr static size_t capacity() { return CAP; }
 
@@ -137,21 +137,21 @@ private:
 };
 
 
-// sequence_storage - Helper class for sequence which provides the 3 different element management strategies.
+// fixed_sequence_storage - Helper class for sequence which provides the 3 different element management strategies
+// for fixed capacity sequences (local or dynamically allocated).
 
 template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
-class sequence_storage
+class fixed_sequence_storage
 {
-	static_assert(false, "An unimplemented specialization of sequence_storage was instantiated.");
+	static_assert(false, "An unimplemented specialization of fixed_sequence_storage was instantiated.");
 };
 
-
 template<typename T, typename SIZE, size_t CAP>
-class sequence_storage<sequence_lits::FRONT, T, SIZE, CAP> : sequence_elements<T, CAP>
+class fixed_sequence_storage<sequence_lits::FRONT, T, SIZE, CAP> : fixed_capacity<T, CAP>
 {
 	using value_type = T;
 	using size_type = SIZE;
-	using inherited = sequence_elements<T, CAP>;
+	using inherited = fixed_capacity<T, CAP>;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -168,7 +168,6 @@ public:
 	void add_front(const value_type& e)
 	{
 		assert(size() < capacity());
-		assert(data_begin() >= capacity_begin());
 		assert(data_end() < capacity_end());
 
 		shift_forward(data_begin(), data_end(), 1);
@@ -189,11 +188,11 @@ private:
 };
 
 template<typename T, typename SIZE, size_t CAP>
-class sequence_storage<sequence_lits::BACK, T, SIZE, CAP> : sequence_elements<T, CAP>
+class fixed_sequence_storage<sequence_lits::BACK, T, SIZE, CAP> : fixed_capacity<T, CAP>
 {
 	using value_type = T;
 	using size_type = SIZE;
-	using inherited = sequence_elements<T, CAP>;
+	using inherited = fixed_capacity<T, CAP>;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -218,7 +217,6 @@ public:
 	{
 		assert(size() < capacity());
 		assert(data_begin() > capacity_begin());
-		assert(data_end() <= capacity_end());
 
 		shift_reverse(data_begin(), data_end(), 1);
 		new(data_end() - 1) value_type(e);
@@ -231,11 +229,11 @@ private:
 };
 
 template<typename T, typename SIZE, size_t CAP>
-class sequence_storage<sequence_lits::MIDDLE, T, SIZE, CAP> : sequence_elements<T, CAP>
+class fixed_sequence_storage<sequence_lits::MIDDLE, T, SIZE, CAP> : fixed_capacity<T, CAP>
 {
 	using value_type = T;
 	using size_type = SIZE;
-	using inherited = sequence_elements<T, CAP>;
+	using inherited = fixed_capacity<T, CAP>;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -289,6 +287,82 @@ private:
 };
 
 
+// dynamic_capacity
+
+template<typename T>
+class dynamic_capacity
+{
+	using value_type = T;
+
+public:
+
+	size_t capacity() { return m_capacity_end - m_capacity_begin; }
+
+protected:
+
+	value_type* capacity_begin() { return m_capacity_begin; }
+	value_type* capacity_end() { return m_capacity_end; }
+	const value_type* capacity_begin() const { return m_capacity_begin; }
+	const value_type* capacity_end() const { return m_capacity_end; }
+
+private:
+
+	value_type* m_capacity_begin = nullptr;
+	value_type* m_capacity_end = nullptr;
+};
+
+
+// dynamic_sequence_storage - Helper class for sequence which provides the 3 different element management strategies
+// for dynamically allocated variable capacity sequences.
+
+template<sequence_lits LOC, typename T>
+class dynamic_sequence_storage
+{
+	static_assert(false, "An unimplemented specialization of variable_sequence_storage was instantiated.");
+};
+
+template<typename T>
+class dynamic_sequence_storage<sequence_lits::FRONT, T> : dynamic_capacity<T>
+{
+	using value_type = T;
+	using inherited = dynamic_capacity<T>;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+
+public:
+
+	using inherited::capacity;
+	size_t size() const { return data_end() - data_begin(); }
+
+	value_type* data_begin() { return capacity_begin(); }
+	value_type* data_end() { return m_data_end; }
+	const value_type* data_begin() const { return capacity_begin(); }
+	const value_type* data_end() const { return m_data_end; }
+
+	void add_front(const value_type& e)
+	{
+		assert(size() < capacity());
+		assert(data_end() < capacity_end());
+
+		shift_forward(data_begin(), data_end(), 1);
+		new(data_begin()) value_type(e);
+		++m_data_end;
+	}
+	void add_back(const value_type& e)
+	{
+		assert(size() > 0);
+		assert(size() < capacity());
+
+		new(data_end()) value_type(e);
+		++m_data_end;
+	}
+
+private:
+
+	value_type* m_data_end = nullptr;
+};
+
+
 // sequence_implementation - Base class for sequence which provides the 4 different memory allocation strategies.
 
 template<sequence_lits STO, sequence_lits LOC, typename T, typename SIZE, size_t CAP>
@@ -325,7 +399,7 @@ protected:
 
 private:
 
-	sequence_storage<LOC, T, SIZE, CAP> m_storage;
+	fixed_sequence_storage<LOC, T, SIZE, CAP> m_storage;
 };
 
 // FIXED storage specialization. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
@@ -334,7 +408,7 @@ template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
 class sequence_implementation<sequence_lits::FIXED, LOC, T, SIZE, CAP>
 {
 	using value_type = T;
-	using storage_type = sequence_storage<LOC, T, SIZE, CAP>;
+	using storage_type = fixed_sequence_storage<LOC, T, SIZE, CAP>;
 
 public:
 
@@ -372,36 +446,41 @@ private:
 
 // VARIABLE storage specializations supporting a small object buffer optimization (like boost::small_vector).
 
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::FRONT, T, SIZE, CAP>
-{
-};
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::MIDDLE, T, SIZE, CAP>
-{
-};
-
-template<typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::BACK, T, SIZE, CAP>
+template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
+class sequence_implementation<sequence_lits::VARIABLE, LOC, T, SIZE, CAP>
 {
 };
 
 // VARIABLE storage specializations with no small object buffer optimization (like std::vector).
 
-template<typename T, typename SIZE>
-class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::FRONT, T, SIZE, 0>
+template<sequence_lits LOC, typename T, typename SIZE>
+class sequence_implementation<sequence_lits::VARIABLE, LOC, T, SIZE, size_t(0)>
 {
-};
+	using value_type = T;
+	using storage_type = dynamic_sequence_storage<LOC, T>;
 
-template<typename T, typename SIZE>
-class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::MIDDLE, T, SIZE, 0>
-{
-};
+public:
 
-template<typename T, typename SIZE>
-class sequence_implementation<sequence_lits::VARIABLE, sequence_lits::BACK, T, SIZE, 0>
-{
+	size_t capacity() { return m_storage.capacity(); }
+	size_t size() { return m_storage.size(); }
+
+protected:
+
+	void add_front(const value_type& e) { m_storage.add_front(e); }
+	void add_back(const value_type& e) { m_storage.add_back(e); }
+	auto data_begin() { return m_storage.data_begin(); }
+	auto data_end() { return m_storage.data_end(); }
+	auto data_begin() const { return m_storage.data_begin(); }
+	auto data_end() const { return m_storage.data_end(); }
+
+	void reallocate()
+	{
+		throw std::bad_alloc();
+	}
+
+private:
+
+	dynamic_sequence_storage<LOC, T> m_storage;
 };
 
 
