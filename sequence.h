@@ -319,14 +319,14 @@ private:
 // dynamic_sequence_storage - Helper class for sequence which provides the 3 different element management strategies
 // for dynamically allocated variable capacity sequences.
 
-template<sequence_lits LOC, typename T>
+template<sequence_lits LOC, typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage
 {
 	static_assert(false, "An unimplemented specialization of variable_sequence_storage was instantiated.");
 };
 
-template<typename T>
-class dynamic_sequence_storage<sequence_lits::FRONT, T> : public dynamic_capacity<T>
+template<typename T, sequence_traits TRAITS>
+class dynamic_sequence_storage<sequence_lits::FRONT, T, TRAITS> : public dynamic_capacity<T>
 {
 	using value_type = T;
 	using inherited = dynamic_capacity<T>;
@@ -369,7 +369,7 @@ private:
 
 // sequence_implementation - Base class for sequence which provides the 4 different memory allocation strategies.
 
-template<sequence_lits STO, sequence_lits LOC, typename T, typename SIZE, size_t CAP>
+template<sequence_lits STO, size_t CAP, typename T, sequence_traits TRAITS>
 class sequence_implementation
 {
 	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
@@ -377,8 +377,8 @@ class sequence_implementation
 
 // LOCAL storage specialization (like std::inplace_vector or boost::static_vector).
 
-template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::LOCAL, LOC, T, SIZE, CAP>
+template<size_t CAP, typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_lits::LOCAL, CAP, T, TRAITS>
 {
 public:
 
@@ -403,16 +403,16 @@ protected:
 
 private:
 
-	fixed_sequence_storage<LOC, T, SIZE, CAP> m_storage;
+	fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, CAP> m_storage;
 };
 
 // FIXED storage specialization. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
 
-template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::FIXED, LOC, T, SIZE, CAP>
+template<size_t CAP, typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_lits::FIXED, CAP, T, TRAITS>
 {
 	using value_type = T;
-	using storage_type = fixed_sequence_storage<LOC, T, SIZE, CAP>;
+	using storage_type = fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, CAP>;
 
 public:
 
@@ -450,18 +450,18 @@ private:
 
 // VARIABLE storage specializations supporting a small object buffer optimization (like boost::small_vector).
 
-template<sequence_lits LOC, typename T, typename SIZE, size_t CAP>
-class sequence_implementation<sequence_lits::VARIABLE, LOC, T, SIZE, CAP>
+template<size_t CAP, typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_lits::VARIABLE, CAP, T, TRAITS>
 {
 };
 
 // VARIABLE storage specializations with no small object buffer optimization (like std::vector).
 
-template<sequence_lits LOC, typename T, typename SIZE>
-class sequence_implementation<sequence_lits::VARIABLE, LOC, T, SIZE, size_t(0)>
+template<typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_lits::VARIABLE, size_t(0), T, TRAITS>
 {
 	using value_type = T;
-	using storage_type = dynamic_sequence_storage<LOC, T>;
+	using storage_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;
 
 public:
 
@@ -480,16 +480,16 @@ protected:
 
 private:
 
-	dynamic_sequence_storage<LOC, T> m_storage;
+	storage_type m_storage;
 };
 
 
 // sequence - This is the main class template.
 
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence : public sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>
+class sequence : public sequence_implementation<TRAITS.storage, TRAITS.capacity, T, TRAITS>
 {
-	using inherited = sequence_implementation<TRAITS.storage, TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
+	using inherited = sequence_implementation<TRAITS.storage, TRAITS.capacity, T, TRAITS>;
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::add_front;
