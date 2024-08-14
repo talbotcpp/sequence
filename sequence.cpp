@@ -38,8 +38,8 @@ int main()
 
 	sequence<int,
 		sequence_traits<> {
-			.storage = sequence_lits::VARIABLE,
-			.location = sequence_lits::FRONT,
+			.storage = sequence_storage_lits::VARIABLE,
+			.location = sequence_location_lits::FRONT,
 ///			.capacity = 10,
 		}> s3;
 	show(s3);
