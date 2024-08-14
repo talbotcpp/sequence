@@ -38,9 +38,9 @@ int main()
 
 	sequence<int,
 		sequence_traits<> {
-			.storage = sequence_storage_lits::VARIABLE,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::FRONT,
-///			.capacity = 10,
+			.capacity = 10,
 		}> s3;
 	show(s3);
 

@@ -11,14 +11,14 @@
 // These are hoisted out of the class template to avoid template dependencies.
 // See sequence_traits below for a detailed discussion of these values.
 
-enum class sequence_storage_lits { LOCAL, FIXED, VARIABLE };		// See sequence_traits::storage.
-enum class sequence_location_lits { FRONT, BACK, MIDDLE };			// See sequence_traits::location.
-enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };	// See sequence_traits::growth.
+enum class sequence_storage_lits { LOCAL, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
+enum class sequence_location_lits { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
+enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };		// See sequence_traits::growth.
 
 // sequence_traits - Structure used to supply the sequence traits. The default values have been chosen
 // to exactly model std::vector so that sequence can be used as a drop-in replacement with no adjustments.
 
-template<std::unsigned_integral SIZE = size_t, size_t CAP = 0>
+template<std::unsigned_integral SIZE = size_t, size_t CAP = 1>
 struct sequence_traits
 {
 	// 'size_type' is the type of the size field for local storage. This allows small sequences of
@@ -32,8 +32,9 @@ struct sequence_traits
 
 	// 'storage' specifies how the capacity is allocated:
 	//		LOCAL:		The capacity is embedded in the sequence object (like std::inplace_vector). The capacity cannot change.
-	//		FIXED:		The capacity is always dynamically allocated (on the heap). The capacity cannot change.
-	//		VARIABLE:	The capacity may be embedded or dynamically allocated (on the heap), and the capacity can change (like std::vector).
+	//		FIXED:		The capacity is dynamically allocated. The capacity cannot change.
+	//		VARIABLE:	The capacity is dynamically allocated (like std::vector). The capacity can change.
+	//		BUFFERED:	The capacity may be embedded (buffered) or dynamically allocated (like boost::small_vector). The capacity can change.
 
 	sequence_storage_lits storage = sequence_storage_lits::VARIABLE;
 
@@ -54,9 +55,10 @@ struct sequence_traits
 
 	sequence_growth_lits growth = sequence_growth_lits::VECTOR;
 
-	// 'capacity' is the size of the fixed or local (SBO) capacity. For storages LOCAL and FIXED, it must be non-zero.
-	// For storage VARIABLE: if 'capacity' is zero then the capacity is always dynamically allocated (like std::vector);
-	// if 'capacity' is non-zero then it is the size of the small object optimization buffer (SBO).
+	// 'capacity' is the size of the fixed capacity for LOCAL and FIXED storages.
+	// For VARIABLE storage 'capacity' is the initial capacity when allocation first occurs. (Initially empty containers have no capacity.)
+	// For BUFFERED storage 'capacity' is the size of the small object optimization buffer (SBO).
+	// 'capacity' must be non-zero.
 
 	size_t capacity = CAP;
 
@@ -300,6 +302,7 @@ public:
 	{
 		auto grow = [](size_t cap)->size_t
 		{
+			if (cap == 0) return TRAITS.capacity;
 			switch (TRAITS.growth)
 			{
 				case sequence_growth_lits::LINEAR:
@@ -313,6 +316,8 @@ public:
 		};
 
 		auto cap = grow(capacity());
+
+		/// Allocate cap elements.
 	}
 
 protected:
@@ -382,22 +387,22 @@ private:
 
 // sequence_implementation - Base class for sequence which provides the 4 different memory allocation strategies.
 
-template<sequence_storage_lits STO, size_t CAP, typename T, sequence_traits TRAITS>
+template<sequence_storage_lits STO, typename T, sequence_traits TRAITS>
 class sequence_implementation
 {
 	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
 };
 
-// LOCAL storage specialization (like std::inplace_vector or boost::static_vector).
+// LOCAL storage (like std::inplace_vector or boost::static_vector).
 
-template<size_t CAP, typename T, sequence_traits TRAITS>
-class sequence_implementation<sequence_storage_lits::LOCAL, CAP, T, TRAITS>
+template<typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_storage_lits::LOCAL, T, TRAITS>
 {
 public:
 
 	using value_type = T;
 
-	constexpr static size_t capacity() { return CAP; }
+	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
 
 protected:
@@ -416,20 +421,20 @@ protected:
 
 private:
 
-	fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, CAP> m_storage;
+	fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity> m_storage;
 };
 
-// FIXED storage specialization. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
+// FIXED storage. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
 
-template<size_t CAP, typename T, sequence_traits TRAITS>
-class sequence_implementation<sequence_storage_lits::FIXED, CAP, T, TRAITS>
+template<typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_storage_lits::FIXED, T, TRAITS>
 {
 	using value_type = T;
-	using storage_type = fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, CAP>;
+	using storage_type = fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
 
 public:
 
-	constexpr static size_t capacity() { return CAP; }
+	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage ? m_storage->size() : 0; }
 
 protected:
@@ -461,17 +466,10 @@ private:
 	std::unique_ptr<storage_type> m_storage;
 };
 
-// VARIABLE storage specializations supporting a small object buffer optimization (like boost::small_vector).
-
-template<size_t CAP, typename T, sequence_traits TRAITS>
-class sequence_implementation<sequence_storage_lits::VARIABLE, CAP, T, TRAITS>
-{
-};
-
-// VARIABLE storage specializations with no small object buffer optimization (like std::vector).
+// VARIABLE storage (like std::vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_implementation<sequence_storage_lits::VARIABLE, size_t(0), T, TRAITS>
+class sequence_implementation<sequence_storage_lits::VARIABLE, T, TRAITS>
 {
 	using value_type = T;
 	using storage_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;
@@ -496,13 +494,21 @@ private:
 	storage_type m_storage;
 };
 
+// BUFFERED storage supporting a small object buffer optimization (like boost::small_vector).
+
+template<typename T, sequence_traits TRAITS>
+class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
+{
+};
+
+
 
 // sequence - This is the main class template.
 
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence : public sequence_implementation<TRAITS.storage, TRAITS.capacity, T, TRAITS>
+class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 {
-	using inherited = sequence_implementation<TRAITS.storage, TRAITS.capacity, T, TRAITS>;
+	using inherited = sequence_implementation<TRAITS.storage, T, TRAITS>;
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::add_front;
@@ -519,6 +525,9 @@ public:
 	static constexpr traits_type traits = TRAITS;
 
 	// Variable capacity means that the capacity must grow, and this growth must actually make progress.
+	// Zero capacity is not permitted (although this could be changed if it poses problems in generic contexts).
+	static_assert(traits.capacity > 0,
+				  "Fixed, initial, and buffer capacity must be greater than 0.");
 	static_assert(traits.increment > 0,
 				  "Linear capacity growth must be greater than 0.");
 	static_assert(traits.factor > 1.0f,
@@ -581,6 +590,7 @@ void show(const SEQ& seq)
 		case sequence_storage_lits::LOCAL:		std::println("LOCAL");		break;
 		case sequence_storage_lits::FIXED:		std::println("FIXED");		break;
 		case sequence_storage_lits::VARIABLE:	std::println("VARIABLE");	break;
+		case sequence_storage_lits::BUFFERED:	std::println("BUFFERED");	break;
 	}
 	std::print("Location:\t");
 	switch (seq.traits.location)
