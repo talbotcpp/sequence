@@ -26,29 +26,32 @@ using namespace std;
 //		.variable = true,
 //	}>;
 
+struct foo {
+	foo() : i(42) { println("foo() {}", i); }
+	foo(int i) : i(i) { println("foo(int) {}", i); }
+	foo(const foo& f) : i(f.i) { println("foo(const foo&) {}", i); }
+	foo(foo&& f) : i(f.i) { println("foo(foo&&) {}", i); }
+	~foo() { println("~foo {}", i); }
+	int i;
+};
 
 int main()
 {
-	struct foo {
-		foo() : n(42) {}
-		int n;
-	};
-
 	println("---- test -----------------------------------");
 
-	sequence<int,
+	sequence<foo,
 		sequence_traits<> {
-			.storage = sequence_storage_lits::LOCAL,
+			.storage = sequence_storage_lits::VARIABLE,
 			.location = sequence_location_lits::FRONT,
-			.capacity = 10,
+			.capacity = 8,
 		}> s3;
 	show(s3);
 
 	println("");
 
-	for (int i = 1; i <= 10; ++i)
-		s3.push_front(i);
-		//s3.push_back(i);
+	for (int i = 1; i <= 5; ++i)
+		//s3.push_front(i);
+		s3.push_back(foo(i));
 	//	s3.push_back(foo());
 
 	//try {
@@ -60,23 +63,13 @@ int main()
 	//}
 
 	for (auto&& e : s3)
-		print("{}\t", e);
+		print("{}\t", e.i);
 	println("");
 
 	s3.~sequence();
 
 	println("---------------------------------------------");
 
-
-	//println("sizeof(st) = {}", sizeof(sequence_storage_type<int, 9>));
-
-	//int x = 10;
-	//auto p = new sequence_storage_type<foo, 1>[x];
-	//auto e = p + x;
-	//for (auto i = p; i != e; ++i)
-	//	print("{}\t", i->element.n);
-	//println("");
-	//delete[] p;
 }
 
 

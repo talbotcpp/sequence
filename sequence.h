@@ -58,7 +58,7 @@ struct sequence_traits
 	// 'capacity' is the size of the fixed capacity for LOCAL and FIXED storages.
 	// For VARIABLE storage 'capacity' is the initial capacity when allocation first occurs. (Initially empty containers have no capacity.)
 	// For BUFFERED storage 'capacity' is the size of the small object optimization buffer (SBO).
-	// 'capacity' must be non-zero.
+	// 'capacity' must be greater than 0.
 
 	size_t capacity = CAP;
 
@@ -70,6 +70,23 @@ struct sequence_traits
 	// The minimum growth will be one element, regardless of how close to 1.0 this is set.
 
 	float factor = 1.5;
+
+	// 'grow' is a utility function which returns a new (larger) capacity given the current capacity.
+
+	size_t grow(size_t cap) const
+	{
+		if (cap == 0) return capacity;
+		switch (growth)
+		{
+			case sequence_growth_lits::LINEAR:
+				return cap + increment;
+			case sequence_growth_lits::EXPONENTIAL:
+				return cap + std::max<size_t>(size_t(cap * (factor - 1.f)), 1u);
+			default:
+			case sequence_growth_lits::VECTOR:
+				return cap + std::max<size_t>(size_t(cap * 0.5f), 1u);
+		}
+	};
 };
 
 
@@ -88,7 +105,7 @@ void shift_forward(T* begin, T* end, size_t distance)
 	for (auto dest = end + distance; end > begin;)
 	{
 		new(--dest) T(*--end);
-		*end = 99999;	// !!!
+///		*end = 99999;	// !!!
 		end->~T();
 	}
 }
@@ -101,7 +118,7 @@ void shift_reverse(T* begin, T* end, size_t distance)
 	for (auto dest = begin - distance; begin < end; ++dest, ++begin)
 	{
 		new(dest) T(*begin);
-		*begin = 99999;	// !!!
+///		*begin = 99999;	// !!!
 		begin->~T();
 	}
 }
@@ -300,21 +317,6 @@ public:
 
 	void reallocate()
 	{
-		auto grow = [](size_t cap)->size_t
-		{
-			if (cap == 0) return TRAITS.capacity;
-			switch (TRAITS.growth)
-			{
-				case sequence_growth_lits::LINEAR:
-					return cap + TRAITS.increment;
-				case sequence_growth_lits::EXPONENTIAL:
-					return cap + std::max<size_t>(size_t(cap * (TRAITS.factor - 1.f)), 1u);
-				default:
-				case sequence_growth_lits::VECTOR:
-					return cap + std::max<size_t>(size_t(cap * 1.5f), 1u);
-			}
-		};
-
 		auto cap = grow(capacity());
 
 		/// Allocate cap elements.
@@ -344,23 +346,43 @@ class dynamic_sequence_storage
 };
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : public dynamic_capacity<T, TRAITS>
+class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> ///: public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
-	using inherited = dynamic_capacity<T, TRAITS>;
-	using inherited::capacity_begin;
-	using inherited::capacity_end;
+	//using inherited = dynamic_capacity<T, TRAITS>;
+	//using inherited::capacity_begin;
+	//using inherited::capacity_end;
 
 public:
 
-	using inherited::capacity;
+	//using inherited::capacity;
 	size_t size() const { return data_end() - data_begin(); }
+
+	value_type* capacity_begin() { return m_capacity_begin.get(); }
+	value_type* capacity_end() { return m_capacity_end; }
+	const value_type* capacity_begin() const { return m_capacity_begin.get(); }
+	const value_type* capacity_end() const { return m_capacity_end; }
+	size_t capacity() { return capacity_end() - capacity_begin(); }
 
 	value_type* data_begin() { return capacity_begin(); }
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return capacity_begin(); }
 	const value_type* data_end() const { return m_data_end; }
 
+	void reallocate()
+	{
+		auto cap = TRAITS.grow(capacity());
+		auto new_store = make_unique_for_overwrite<value_type[]>(cap);
+		if (m_capacity_begin)
+		{
+		}
+		else
+		{
+			m_capacity_begin.swap(new_store);
+			m_capacity_end = m_capacity_begin.get() + cap;
+			m_data_end = m_capacity_begin.get();
+		}
+	}
 	void add_front(const value_type& e)
 	{
 		assert(size() < capacity());
@@ -372,7 +394,8 @@ public:
 	}
 	void add_back(const value_type& e)
 	{
-		assert(size() > 0);
+		auto s = size();
+		auto c = capacity();
 		assert(size() < capacity());
 
 		new(data_end()) value_type(e);
@@ -381,6 +404,8 @@ public:
 
 private:
 
+	std::unique_ptr<value_type[]> m_capacity_begin;
+	value_type* m_capacity_end = nullptr;
 	value_type* m_data_end = nullptr;
 };
 
@@ -541,7 +566,7 @@ public:
 	{
 		for (auto next(data_begin()), end(data_end()); next != end; ++next)
 		{
-			*next = 99999;	// !!!
+///			*next = 99999;	// !!!
 			next->~value_type();
 		}
 	}
