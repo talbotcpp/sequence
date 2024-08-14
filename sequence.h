@@ -296,18 +296,22 @@ class dynamic_capacity
 
 public:
 
-	size_t capacity() { return m_capacity_end - m_capacity_begin; }
+	size_t capacity() { return capacity_end() - capacity_begin(); }
+
+	void reallocate()
+	{
+	}
 
 protected:
 
-	value_type* capacity_begin() { return m_capacity_begin; }
+	value_type* capacity_begin() { return m_capacity_begin.get(); }
 	value_type* capacity_end() { return m_capacity_end; }
-	const value_type* capacity_begin() const { return m_capacity_begin; }
+	const value_type* capacity_begin() const { return m_capacity_begin.get(); }
 	const value_type* capacity_end() const { return m_capacity_end; }
 
 private:
 
-	value_type* m_capacity_begin = nullptr;
+	std::unique_ptr<value_type> m_capacity_begin;
 	value_type* m_capacity_end = nullptr;
 };
 
@@ -322,7 +326,7 @@ class dynamic_sequence_storage
 };
 
 template<typename T>
-class dynamic_sequence_storage<sequence_lits::FRONT, T> : dynamic_capacity<T>
+class dynamic_sequence_storage<sequence_lits::FRONT, T> : public dynamic_capacity<T>
 {
 	using value_type = T;
 	using inherited = dynamic_capacity<T>;
@@ -472,11 +476,7 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
-
-	void reallocate()
-	{
-		throw std::bad_alloc();
-	}
+	void reallocate() { m_storage.reallocate(); }
 
 private:
 
