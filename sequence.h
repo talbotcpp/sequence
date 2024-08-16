@@ -123,6 +123,18 @@ void shift_reverse(T* begin, T* end, size_t distance)
 }
 
 
+// The destroy_data function is a helper that encapsulates calling the element destructors.
+// It is called in the sequence destructor and elsewhere when elements are either going away
+// or have been moved somewhere else.
+
+template<typename T>
+void destroy_data(T* begin, T* end)
+{
+	for (auto&& element : span<T>(begin, end))
+		element.~T();
+}
+
+
 // ==============================================================================================================
 // fixed_capacity
 
@@ -184,21 +196,29 @@ public:
 	const value_type* data_begin() const { return capacity_begin(); }
 	const value_type* data_end() const { return capacity_begin() + m_size; }
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(data_end() < capacity_end());
 
 		shift_forward(data_begin(), data_end(), 1);
-		new(data_begin()) value_type(e);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 		++m_size;
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
 
-		new(data_end()) value_type(e);
+		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_size;
+	}
+
+	void clear()
+	{
+		destroy_data(data_begin(), data_end());
+		m_size = 0;
 	}
 
 private:
@@ -240,6 +260,12 @@ public:
 		shift_reverse(data_begin(), data_end(), 1);
 		++m_size;
 		new(data_end() - 1) value_type(e);
+	}
+
+	void clear()
+	{
+		destroy_data(data_begin(), data_end());
+		m_size = 0;
 	}
 
 private:
@@ -299,6 +325,13 @@ public:
 		new(data_end() - 1) value_type(e);
 	}
 
+	void clear()
+	{
+		destroy_data(data_begin(), data_end());
+		m_front_gap = TRAITS.capacity / 2;
+		m_back_gap = TRAITS.capacity - TRAITS.capacity / 2;
+	}
+
 private:
 
 	size_type m_front_gap = TRAITS.capacity / 2;
@@ -343,8 +376,7 @@ public:
 		if (data_begin)
 		{
 			std::uninitialized_move(data_begin, data_end, new_store + offset);
-			for (auto&& element : span<value_type>(data_begin, data_end))
-				element.~value_type();
+			destroy_data(data_begin, data_end);
 		}
 
 		if (m_capacity_begin)
@@ -415,6 +447,12 @@ public:
 		++m_data_end;
 	}
 
+	void clear()
+	{
+		destroy_data(data_begin(), data_end());
+		set_size(0);
+	}
+
 private:
 
 	value_type* m_data_end = nullptr;
@@ -463,6 +501,12 @@ public:
 		shift_reverse(data_begin(), data_end(), 1);
 		--m_data_begin;
 		new(data_end() - 1) value_type(e);
+	}
+
+	void clear()
+	{
+		destroy_data(data_begin(), data_end());
+		set_size(0);
 	}
 
 private:
@@ -536,6 +580,13 @@ public:
 		++m_data_end;
 	}
 
+	void clear()
+	{
+		destroy_data(data_begin(), data_end());
+		m_data_begin = m_capacity_begin + capacity() / 2;
+		set_size(0);
+	}
+
 private:
 
 	value_type* m_data_begin = nullptr;
@@ -564,10 +615,21 @@ public:
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
 
+	void clear() { return m_storage.clear(); }
+
 protected:
 
-	void add_front(const value_type& e) { m_storage.add_front(e); }
-	void add_back(const value_type& e) { m_storage.add_back(e); }
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
+	{
+		m_storage.add_front(std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
+	{
+		m_storage.add_back(std::forward<ARGS>(args)...);
+	}
+
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
@@ -733,25 +795,29 @@ public:
 
 	~sequence()
 	{
-		for (auto&& element : span<value_type>(data_begin(), data_end()))
-			element.~value_type();
+		destroy_data(data_begin(), data_end());
 	}
 
 	const value_type* begin() const { return data_begin(); }
 	const value_type* end() const { return data_end(); }
 
-	void push_front(const value_type& e)
+	template<typename... ARGS>
+	void emplace_front(ARGS&&... args)
 	{
 		if (size() == capacity())
 			reallocate();
-		add_front(e);
+		add_front(std::forward<ARGS>(args)...);
 	}
-	void push_back(const value_type& e)
+	template<typename... ARGS>
+	void emplace_back(ARGS&&... args)
 	{
 		if (size() == capacity())
 			reallocate();
-		add_back(e);
+		add_back(std::forward<ARGS>(args)...);
 	}
+
+	void push_front(const value_type& e) { emplace_front(e); }
+	void push_back(const value_type& e) { emplace_back(e); }
 
 	void resize(size_t new_size)
 	{}

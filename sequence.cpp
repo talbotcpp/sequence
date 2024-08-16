@@ -5,28 +5,6 @@ import std;
 
 using namespace std;
 
-//template<typename T>
-//using my_vector = sequence<T,
-//	sequence_traits<> {
-//		.dynamic = true,
-//		.variable = true,
-//		.growth = sequence_lits::VECTOR,
-//	}>;
-//
-//template<typename T, size_t S>
-//using my_inplace_vector = sequence<T,
-//	sequence_traits<size_t, S> {
-//		.dynamic = false,
-//		.variable = false,
-//	}>;
-//
-//template<typename T, size_t S>
-//using my_small_vector = sequence<T,
-//	sequence_traits<size_t, S> {
-//		.dynamic = true,
-//		.variable = true,
-//	}>;
-
 struct foo {
 	foo() : i(42) { println("foo() {}", i); }
 	foo(int i) : i(i) { println("foo(int) {}", i); }
@@ -42,6 +20,14 @@ struct foo {
 	int i;
 };
 
+template<typename SEQ>
+void show_elems(const SEQ& seq)
+{
+	for (auto&& e : seq)
+		print("{}\t", e.i);
+	println("");
+}
+
 int main()
 {
 	println("---- test -----------------------------------");
@@ -49,9 +35,9 @@ int main()
 	{
 	sequence<foo,
 		sequence_traits<unsigned> {
-			.storage = sequence_storage_lits::BUFFERED,
+			.storage = sequence_storage_lits::STATIC,
 			.location = sequence_location_lits::FRONT,
-			.capacity = 5,
+			.capacity = 10,
 		}> s3;
 	show(s3);
 	println("---------------------------------------------");
@@ -60,44 +46,21 @@ int main()
 
 	for (int i = 1; i <= 10; ++i)
 		//s3.push_front(i);
-		//s3.push_back(i);
-		s3.push_back(foo(i));
+		s3.push_back(i);
+		//s3.push_back(foo(i));
 
-	//try {
-	//	s3.push_back(42);
-	//}
-	//catch (std::bad_alloc& e)
-	//{
-	//	println("Oops!");
-	//}
+	show_elems(s3);
+	s3.clear();
 
-	for (auto&& e : s3)
-		print("{}\t", e.i);
-	println("");
+	for (int i = 1; i <= 10; ++i)
+		s3.push_front(i);
 
+	show_elems(s3);
 	}
 
-	//dynamic_sequence_storage<sequence_location_lits::FRONT, int, sequence_traits<unsigned>{}> fc;
-	//dynamic_sequence_storage<sequence_location_lits::FRONT, int, sequence_traits<unsigned>{}> fc2;
-	//swap(fc, fc2);
 
 	println("---------------------------------------------");
 
-	constexpr int VAR = 1;
-	variant<int, string, double> v(std::in_place_index<VAR>, "Fred");
-	println("{} = {}", typeid(std::variant_alternative_t<VAR, decltype(v)>).name(), get<VAR>(v));
-
-	//v = "Fred";
-	//println("{} = {}", typeid(std::variant_alternative_t<1, decltype(v)>).name(), get<1>(v));
-
-	//println("size = {}", sizeof(v));
-	//println("int = {}", get<2>(v));
-
-	//int arr[10] = {0,1,2,3,4,5,6,7,8,9};
-	//int* b = arr;
-	//int* e = arr + 10;
-	//for (auto i : span<int>(b, e))
-	//	print("{}\t", i);
 
 	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	//foo* e1 = p1 + 5;
