@@ -348,9 +348,6 @@ template<typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> ///: public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
-	//using inherited = dynamic_capacity<T, TRAITS>;
-	//using inherited::capacity_begin;
-	//using inherited::capacity_end;
 
 public:
 
@@ -362,11 +359,6 @@ public:
 
 	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
 	size_t size() const { return m_data_end - m_capacity_begin; }
-
-	//value_type* capacity_begin() { return static_cast<value_type*>(m_capacity_begin); }
-	//value_type* capacity_end() { return static_cast<value_type*>(m_capacity_end); }
-	//const value_type* capacity_begin() const { return static_cast<value_type*>(m_capacity_begin); }
-	//const value_type* capacity_end() const { return static_cast<value_type*>(m_capacity_end); }
 
 	value_type* data_begin() { return m_capacity_begin; }
 	value_type* data_end() { return m_data_end; }
@@ -400,8 +392,6 @@ public:
 	}
 	void add_back(const value_type& e)
 	{
-		auto s = size();
-		auto c = capacity();
 		assert(size() < capacity());
 
 		new(data_end()) value_type(e);
@@ -413,6 +403,67 @@ private:
 	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
 	value_type* m_capacity_end = nullptr;
 	value_type* m_data_end = nullptr;
+};
+
+template<typename T, sequence_traits TRAITS>
+class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS>
+{
+	using value_type = T;
+
+public:
+
+	~dynamic_sequence_storage()
+	{
+		if (m_capacity_begin)
+			delete static_cast<void*>(m_capacity_begin);
+	}
+
+	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+	size_t size() const { return m_capacity_end - m_data_begin; }
+
+	value_type* data_begin() { return m_data_begin; }
+	value_type* data_end() { return m_capacity_end; }
+	const value_type* data_begin() const { return m_data_begin; }
+	const value_type* data_end() const { return m_capacity_end; }
+
+	void reallocate()
+	{
+		auto new_capacity = TRAITS.grow(capacity());
+		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
+
+		if (m_capacity_begin)
+		{
+
+		}
+		else
+		{
+			m_capacity_begin = new_store;
+			m_capacity_end = m_capacity_begin + new_capacity;
+			m_data_begin = m_capacity_end;
+		}
+	}
+	void add_front(const value_type& e)
+	{
+		assert(size() < capacity());
+		assert(m_data_begin > m_capacity_begin);
+
+		--m_data_begin;
+		new(data_begin()) value_type(e);
+	}
+	void add_back(const value_type& e)
+	{
+		assert(size() < capacity());
+
+		shift_reverse(data_begin(), data_end(), 1);
+		--m_data_begin;
+		new(data_end()) value_type(e);
+	}
+
+private:
+
+	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
+	value_type* m_capacity_end = nullptr;
+	value_type* m_data_begin = nullptr;
 };
 
 

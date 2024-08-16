@@ -50,7 +50,7 @@ int main()
 	sequence<foo,
 		sequence_traits<unsigned> {
 			.storage = sequence_storage_lits::VARIABLE,
-			.location = sequence_location_lits::FRONT,
+			.location = sequence_location_lits::BACK,
 			.capacity = 8,
 		}> s3;
 	show(s3);
@@ -58,9 +58,8 @@ int main()
 	println("");
 
 	for (int i = 1; i <= 5; ++i)
-		s3.push_front(i);
-		//s3.push_back(foo(i));
-	//	s3.push_back(foo());
+		//s3.push_front(i);
+		s3.push_back(foo(i));
 
 	//try {
 	//	s3.push_back(42);
