@@ -57,9 +57,9 @@ int main()
 
 	println("");
 
-	for (int i = 1; i <= 5; ++i)
-		//s3.push_front(i);
-		s3.push_back(foo(i));
+	for (int i = 1; i <= 10; ++i)
+		s3.push_front(i);
+		//s3.push_back(foo(i));
 
 	//try {
 	//	s3.push_back(42);
@@ -76,6 +76,12 @@ int main()
 	}
 
 	println("---------------------------------------------");
+
+	int arr[10] = {0,1,2,3,4,5,6,7,8,9};
+	int* b = arr;
+	int* e = arr + 10;
+	for (auto i : span<int>(b, e))
+		print("{}\t", i);
 
 	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	//foo* e1 = p1 + 5;

@@ -226,8 +226,8 @@ public:
 	{
 		assert(size() < capacity());
 
-		new(data_begin() - 1) value_type(e);
 		++m_size;
+		new(data_begin()) value_type(e);
 	}
 	void add_back(const value_type& e)
 	{
@@ -235,8 +235,8 @@ public:
 		assert(data_begin() > capacity_begin());
 
 		shift_reverse(data_begin(), data_end(), 1);
-		new(data_end() - 1) value_type(e);
 		++m_size;
+		new(data_end() - 1) value_type(e);
 	}
 
 private:
@@ -303,6 +303,7 @@ private:
 };
 
 
+// ==============================================================================================================
 // dynamic_capacity
 
 template<typename T, sequence_traits TRAITS>
@@ -312,25 +313,40 @@ class dynamic_capacity
 
 public:
 
-	size_t capacity() { return capacity_end() - capacity_begin(); }
-
-	void reallocate()
+	~dynamic_capacity()
 	{
-		auto cap = grow(capacity());
+		if (m_capacity_begin)
+			delete static_cast<void*>(m_capacity_begin);
+	}
 
-		/// Allocate cap elements.
+	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+
+	void reallocate(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
+	{
+		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
+
+		if (m_capacity_begin)
+		{
+			std::uninitialized_move(data_begin, data_end, new_store + offset);
+			for (auto&& element : span<value_type>(data_begin, data_end))
+				element.~value_type();
+			delete static_cast<void*>(m_capacity_begin);
+		}
+
+		m_capacity_begin = new_store;
+		m_capacity_end = m_capacity_begin + new_capacity;
 	}
 
 protected:
 
-	value_type* capacity_begin() { return m_capacity_begin.get(); }
-	value_type* capacity_end() { return m_capacity_end; }
-	const value_type* capacity_begin() const { return m_capacity_begin.get(); }
-	const value_type* capacity_end() const { return m_capacity_end; }
+	//value_type* capacity_begin() { return m_capacity_begin.get(); }
+	//value_type* capacity_end() { return m_capacity_end; }
+	//const value_type* capacity_begin() const { return m_capacity_begin.get(); }
+	//const value_type* capacity_end() const { return m_capacity_end; }
 
 private:
 
-	std::unique_ptr<value_type> m_capacity_begin;
+	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
 	value_type* m_capacity_end = nullptr;
 };
 
@@ -345,9 +361,11 @@ class dynamic_sequence_storage
 };
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> ///: public dynamic_capacity<T, TRAITS>
+class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
+	using inherited = dynamic_capacity<T, TRAITS>;
+	using inherited::capacity;
 
 public:
 
@@ -357,7 +375,7 @@ public:
 			delete static_cast<void*>(m_capacity_begin);
 	}
 
-	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+	//size_t capacity() const { return m_capacity_end - m_capacity_begin; }
 	size_t size() const { return m_data_end - m_capacity_begin; }
 
 	value_type* data_begin() { return m_capacity_begin; }
@@ -367,19 +385,22 @@ public:
 
 	void reallocate()
 	{
-		auto new_capacity = TRAITS.grow(capacity());
+		size_t new_capacity = TRAITS.grow(capacity());
+		size_t current_size = size();
+
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (m_capacity_begin)
 		{
+			std::uninitialized_move(data_begin(), data_end(), new_store);
+			for (auto next(data_begin()), end(data_end()); next != end; ++next)
+				next->~value_type();
+			delete static_cast<void*>(m_capacity_begin);
+		}
 
-		}
-		else
-		{
-			m_capacity_begin = new_store;
-			m_capacity_end = m_capacity_begin + new_capacity;
-			m_data_end = m_capacity_begin;
-		}
+		m_capacity_begin = new_store;
+		m_capacity_end = m_capacity_begin + new_capacity;
+		m_data_end = m_capacity_begin + current_size;
 	}
 	void add_front(const value_type& e)
 	{
@@ -428,19 +449,22 @@ public:
 
 	void reallocate()
 	{
-		auto new_capacity = TRAITS.grow(capacity());
+		size_t new_capacity = TRAITS.grow(capacity());
+		size_t current_size = size();
+
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (m_capacity_begin)
 		{
+			std::uninitialized_move(data_begin(), data_end(), (new_store + new_capacity) - current_size);
+			for (auto&& element : span<value_type>(data_begin(), data_end()))
+				element.~value_type();
+			delete static_cast<void*>(m_capacity_begin);
+		}
 
-		}
-		else
-		{
-			m_capacity_begin = new_store;
-			m_capacity_end = m_capacity_begin + new_capacity;
-			m_data_begin = m_capacity_end;
-		}
+		m_capacity_begin = new_store;
+		m_capacity_end = m_capacity_begin + new_capacity;
+		m_data_begin = m_capacity_end - current_size;
 	}
 	void add_front(const value_type& e)
 	{
@@ -456,7 +480,7 @@ public:
 
 		shift_reverse(data_begin(), data_end(), 1);
 		--m_data_begin;
-		new(data_end()) value_type(e);
+		new(data_end() - 1) value_type(e);
 	}
 
 private:
@@ -622,8 +646,8 @@ public:
 
 	~sequence()
 	{
-		for (auto next(data_begin()), end(data_end()); next != end; ++next)
-			next->~value_type();
+		for (auto&& element : span<value_type>(data_begin(), data_end()))
+			element.~value_type();
 	}
 
 	const value_type* begin() const { return data_begin(); }
