@@ -271,7 +271,7 @@ public:
 		if (m_front_gap == 0)
 		{
 			auto offset = m_back_gap;
-			m_back_gap /= 2u;
+			m_back_gap /= 2;
 			offset -= m_back_gap;
 			shift_forward(data_begin(), data_end(), offset);
 			m_front_gap = offset - 1;
@@ -287,7 +287,7 @@ public:
 		if (m_back_gap == 0)
 		{
 			auto offset = m_front_gap;
-			m_front_gap /= 2u;
+			m_front_gap /= 2;
 			offset -= m_front_gap;
 			shift_reverse(data_begin(), data_end(), offset);
 			m_back_gap = offset - 1;
@@ -339,13 +339,6 @@ public:
 
 protected:
 
-	//value_type* capacity_begin() { return m_capacity_begin.get(); }
-	//value_type* capacity_end() { return m_capacity_end; }
-	//const value_type* capacity_begin() const { return m_capacity_begin.get(); }
-	//const value_type* capacity_end() const { return m_capacity_end; }
-
-private:
-
 	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
 	value_type* m_capacity_end = nullptr;
 };
@@ -365,17 +358,13 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 {
 	using value_type = T;
 	using inherited = dynamic_capacity<T, TRAITS>;
-	using inherited::capacity;
+	using inherited::reallocate;
+	using inherited::m_capacity_begin;
+	using inherited::m_capacity_end;
 
 public:
 
-	~dynamic_sequence_storage()
-	{
-		if (m_capacity_begin)
-			delete static_cast<void*>(m_capacity_begin);
-	}
-
-	//size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+	using inherited::capacity;
 	size_t size() const { return m_data_end - m_capacity_begin; }
 
 	value_type* data_begin() { return m_capacity_begin; }
@@ -387,19 +376,7 @@ public:
 	{
 		size_t new_capacity = TRAITS.grow(capacity());
 		size_t current_size = size();
-
-		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
-
-		if (m_capacity_begin)
-		{
-			std::uninitialized_move(data_begin(), data_end(), new_store);
-			for (auto next(data_begin()), end(data_end()); next != end; ++next)
-				next->~value_type();
-			delete static_cast<void*>(m_capacity_begin);
-		}
-
-		m_capacity_begin = new_store;
-		m_capacity_end = m_capacity_begin + new_capacity;
+		reallocate(new_capacity, 0, data_begin(), data_end());
 		m_data_end = m_capacity_begin + current_size;
 	}
 	void add_front(const value_type& e)
@@ -414,6 +391,7 @@ public:
 	void add_back(const value_type& e)
 	{
 		assert(size() < capacity());
+		assert(m_data_end < m_capacity_end);
 
 		new(data_end()) value_type(e);
 		++m_data_end;
@@ -421,25 +399,21 @@ public:
 
 private:
 
-	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
-	value_type* m_capacity_end = nullptr;
 	value_type* m_data_end = nullptr;
 };
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS>
+class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
+	using inherited = dynamic_capacity<T, TRAITS>;
+	using inherited::reallocate;
+	using inherited::m_capacity_begin;
+	using inherited::m_capacity_end;
 
 public:
 
-	~dynamic_sequence_storage()
-	{
-		if (m_capacity_begin)
-			delete static_cast<void*>(m_capacity_begin);
-	}
-
-	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+	using inherited::capacity;
 	size_t size() const { return m_capacity_end - m_data_begin; }
 
 	value_type* data_begin() { return m_data_begin; }
@@ -451,19 +425,7 @@ public:
 	{
 		size_t new_capacity = TRAITS.grow(capacity());
 		size_t current_size = size();
-
-		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
-
-		if (m_capacity_begin)
-		{
-			std::uninitialized_move(data_begin(), data_end(), (new_store + new_capacity) - current_size);
-			for (auto&& element : span<value_type>(data_begin(), data_end()))
-				element.~value_type();
-			delete static_cast<void*>(m_capacity_begin);
-		}
-
-		m_capacity_begin = new_store;
-		m_capacity_end = m_capacity_begin + new_capacity;
+		reallocate(new_capacity, new_capacity - current_size, data_begin(), data_end());
 		m_data_begin = m_capacity_end - current_size;
 	}
 	void add_front(const value_type& e)
@@ -477,6 +439,7 @@ public:
 	void add_back(const value_type& e)
 	{
 		assert(size() < capacity());
+		assert(m_data_begin > m_capacity_begin);
 
 		shift_reverse(data_begin(), data_end(), 1);
 		--m_data_begin;
@@ -485,9 +448,78 @@ public:
 
 private:
 
-	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
-	value_type* m_capacity_end = nullptr;
 	value_type* m_data_begin = nullptr;
+};
+
+template<typename T, sequence_traits TRAITS>
+class dynamic_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : public dynamic_capacity<T, TRAITS>
+{
+	using value_type = T;
+	using inherited = dynamic_capacity<T, TRAITS>;
+	using inherited::reallocate;
+	using inherited::m_capacity_begin;
+	using inherited::m_capacity_end;
+
+public:
+
+	using inherited::capacity;
+	size_t size() const { return m_data_end - m_data_begin; }
+
+	value_type* data_begin() { return m_data_begin; }
+	value_type* data_end() { return m_data_end; }
+	const value_type* data_begin() const { return m_data_begin; }
+	const value_type* data_end() const { return m_data_end; }
+
+	void reallocate()
+	{
+		size_t new_capacity = TRAITS.grow(capacity());
+		size_t current_size = size();
+		size_t front_gap = (new_capacity - current_size) / 2;
+		reallocate(new_capacity, front_gap, data_begin(), data_end());
+		m_data_begin = m_capacity_begin + front_gap;
+		m_data_end = m_data_begin + current_size;
+	}
+	void add_front(const value_type& e)
+	{
+		assert(size() < capacity());
+		assert(m_data_begin > m_capacity_begin || m_data_end < m_capacity_end);
+
+		if (m_data_begin == m_capacity_begin)
+		{
+			size_t back_gap = m_capacity_end - m_data_end;
+			size_t offset = back_gap - back_gap / 2;
+			assert(offset > 0);
+
+			shift_forward(data_begin(), data_end(), offset);
+			m_data_begin += offset;
+			m_data_end += offset;
+		}
+		--m_data_begin;
+		new(data_begin()) value_type(e);
+	}
+	void add_back(const value_type& e)
+	{
+		assert(size() < capacity());
+		assert(m_data_begin > m_capacity_begin || m_data_end < m_capacity_end);
+
+		if (m_data_end == m_capacity_end)
+		{
+			size_t front_gap = m_data_begin - m_capacity_begin;
+			size_t offset = front_gap - front_gap / 2;
+			assert(offset > 0);
+
+			shift_reverse(data_begin(), data_end(), offset);
+			m_data_begin -= offset;
+			m_data_end -= offset;
+		}
+		new(data_end()) value_type(e);
+		++m_data_end;
+	}
+
+private:
+
+	value_type* m_data_begin = nullptr;
+	value_type* m_data_end = nullptr;
 };
 
 

@@ -50,7 +50,7 @@ int main()
 	sequence<foo,
 		sequence_traits<unsigned> {
 			.storage = sequence_storage_lits::VARIABLE,
-			.location = sequence_location_lits::BACK,
+			.location = sequence_location_lits::MIDDLE,
 			.capacity = 8,
 		}> s3;
 	show(s3);
@@ -77,11 +77,11 @@ int main()
 
 	println("---------------------------------------------");
 
-	int arr[10] = {0,1,2,3,4,5,6,7,8,9};
-	int* b = arr;
-	int* e = arr + 10;
-	for (auto i : span<int>(b, e))
-		print("{}\t", i);
+	//int arr[10] = {0,1,2,3,4,5,6,7,8,9};
+	//int* b = arr;
+	//int* e = arr + 10;
+	//for (auto i : span<int>(b, e))
+	//	print("{}\t", i);
 
 	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	//foo* e1 = p1 + 5;
