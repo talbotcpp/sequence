@@ -1,4 +1,5 @@
 import std;
+#include <cstdlib>
 
 #include "Sequence.h"
 
@@ -30,8 +31,14 @@ struct foo {
 	foo() : i(42) { println("foo() {}", i); }
 	foo(int i) : i(i) { println("foo(int) {}", i); }
 	foo(const foo& f) : i(f.i) { println("foo(const foo&) {}", i); }
-	foo(foo&& f) : i(f.i) { println("foo(foo&&) {}", i); }
-	~foo() { println("~foo {}", i); }
+	foo(foo&& f) : i(f.i) {
+		println("foo(foo&&) {}", i);
+		f.i = 666;
+	}
+	~foo() {
+		println("~foo {}", i);
+		i = 99999;
+	}
 	int i;
 };
 
@@ -39,8 +46,9 @@ int main()
 {
 	println("---- test -----------------------------------");
 
+	{
 	sequence<foo,
-		sequence_traits<> {
+		sequence_traits<unsigned> {
 			.storage = sequence_storage_lits::VARIABLE,
 			.location = sequence_location_lits::FRONT,
 			.capacity = 8,
@@ -50,8 +58,8 @@ int main()
 	println("");
 
 	for (int i = 1; i <= 5; ++i)
-		//s3.push_front(i);
-		s3.push_back(foo(i));
+		s3.push_front(i);
+		//s3.push_back(foo(i));
 	//	s3.push_back(foo());
 
 	//try {
@@ -66,16 +74,68 @@ int main()
 		print("{}\t", e.i);
 	println("");
 
-	s3.~sequence();
+	}
 
 	println("---------------------------------------------");
 
+	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
+	//foo* e1 = p1 + 5;
+
+	//for (int i = 0; i < 5; ++i)
+	//	new(p1 + i) foo(i + 1);
+
+	//for (auto i = p1; i != e1; ++i)
+	//	print("{}\t", i->i);
+	//println("");
+
+	//foo* p2 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
+	//foo* e2 = p2 + 5;
+
+	//uninitialized_move( p1, e1, p2);
+
+	//for (auto i = p1; i != e1; ++i)
+	//	print("{}\t", i->i);
+	//println("");
+
+	//for (auto i = p2; i != e2; ++i)
+	//	print("{}\t", i->i);
+	//println("");
 }
 
-
-
-
 /*
+	foo* p = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
+	foo* e = p + 5;
+
+	new(p + 2) foo(1234);
+
+	for (auto i = p; i != e; ++i)
+		print("{}\t", i->i);
+	println("");
+
+	p[2].~foo();
+
+	for (auto i = p; i != e; ++i)
+		print("{}\t", i->i);
+	println("");
+
+	delete p;
+
+
+
+
+	union fred {
+		fred() {}
+		~fred() {}
+		foo f;
+		char c;
+	};
+	{
+	auto p = make_unique_for_overwrite<fred[]>(5);
+	new(&p[2]) foo(1234);
+	println("{}", p[2].f.i);
+	p[2].f.~foo();
+	}
+
 struct immovable {
 	immovable() = default;
 	immovable(const immovable&) = delete;

@@ -84,7 +84,7 @@ struct sequence_traits
 				return cap + std::max<size_t>(size_t(cap * (factor - 1.f)), 1u);
 			default:
 			case sequence_growth_lits::VECTOR:
-				return cap + std::max<size_t>(size_t(cap * 0.5f), 1u);
+				return cap + std::max<size_t>(cap / 2, 1u);
 		}
 	};
 };
@@ -105,7 +105,6 @@ void shift_forward(T* begin, T* end, size_t distance)
 	for (auto dest = end + distance; end > begin;)
 	{
 		new(--dest) T(*--end);
-///		*end = 99999;	// !!!
 		end->~T();
 	}
 }
@@ -118,7 +117,6 @@ void shift_reverse(T* begin, T* end, size_t distance)
 	for (auto dest = begin - distance; begin < end; ++dest, ++begin)
 	{
 		new(dest) T(*begin);
-///		*begin = 99999;	// !!!
 		begin->~T();
 	}
 }
@@ -134,6 +132,7 @@ class fixed_capacity
 public:
 
 	fixed_capacity() {}
+	~fixed_capacity() {}
 
 	constexpr static size_t capacity() { return CAP; }
 
@@ -355,38 +354,45 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> ///: pu
 
 public:
 
-	//using inherited::capacity;
-	size_t size() const { return data_end() - data_begin(); }
+	~dynamic_sequence_storage()
+	{
+		if (m_capacity_begin)
+			delete static_cast<void*>(m_capacity_begin);
+	}
 
-	value_type* capacity_begin() { return m_capacity_begin.get(); }
-	value_type* capacity_end() { return m_capacity_end; }
-	const value_type* capacity_begin() const { return m_capacity_begin.get(); }
-	const value_type* capacity_end() const { return m_capacity_end; }
-	size_t capacity() { return capacity_end() - capacity_begin(); }
+	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+	size_t size() const { return m_data_end - m_capacity_begin; }
 
-	value_type* data_begin() { return capacity_begin(); }
+	//value_type* capacity_begin() { return static_cast<value_type*>(m_capacity_begin); }
+	//value_type* capacity_end() { return static_cast<value_type*>(m_capacity_end); }
+	//const value_type* capacity_begin() const { return static_cast<value_type*>(m_capacity_begin); }
+	//const value_type* capacity_end() const { return static_cast<value_type*>(m_capacity_end); }
+
+	value_type* data_begin() { return m_capacity_begin; }
 	value_type* data_end() { return m_data_end; }
-	const value_type* data_begin() const { return capacity_begin(); }
+	const value_type* data_begin() const { return m_capacity_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
 	void reallocate()
 	{
-		auto cap = TRAITS.grow(capacity());
-		auto new_store = make_unique_for_overwrite<value_type[]>(cap);
+		auto new_capacity = TRAITS.grow(capacity());
+		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
+
 		if (m_capacity_begin)
 		{
+
 		}
 		else
 		{
-			m_capacity_begin.swap(new_store);
-			m_capacity_end = m_capacity_begin.get() + cap;
-			m_data_end = m_capacity_begin.get();
+			m_capacity_begin = new_store;
+			m_capacity_end = m_capacity_begin + new_capacity;
+			m_data_end = m_capacity_begin;
 		}
 	}
 	void add_front(const value_type& e)
 	{
 		assert(size() < capacity());
-		assert(data_end() < capacity_end());
+		assert(m_data_end < m_capacity_end);
 
 		shift_forward(data_begin(), data_end(), 1);
 		new(data_begin()) value_type(e);
@@ -404,12 +410,13 @@ public:
 
 private:
 
-	std::unique_ptr<value_type[]> m_capacity_begin;
+	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
 	value_type* m_capacity_end = nullptr;
 	value_type* m_data_end = nullptr;
 };
 
 
+// ==============================================================================================================
 // sequence_implementation - Base class for sequence which provides the 4 different memory allocation strategies.
 
 template<sequence_storage_lits STO, typename T, sequence_traits TRAITS>
@@ -527,7 +534,7 @@ class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
 };
 
 
-
+// ==============================================================================================================
 // sequence - This is the main class template.
 
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
@@ -565,10 +572,7 @@ public:
 	~sequence()
 	{
 		for (auto next(data_begin()), end(data_end()); next != end; ++next)
-		{
-///			*next = 99999;	// !!!
 			next->~value_type();
-		}
 	}
 
 	const value_type* begin() const { return data_begin(); }
