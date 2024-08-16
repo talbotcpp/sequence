@@ -134,6 +134,7 @@ class fixed_capacity
 public:
 
 	fixed_capacity() {}
+	fixed_capacity(fixed_capacity&&) {}
 	~fixed_capacity() {}
 
 	constexpr static size_t capacity() { return CAP; }
@@ -315,6 +316,18 @@ class dynamic_capacity
 
 public:
 
+	dynamic_capacity() = default;
+	dynamic_capacity(dynamic_capacity&& rhs)
+	{
+		m_capacity_begin = rhs.m_capacity_begin;	rhs.m_capacity_begin = nullptr;
+		m_capacity_end = rhs.m_capacity_end;		rhs.m_capacity_end = nullptr;
+	}
+	dynamic_capacity& operator=(dynamic_capacity&& rhs)
+	{
+		m_capacity_begin = rhs.m_capacity_begin;	rhs.m_capacity_begin = nullptr;
+		m_capacity_end = rhs.m_capacity_end;		rhs.m_capacity_end = nullptr;
+		return *this;
+	}
 	~dynamic_capacity()
 	{
 		if (m_capacity_begin)
@@ -327,13 +340,15 @@ public:
 	{
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
-		if (m_capacity_begin)
+		if (data_begin)
 		{
 			std::uninitialized_move(data_begin, data_end, new_store + offset);
 			for (auto&& element : span<value_type>(data_begin, data_end))
 				element.~value_type();
-			delete static_cast<void*>(m_capacity_begin);
 		}
+
+		if (m_capacity_begin)
+			delete static_cast<void*>(m_capacity_begin);
 
 		m_capacity_begin = new_store;
 		m_capacity_end = m_capacity_begin + new_capacity;
@@ -368,19 +383,19 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_data_end - m_capacity_begin; }
+	void set_size(size_t current_size) { m_data_end = m_capacity_begin + current_size; }
 
 	value_type* data_begin() { return m_capacity_begin; }
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return m_capacity_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	size_t reallocate()
+	void reallocate(size_t old_capacity, value_type* d_begin, value_type* d_end)
 	{
-		size_t new_capacity = TRAITS.grow(capacity());
+		size_t new_capacity = TRAITS.grow(old_capacity);
 		size_t current_size = size();
-		reallocate(new_capacity, 0, data_begin(), data_end());
-		m_data_end = m_capacity_begin + current_size;
-		return new_capacity;
+		reallocate(new_capacity, 0, d_begin, d_end);
+		set_size(current_size);
 	}
 	void add_front(const value_type& e)
 	{
@@ -418,19 +433,19 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_capacity_end - m_data_begin; }
+	void set_size(size_t current_size) { m_data_begin = m_capacity_end - current_size; }
 
 	value_type* data_begin() { return m_data_begin; }
 	value_type* data_end() { return m_capacity_end; }
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_capacity_end; }
 
-	size_t reallocate()
+	void reallocate(size_t old_capacity, value_type* d_begin, value_type* d_end)
 	{
-		size_t new_capacity = TRAITS.grow(capacity());
+		size_t new_capacity = TRAITS.grow(old_capacity);
 		size_t current_size = size();
-		reallocate(new_capacity, new_capacity - current_size, data_begin(), data_end());
-		m_data_begin = m_capacity_end - current_size;
-		return new_capacity;
+		reallocate(new_capacity, new_capacity - current_size, d_begin, d_end);
+		set_size(current_size);
 	}
 	void add_front(const value_type& e)
 	{
@@ -468,21 +483,21 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_data_end - m_data_begin; }
+	void set_size(size_t current_size) { m_data_end = m_data_begin + current_size; }
 
 	value_type* data_begin() { return m_data_begin; }
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	size_t reallocate()
+	void reallocate(size_t old_capacity, value_type* d_begin, value_type* d_end)
 	{
-		size_t new_capacity = TRAITS.grow(capacity());
+		size_t new_capacity = TRAITS.grow(old_capacity);
 		size_t current_size = size();
 		size_t front_gap = (new_capacity - current_size) / 2;
-		reallocate(new_capacity, front_gap, data_begin(), data_end());
+		reallocate(new_capacity, front_gap, d_begin, d_end);
 		m_data_begin = m_capacity_begin + front_gap;
-		m_data_end = m_data_begin + current_size;
-		return new_capacity;
+		set_size(current_size);
 	}
 	void add_front(const value_type& e)
 	{
@@ -630,7 +645,7 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
-	void reallocate() { m_storage.reallocate(); }
+	void reallocate() { m_storage.reallocate(capacity(), data_begin(), data_end()); }
 
 private:
 
@@ -643,10 +658,8 @@ template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
 {
 	using value_type = T;
-	using storage_type = std::variant<
-		fixed_sequence_storage<TRAITS.location, T, TRAITS>,		// STC
-		dynamic_sequence_storage<TRAITS.location, T, TRAITS>	// DYN
-	>;
+	using fixed_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;		// STC
+	using dynamic_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;	// DYN
 	enum { STC, DYN };
 
 public:
@@ -668,30 +681,20 @@ protected:
 	{
 		if (m_storage.index() == STC)
 		{
-//			storage_type new_storage();
+			dynamic_type new_storage;
+			new_storage.reallocate(get<STC>(m_storage).capacity(), get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
+			new_storage.set_size(get<STC>(m_storage).size());
+			m_storage = std::move(new_storage);
 		}
 		else
-			get<DYN>(m_storage).reallocate();
+			get<DYN>(m_storage).reallocate(get<DYN>(m_storage).capacity(), get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
 	}
 
 private:
 
-	storage_type m_storage;
+	std::variant<fixed_type, dynamic_type> m_storage;
 };
-/*
-	void add_front(const value_type& e) { m_capacity == STATIC_CAP ? m_static.add_front(e) : m_dynamic.add_front(e); }
-	void add_back(const value_type& e) { m_capacity == STATIC_CAP ? m_static.add_back(e) : m_dynamic.add_back(e); }
-	auto data_begin() { return m_capacity == STATIC_CAP ? m_static.data_begin() : m_dynamic.data_begin(); }
-	auto data_end() { return m_capacity == STATIC_CAP ? m_static.data_end() : m_dynamic.data_end(); }
-	auto data_begin() const { return m_capacity == STATIC_CAP ? m_static.data_begin() : m_dynamic.data_begin(); }
-	auto data_end() const { return m_capacity == STATIC_CAP ? m_static.data_end() : m_dynamic.data_end(); }
-	size_t m_capacity = STATIC_CAP;
-	union {
-		fixed_sequence_storage<TRAITS.location, T, TRAITS> m_static;
-		dynamic_sequence_storage<TRAITS.location, T, TRAITS> m_dynamic;
-	};
 
-*/
 
 // ==============================================================================================================
 // sequence - This is the main class template.

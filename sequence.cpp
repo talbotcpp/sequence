@@ -54,12 +54,14 @@ int main()
 			.capacity = 5,
 		}> s3;
 	show(s3);
+	println("---------------------------------------------");
 
-	println("");
+	//println("");
 
-	//for (int i = 1; i <= 10; ++i)
-	//	//s3.push_front(i);
-	//	s3.push_back(foo(i));
+	for (int i = 1; i <= 10; ++i)
+		//s3.push_front(i);
+		//s3.push_back(i);
+		s3.push_back(foo(i));
 
 	//try {
 	//	s3.push_back(42);
@@ -75,12 +77,19 @@ int main()
 
 	}
 
+	//dynamic_sequence_storage<sequence_location_lits::FRONT, int, sequence_traits<unsigned>{}> fc;
+	//dynamic_sequence_storage<sequence_location_lits::FRONT, int, sequence_traits<unsigned>{}> fc2;
+	//swap(fc, fc2);
+
 	println("---------------------------------------------");
 
-	constexpr int VAR = 0;
-	variant<int, string, double> v(std::in_place_index<VAR>, 1234);
-	//v.emplace<VAR>(42);
+	constexpr int VAR = 1;
+	variant<int, string, double> v(std::in_place_index<VAR>, "Fred");
 	println("{} = {}", typeid(std::variant_alternative_t<VAR, decltype(v)>).name(), get<VAR>(v));
+
+	//v = "Fred";
+	//println("{} = {}", typeid(std::variant_alternative_t<1, decltype(v)>).name(), get<1>(v));
+
 	//println("size = {}", sizeof(v));
 	//println("int = {}", get<2>(v));
 
