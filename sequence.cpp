@@ -49,17 +49,17 @@ int main()
 	{
 	sequence<foo,
 		sequence_traits<unsigned> {
-			.storage = sequence_storage_lits::VARIABLE,
-			.location = sequence_location_lits::MIDDLE,
-			.capacity = 8,
+			.storage = sequence_storage_lits::BUFFERED,
+			.location = sequence_location_lits::FRONT,
+			.capacity = 5,
 		}> s3;
 	show(s3);
 
 	println("");
 
-	for (int i = 1; i <= 10; ++i)
-		s3.push_front(i);
-		//s3.push_back(foo(i));
+	//for (int i = 1; i <= 10; ++i)
+	//	//s3.push_front(i);
+	//	s3.push_back(foo(i));
 
 	//try {
 	//	s3.push_back(42);
@@ -76,6 +76,13 @@ int main()
 	}
 
 	println("---------------------------------------------");
+
+	constexpr int VAR = 0;
+	variant<int, string, double> v(std::in_place_index<VAR>, 1234);
+	//v.emplace<VAR>(42);
+	println("{} = {}", typeid(std::variant_alternative_t<VAR, decltype(v)>).name(), get<VAR>(v));
+	//println("size = {}", sizeof(v));
+	//println("int = {}", get<2>(v));
 
 	//int arr[10] = {0,1,2,3,4,5,6,7,8,9};
 	//int* b = arr;

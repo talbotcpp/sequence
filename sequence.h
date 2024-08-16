@@ -11,7 +11,7 @@
 // These are hoisted out of the class template to avoid template dependencies.
 // See sequence_traits below for a detailed discussion of these values.
 
-enum class sequence_storage_lits { LOCAL, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
+enum class sequence_storage_lits { STATIC, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
 enum class sequence_location_lits { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
 enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };		// See sequence_traits::growth.
 
@@ -21,8 +21,8 @@ enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };		// See sequenc
 template<std::unsigned_integral SIZE = size_t, size_t CAP = 1>
 struct sequence_traits
 {
-	// 'size_type' is the type of the size field for local storage. This allows small sequences of
-	// small types to be made meaningfully more space efficient by representing the size with a
+	// 'size_type' is the type of the size field for fixed storage. This allows small sequences of
+	// small types to be made significantly more space efficient by representing the size with a
 	// smaller type than size_t. This size reduction may (or may not) also result in faster run times.
 	// (Note that this type is not used in this structure. Using it for 'capacity' complicates
 	// sequence_storage without offering any real benefits, and it's not correct for 'increment'
@@ -31,7 +31,7 @@ struct sequence_traits
 	using size_type = SIZE;
 
 	// 'storage' specifies how the capacity is allocated:
-	//		LOCAL:		The capacity is embedded in the sequence object (like std::inplace_vector). The capacity cannot change.
+	//		STATIC:		The capacity is embedded in the sequence object (like std::inplace_vector or boost::static_vector). The capacity cannot change.
 	//		FIXED:		The capacity is dynamically allocated. The capacity cannot change.
 	//		VARIABLE:	The capacity is dynamically allocated (like std::vector). The capacity can change.
 	//		BUFFERED:	The capacity may be embedded (buffered) or dynamically allocated (like boost::small_vector). The capacity can change.
@@ -55,7 +55,7 @@ struct sequence_traits
 
 	sequence_growth_lits growth = sequence_growth_lits::VECTOR;
 
-	// 'capacity' is the size of the fixed capacity for LOCAL and FIXED storages.
+	// 'capacity' is the size of the fixed capacity for STATIC and FIXED storages.
 	// For VARIABLE storage 'capacity' is the initial capacity when allocation first occurs. (Initially empty containers have no capacity.)
 	// For BUFFERED storage 'capacity' is the size of the small object optimization buffer (SBO).
 	// 'capacity' must be greater than 0.
@@ -90,6 +90,7 @@ struct sequence_traits
 };
 
 
+// ==============================================================================================================
 // The shift_... functions move sequential elements in memory by the requested amount.
 // Forward is toward the end (increasing memory). Reverse is toward the beginning (decreasing memory).
 // The preconditions are:
@@ -122,6 +123,7 @@ void shift_reverse(T* begin, T* end, size_t distance)
 }
 
 
+// ==============================================================================================================
 // fixed_capacity
 
 template<typename T, size_t CAP> requires (CAP != 0)
@@ -156,24 +158,24 @@ private:
 // fixed_sequence_storage - Helper class for sequence which provides the 3 different element management strategies
 // for fixed capacity sequences (local or dynamically allocated).
 
-template<sequence_location_lits LOC, typename T, typename SIZE, size_t CAP>
+template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
 class fixed_sequence_storage
 {
 	static_assert(false, "An unimplemented specialization of fixed_sequence_storage was instantiated.");
 };
 
-template<typename T, typename SIZE, size_t CAP>
-class fixed_sequence_storage<sequence_location_lits::FRONT, T, SIZE, CAP> : fixed_capacity<T, CAP>
+template<typename T, sequence_traits TRAITS>
+class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	using value_type = T;
-	using size_type = SIZE;
-	using inherited = fixed_capacity<T, CAP>;
-	using inherited::capacity;
+	using size_type = typename decltype(TRAITS)::size_type;
+	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
 
 public:
 
+	using inherited::capacity;
 	size_t size() const { return m_size; }
 
 	value_type* data_begin() { return capacity_begin(); }
@@ -203,18 +205,18 @@ private:
 	size_type m_size = 0;
 };
 
-template<typename T, typename SIZE, size_t CAP>
-class fixed_sequence_storage<sequence_location_lits::BACK, T, SIZE, CAP> : fixed_capacity<T, CAP>
+template<typename T, sequence_traits TRAITS>
+class fixed_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	using value_type = T;
-	using size_type = SIZE;
-	using inherited = fixed_capacity<T, CAP>;
-	using inherited::capacity;
+	using size_type = typename decltype(TRAITS)::size_type;
+	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
 
 public:
 
+	using inherited::capacity;
 	size_t size() const { return m_size; }
 
 	value_type* data_begin() { return capacity_end() - m_size; }
@@ -244,18 +246,18 @@ private:
 	size_type m_size = 0;
 };
 
-template<typename T, typename SIZE, size_t CAP>
-class fixed_sequence_storage<sequence_location_lits::MIDDLE, T, SIZE, CAP> : fixed_capacity<T, CAP>
+template<typename T, sequence_traits TRAITS>
+class fixed_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	using value_type = T;
-	using size_type = SIZE;
-	using inherited = fixed_capacity<T, CAP>;
-	using inherited::capacity;
+	using size_type = typename decltype(TRAITS)::size_type;
+	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
 
 public:
 
+	using inherited::capacity;
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 
 	value_type* data_begin() { return capacity_begin() + m_front_gap; }
@@ -298,8 +300,8 @@ public:
 
 private:
 
-	size_type m_front_gap = CAP / 2;
-	size_type m_back_gap = CAP - CAP / 2;
+	size_type m_front_gap = TRAITS.capacity / 2;
+	size_type m_back_gap = TRAITS.capacity - TRAITS.capacity / 2;
 };
 
 
@@ -372,12 +374,13 @@ public:
 	const value_type* data_begin() const { return m_capacity_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate()
+	size_t reallocate()
 	{
 		size_t new_capacity = TRAITS.grow(capacity());
 		size_t current_size = size();
 		reallocate(new_capacity, 0, data_begin(), data_end());
 		m_data_end = m_capacity_begin + current_size;
+		return new_capacity;
 	}
 	void add_front(const value_type& e)
 	{
@@ -421,12 +424,13 @@ public:
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_capacity_end; }
 
-	void reallocate()
+	size_t reallocate()
 	{
 		size_t new_capacity = TRAITS.grow(capacity());
 		size_t current_size = size();
 		reallocate(new_capacity, new_capacity - current_size, data_begin(), data_end());
 		m_data_begin = m_capacity_end - current_size;
+		return new_capacity;
 	}
 	void add_front(const value_type& e)
 	{
@@ -470,7 +474,7 @@ public:
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate()
+	size_t reallocate()
 	{
 		size_t new_capacity = TRAITS.grow(capacity());
 		size_t current_size = size();
@@ -478,6 +482,7 @@ public:
 		reallocate(new_capacity, front_gap, data_begin(), data_end());
 		m_data_begin = m_capacity_begin + front_gap;
 		m_data_end = m_data_begin + current_size;
+		return new_capacity;
 	}
 	void add_front(const value_type& e)
 	{
@@ -532,10 +537,10 @@ class sequence_implementation
 	static_assert(false, "An unimplemented specialization of sequence_implementation was instantiated.");
 };
 
-// LOCAL storage (like std::inplace_vector or boost::static_vector).
+// STATIC storage (like std::inplace_vector or boost::static_vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_implementation<sequence_storage_lits::LOCAL, T, TRAITS>
+class sequence_implementation<sequence_storage_lits::STATIC, T, TRAITS>
 {
 public:
 
@@ -560,7 +565,7 @@ protected:
 
 private:
 
-	fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity> m_storage;
+	fixed_sequence_storage<TRAITS.location, T, TRAITS> m_storage;
 };
 
 // FIXED storage. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
@@ -569,7 +574,7 @@ template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::FIXED, T, TRAITS>
 {
 	using value_type = T;
-	using storage_type = fixed_sequence_storage<TRAITS.location, T, typename decltype(TRAITS)::size_type, TRAITS.capacity>;
+	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
 
 public:
 
@@ -611,7 +616,6 @@ template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::VARIABLE, T, TRAITS>
 {
 	using value_type = T;
-	using storage_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;
 
 public:
 
@@ -630,7 +634,7 @@ protected:
 
 private:
 
-	storage_type m_storage;
+	dynamic_sequence_storage<TRAITS.location, T, TRAITS> m_storage;
 };
 
 // BUFFERED storage supporting a small object buffer optimization (like boost::small_vector).
@@ -638,8 +642,56 @@ private:
 template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
 {
-};
+	using value_type = T;
+	using storage_type = std::variant<
+		fixed_sequence_storage<TRAITS.location, T, TRAITS>,		// STC
+		dynamic_sequence_storage<TRAITS.location, T, TRAITS>	// DYN
+	>;
+	enum { STC, DYN };
 
+public:
+
+	size_t capacity() { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
+	size_t size() { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
+
+protected:
+
+	void add_front(const value_type& e) { m_storage.index() == STC ? get<STC>(m_storage).add_front(e) : get<DYN>(m_storage).add_front(e); }
+	void add_back(const value_type& e) { m_storage.index() == STC ? get<STC>(m_storage).add_back(e) : get<DYN>(m_storage).add_back(e); }
+
+	auto data_begin() { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
+	auto data_end() { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
+	auto data_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
+	auto data_end() const { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
+
+	void reallocate()
+	{
+		if (m_storage.index() == STC)
+		{
+//			storage_type new_storage();
+		}
+		else
+			get<DYN>(m_storage).reallocate();
+	}
+
+private:
+
+	storage_type m_storage;
+};
+/*
+	void add_front(const value_type& e) { m_capacity == STATIC_CAP ? m_static.add_front(e) : m_dynamic.add_front(e); }
+	void add_back(const value_type& e) { m_capacity == STATIC_CAP ? m_static.add_back(e) : m_dynamic.add_back(e); }
+	auto data_begin() { return m_capacity == STATIC_CAP ? m_static.data_begin() : m_dynamic.data_begin(); }
+	auto data_end() { return m_capacity == STATIC_CAP ? m_static.data_end() : m_dynamic.data_end(); }
+	auto data_begin() const { return m_capacity == STATIC_CAP ? m_static.data_begin() : m_dynamic.data_begin(); }
+	auto data_end() const { return m_capacity == STATIC_CAP ? m_static.data_end() : m_dynamic.data_end(); }
+	size_t m_capacity = STATIC_CAP;
+	union {
+		fixed_sequence_storage<TRAITS.location, T, TRAITS> m_static;
+		dynamic_sequence_storage<TRAITS.location, T, TRAITS> m_dynamic;
+	};
+
+*/
 
 // ==============================================================================================================
 // sequence - This is the main class template.
@@ -723,7 +775,7 @@ void show(const SEQ& seq)
 	std::print("Storage:\t");
 	switch (seq.traits.storage)
 	{
-		case sequence_storage_lits::LOCAL:		std::println("LOCAL");		break;
+		case sequence_storage_lits::STATIC:		std::println("STATIC");		break;
 		case sequence_storage_lits::FIXED:		std::println("FIXED");		break;
 		case sequence_storage_lits::VARIABLE:	std::println("VARIABLE");	break;
 		case sequence_storage_lits::BUFFERED:	std::println("BUFFERED");	break;
