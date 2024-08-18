@@ -346,11 +346,11 @@ public:
 
 		if (m_front_gap == 0)
 		{
-			auto offset = m_back_gap;
-			m_back_gap /= 2;
-			offset -= m_back_gap;
-			shift_forward(data_begin(), data_end(), offset);
-			m_front_gap = offset - 1;
+			auto bg = m_back_gap / 2;
+			auto fg = m_back_gap - bg;
+			shift_reverse(data_begin(), data_end(), fg);
+			m_back_gap = bg;
+			m_front_gap = fg - 1;
 		}
 		else --m_front_gap;
 		new(data_begin()) value_type(e);
@@ -362,11 +362,11 @@ public:
 
 		if (m_back_gap == 0)
 		{
-			auto offset = m_front_gap;
-			m_front_gap /= 2;
-			offset -= m_front_gap;
-			shift_reverse(data_begin(), data_end(), offset);
-			m_back_gap = offset - 1;
+			auto fg = m_front_gap / 2;
+			auto bg = m_front_gap - fg;
+			shift_reverse(data_begin(), data_end(), bg);
+			m_front_gap = fg;
+			m_back_gap = bg - 1;
 		}
 		else --m_back_gap;
 		new(data_end() - 1) value_type(e);
@@ -381,8 +381,8 @@ public:
 
 private:
 
-	size_type m_front_gap = TRAITS.capacity / 2;
-	size_type m_back_gap = TRAITS.capacity - TRAITS.capacity / 2;
+	size_type m_front_gap = static_cast<size_type>(TRAITS.capacity / 2);
+	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.capacity / 2);
 };
 
 
@@ -401,11 +401,13 @@ public:
 	{
 		m_capacity_begin = rhs.m_capacity_begin;
 		rhs.m_capacity_begin = nullptr;
+		m_capacity_end = rhs.m_capacity_end;
 	}
 	dynamic_capacity& operator=(dynamic_capacity&& rhs)
 	{
 		m_capacity_begin = rhs.m_capacity_begin;
 		rhs.m_capacity_begin = nullptr;
+		m_capacity_end = rhs.m_capacity_end;
 		return *this;
 	}
 	~dynamic_capacity()
@@ -420,7 +422,7 @@ protected:
 
 	void make_new_capacity(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
 	{
-	std::println("    reallocate({}, {})", new_capacity, offset);
+std::println("    reallocate({}, {})", new_capacity, offset);
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (data_begin)
@@ -431,6 +433,10 @@ protected:
 
 		m_capacity_begin = new_store;
 		m_capacity_end = m_capacity_begin + new_capacity;
+
+for (auto p = m_capacity_begin; p != m_capacity_end; ++p)
+	std::print("{}\t", p->i);
+std::println();
 	}
 
 	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
@@ -512,7 +518,7 @@ class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : public
 {
 	using value_type = T;
 	using inherited = dynamic_capacity<T, TRAITS>;
-	using inherited::reallocate;
+	using inherited::make_new_capacity;
 	using inherited::m_capacity_begin;
 	using inherited::m_capacity_end;
 
@@ -572,7 +578,7 @@ class dynamic_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : publ
 {
 	using value_type = T;
 	using inherited = dynamic_capacity<T, TRAITS>;
-	using inherited::reallocate;
+	using inherited::make_new_capacity;
 	using inherited::m_capacity_begin;
 	using inherited::m_capacity_end;
 
@@ -753,8 +759,8 @@ class sequence_implementation<sequence_storage_lits::VARIABLE, T, TRAITS>
 
 public:
 
-	size_t capacity() { return m_storage.capacity(); }
-	size_t size() { return m_storage.size(); }
+	size_t capacity() const { return m_storage.capacity(); }
+	size_t size() const { return m_storage.size(); }
 
 protected:
 
@@ -783,8 +789,8 @@ class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
 
 public:
 
-	size_t capacity() { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
-	size_t size() { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
+	size_t capacity() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
+	size_t size() const { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
 
 protected:
 
@@ -844,6 +850,7 @@ class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 	using inherited = sequence_implementation<TRAITS.storage, T, TRAITS>;
 	using inherited::data_begin;
 	using inherited::data_end;
+	using inherited::reallocate;
 	using inherited::add_front;
 	using inherited::add_back;
 
@@ -853,7 +860,6 @@ public:
 
 	using inherited::size;
 	using inherited::capacity;
-	using inherited::reallocate;
 
 	using traits_type = decltype(TRAITS);
 	static constexpr traits_type traits = TRAITS;
@@ -883,8 +889,10 @@ public:
 		destroy_data(data_begin(), data_end());
 	}
 
+	const value_type* data() const { return data_begin(); }
 	const value_type* begin() const { return data_begin(); }
 	const value_type* end() const { return data_end(); }
+	bool empty() const { return size() == 0; }
 
 	void reserve(size_t new_capacity)
 	{
