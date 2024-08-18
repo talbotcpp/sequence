@@ -6,15 +6,15 @@ import std;
 using namespace std;
 
 struct foo {
-	foo() : i(42) { println("foo() {}", i); }
-	foo(int i) : i(i) { println("foo(int) {}", i); }
-	foo(const foo& f) : i(f.i) { println("foo(const foo&) {}", i); }
+	foo() : i(42) { println("  foo() {}", i); }
+	foo(int i) : i(i) { println("  foo(int) {}", i); }
+	foo(const foo& f) : i(f.i) { println("  foo(const foo&) {}", i); }
 	foo(foo&& f) : i(f.i) {
-		println("foo(foo&&) {}", i);
+		println("  foo(foo&&) {}", i);
 		f.i = 666;
 	}
 	~foo() {
-		println("~foo {}", i);
+		println("  ~foo {}", i);
 		i = 99999;
 	}
 	int i;
@@ -25,7 +25,7 @@ void show_elems(const SEQ& seq)
 {
 	for (auto&& e : seq)
 		print("{}\t", e.i);
-	println("");
+	println();
 }
 
 int main()
@@ -35,25 +35,26 @@ int main()
 	{
 	sequence<foo,
 		sequence_traits<unsigned> {
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::VARIABLE,
 			.location = sequence_location_lits::FRONT,
 			.capacity = 10,
 		}> s3;
 	show(s3);
 	println("---------------------------------------------");
 
-	//println("");
+	println("capacity = {}", s3.capacity());
+	println("size = {}", s3.size());
 
-	for (int i = 1; i <= 10; ++i)
-		//s3.push_front(i);
+	for (int i = 1; i <= 5; ++i)
 		s3.push_back(i);
-		//s3.push_back(foo(i));
 
-	show_elems(s3);
-	s3.clear();
+	println("capacity = {}", s3.capacity());
+	println("size = {}", s3.size());
 
-	for (int i = 1; i <= 10; ++i)
-		s3.push_front(i);
+	s3.shrink_to_fit();
+
+	println("capacity = {}", s3.capacity());
+	println("size = {}", s3.size());
 
 	show_elems(s3);
 	}

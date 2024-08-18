@@ -371,6 +371,7 @@ public:
 
 	void reallocate(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
 	{
+	std::println("    reallocate({}, {})", new_capacity, offset);
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (data_begin)
@@ -422,9 +423,10 @@ public:
 	const value_type* data_begin() const { return m_capacity_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t old_capacity, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, value_type* d_begin, value_type* d_end)
 	{
-		size_t new_capacity = TRAITS.grow(old_capacity);
+		assert(size() <= new_capacity);
+
 		size_t current_size = size();
 		reallocate(new_capacity, 0, d_begin, d_end);
 		set_size(current_size);
@@ -478,9 +480,10 @@ public:
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_capacity_end; }
 
-	void reallocate(size_t old_capacity, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, value_type* d_begin, value_type* d_end)
 	{
-		size_t new_capacity = TRAITS.grow(old_capacity);
+		assert(size() <= new_capacity);
+
 		size_t current_size = size();
 		reallocate(new_capacity, new_capacity - current_size, d_begin, d_end);
 		set_size(current_size);
@@ -534,9 +537,10 @@ public:
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t old_capacity, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, value_type* d_begin, value_type* d_end)
 	{
-		size_t new_capacity = TRAITS.grow(old_capacity);
+		assert(size() <= new_capacity);
+
 		size_t current_size = size();
 		size_t front_gap = (new_capacity - current_size) / 2;
 		reallocate(new_capacity, front_gap, d_begin, d_end);
@@ -635,7 +639,7 @@ protected:
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
 
-	void reallocate()
+	void reallocate(size_t new_capacity)
 	{
 		throw std::bad_alloc();
 	}
@@ -677,7 +681,7 @@ protected:
 	auto data_begin() const { return m_storage ? m_storage->data_begin() : nullptr; }
 	auto data_end() const { return m_storage ? m_storage->data_end() : nullptr; }
 
-	void reallocate()
+	void reallocate(size_t new_capacity)
 	{
 		throw std::bad_alloc();
 	}
@@ -707,7 +711,7 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
-	void reallocate() { m_storage.reallocate(capacity(), data_begin(), data_end()); }
+	void reallocate(size_t new_capacity) { m_storage.reallocate(new_capacity, data_begin(), data_end()); }
 
 private:
 
@@ -739,17 +743,33 @@ protected:
 	auto data_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
 	auto data_end() const { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
 
-	void reallocate()
+	void reallocate(size_t new_capacity)
 	{
 		if (m_storage.index() == STC)
 		{
-			dynamic_type new_storage;
-			new_storage.reallocate(get<STC>(m_storage).capacity(), get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
-			new_storage.set_size(get<STC>(m_storage).size());
-			m_storage = std::move(new_storage);
+			// Moving out of the buffer: switch to dynamic storage.
+			if (new_capacity > get<STC>(m_storage).capacity())
+			{
+				dynamic_type new_storage;
+				new_storage.reallocate(new_capacity, get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
+				new_storage.set_size(get<STC>(m_storage).size());
+				m_storage = std::move(new_storage);
+			}
+			// Staying in the buffer: do nothing--the buffer capacity cannot change.
 		}
 		else
-			get<DYN>(m_storage).reallocate(get<DYN>(m_storage).capacity(), get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
+		{
+			// Staying out of the buffer: adjust the dynamic capacity.
+			if (new_capacity > get<STC>(m_storage).capacity())
+			{
+				get<DYN>(m_storage).reallocate(new_capacity, get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
+			}
+			// Moving into the buffer: switch to buffer storage.
+			else
+			{
+				// Do the switch.
+			}
+		}
 	}
 
 private:
@@ -801,18 +821,29 @@ public:
 	const value_type* begin() const { return data_begin(); }
 	const value_type* end() const { return data_end(); }
 
+	void reserve(size_t new_capacity)
+	{
+		if (new_capacity > capacity())
+			reallocate(new_capacity);
+	}
+	void shrink_to_fit()
+	{
+		if (auto current_size = size(); current_size < capacity())
+			reallocate(current_size);
+	}
+
 	template<typename... ARGS>
 	void emplace_front(ARGS&&... args)
 	{
-		if (size() == capacity())
-			reallocate();
+		if (auto old_capacity = capacity(); size() == old_capacity)
+			reallocate(traits.grow(old_capacity));
 		add_front(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void emplace_back(ARGS&&... args)
 	{
-		if (size() == capacity())
-			reallocate();
+		if (auto old_capacity = capacity(); size() == old_capacity)
+			reallocate(traits.grow(old_capacity));
 		add_back(std::forward<ARGS>(args)...);
 	}
 
@@ -820,10 +851,6 @@ public:
 	void push_back(const value_type& e) { emplace_back(e); }
 
 	void resize(size_t new_size)
-	{}
-	void reserve(size_t new_capacity)
-	{}
-	void shrink_to_fit()
 	{}
 
 private:
