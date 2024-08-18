@@ -123,15 +123,57 @@ void shift_reverse(T* begin, T* end, size_t distance)
 }
 
 
-// The destroy_data function is a helper that encapsulates calling the element destructors.
-// It is called in the sequence destructor and elsewhere when elements are either going away
-// or have been moved somewhere else.
+// The destroy_data function encapsulates calling the element destructors. It is called
+// in the sequence destructor and elsewhere when elements are either going away or have
+// been moved somewhere else.
 
 template<typename T>
 void destroy_data(T* begin, T* end)
 {
 	for (auto&& element : span<T>(begin, end))
 		element.~T();
+}
+
+
+// The move_data function encapsulates the process of moving elements from one storage space
+// to another. It executes the move, then destroys the moved-from element. Note: this could
+// be optimized to use only one loop, but since std::uninitialized_move is probably optimized
+// to handle simple types, that might not help in many cases unless it's done carefully.
+
+template<typename T>
+void move_data(T* data_begin, T* data_end, T* destination)
+{
+	std::uninitialized_move(data_begin, data_end, destination);
+	destroy_data(data_begin, data_end);
+}
+
+
+// The front_gap function encapsulates the calculation of the location of the start of the data
+// so that it can be easily selected by the sequence_traits::location value. This could probably
+// also be a simple function, but making it a function template matches the rest of the code.
+
+template<sequence_location_lits LOC>
+size_t front_gap(size_t capacity, size_t size)
+{
+	static_assert(false, "An unimplemented specialization of front_gap was instantiated.");
+}
+
+template<>
+size_t front_gap<sequence_location_lits::FRONT>(size_t capacity, size_t size)
+{
+	return 0;
+}
+
+template<>
+size_t front_gap<sequence_location_lits::BACK>(size_t capacity, size_t size)
+{
+	return capacity - size;
+}
+
+template<>
+size_t front_gap<sequence_location_lits::MIDDLE>(size_t capacity, size_t size)
+{
+	return (capacity - size) / 2;
 }
 
 
@@ -150,8 +192,6 @@ public:
 	~fixed_capacity() {}
 
 	constexpr static size_t capacity() { return CAP; }
-
-protected:
 
 	value_type* capacity_begin() { return elements; }
 	value_type* capacity_end() { return elements + CAP; }
@@ -190,6 +230,7 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_size; }
+	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
 
 	value_type* data_begin() { return capacity_begin(); }
 	value_type* data_end() { return capacity_begin() + m_size; }
@@ -239,6 +280,7 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_size; }
+	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
 
 	value_type* data_begin() { return capacity_end() - m_size; }
 	value_type* data_end() { return capacity_end(); }
@@ -286,6 +328,11 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
+	void set_size(size_t current_size)
+	{
+		m_front_gap = static_cast<size_type>(front_gap<TRAITS.location>(capacity(), current_size));
+		m_back_gap = static_cast<size_type>(capacity() - (m_front_gap + current_size));
+	}
 
 	value_type* data_begin() { return capacity_begin() + m_front_gap; }
 	value_type* data_end() { return capacity_end() - m_back_gap; }
@@ -352,13 +399,13 @@ public:
 	dynamic_capacity() = default;
 	dynamic_capacity(dynamic_capacity&& rhs)
 	{
-		m_capacity_begin = rhs.m_capacity_begin;	rhs.m_capacity_begin = nullptr;
-		m_capacity_end = rhs.m_capacity_end;		rhs.m_capacity_end = nullptr;
+		m_capacity_begin = rhs.m_capacity_begin;
+		rhs.m_capacity_begin = nullptr;
 	}
 	dynamic_capacity& operator=(dynamic_capacity&& rhs)
 	{
-		m_capacity_begin = rhs.m_capacity_begin;	rhs.m_capacity_begin = nullptr;
-		m_capacity_end = rhs.m_capacity_end;		rhs.m_capacity_end = nullptr;
+		m_capacity_begin = rhs.m_capacity_begin;
+		rhs.m_capacity_begin = nullptr;
 		return *this;
 	}
 	~dynamic_capacity()
@@ -369,16 +416,15 @@ public:
 
 	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
 
-	void reallocate(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
+protected:
+
+	void make_new_capacity(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
 	{
 	std::println("    reallocate({}, {})", new_capacity, offset);
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (data_begin)
-		{
-			std::uninitialized_move(data_begin, data_end, new_store + offset);
-			destroy_data(data_begin, data_end);
-		}
+			move_data(data_begin, data_end, new_store + offset);
 
 		if (m_capacity_begin)
 			delete static_cast<void*>(m_capacity_begin);
@@ -386,8 +432,6 @@ public:
 		m_capacity_begin = new_store;
 		m_capacity_end = m_capacity_begin + new_capacity;
 	}
-
-protected:
 
 	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
 	value_type* m_capacity_end = nullptr;
@@ -408,7 +452,7 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 {
 	using value_type = T;
 	using inherited = dynamic_capacity<T, TRAITS>;
-	using inherited::reallocate;
+	using inherited::make_new_capacity;
 	using inherited::m_capacity_begin;
 	using inherited::m_capacity_end;
 
@@ -416,21 +460,24 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_data_end - m_capacity_begin; }
-	void set_size(size_t current_size) { m_data_end = m_capacity_begin + current_size; }
 
 	value_type* data_begin() { return m_capacity_begin; }
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return m_capacity_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t new_capacity, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, size_t current_size, value_type* d_begin, value_type* d_end)
 	{
-		assert(size() <= new_capacity);
+		assert(current_size <= new_capacity);
 
-		size_t current_size = size();
-		reallocate(new_capacity, 0, d_begin, d_end);
-		set_size(current_size);
+		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, current_size), d_begin, d_end);
+		m_data_end = m_capacity_begin + current_size;
 	}
+	void reallocate(size_t new_capacity)
+	{
+		reallocate(new_capacity, size(), data_begin(), data_end());
+	}
+
 	void add_front(const value_type& e)
 	{
 		assert(size() < capacity());
@@ -452,7 +499,7 @@ public:
 	void clear()
 	{
 		destroy_data(data_begin(), data_end());
-		set_size(0);
+		m_data_end = m_capacity_begin;
 	}
 
 private:
@@ -473,21 +520,24 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_capacity_end - m_data_begin; }
-	void set_size(size_t current_size) { m_data_begin = m_capacity_end - current_size; }
 
 	value_type* data_begin() { return m_data_begin; }
 	value_type* data_end() { return m_capacity_end; }
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_capacity_end; }
 
-	void reallocate(size_t new_capacity, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, size_t current_size, value_type* d_begin, value_type* d_end)
 	{
-		assert(size() <= new_capacity);
+		assert(current_size <= new_capacity);
 
-		size_t current_size = size();
-		reallocate(new_capacity, new_capacity - current_size, d_begin, d_end);
-		set_size(current_size);
+		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, current_size), d_begin, d_end);
+		m_data_begin = m_capacity_end - current_size;
 	}
+	void reallocate(size_t new_capacity)
+	{
+		reallocate(new_capacity, size(), data_begin(), data_end());
+	}
+
 	void add_front(const value_type& e)
 	{
 		assert(size() < capacity());
@@ -509,7 +559,7 @@ public:
 	void clear()
 	{
 		destroy_data(data_begin(), data_end());
-		set_size(0);
+		m_data_begin = m_capacity_end;
 	}
 
 private:
@@ -530,23 +580,26 @@ public:
 
 	using inherited::capacity;
 	size_t size() const { return m_data_end - m_data_begin; }
-	void set_size(size_t current_size) { m_data_end = m_data_begin + current_size; }
 
 	value_type* data_begin() { return m_data_begin; }
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t new_capacity, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, size_t current_size, value_type* d_begin, value_type* d_end)
 	{
-		assert(size() <= new_capacity);
+		assert(current_size <= new_capacity);
 
-		size_t current_size = size();
-		size_t front_gap = (new_capacity - current_size) / 2;
-		reallocate(new_capacity, front_gap, d_begin, d_end);
-		m_data_begin = m_capacity_begin + front_gap;
-		set_size(current_size);
+		size_t gap = front_gap<TRAITS.location>(new_capacity, current_size);
+		make_new_capacity(new_capacity, gap, d_begin, d_end);
+		m_data_begin = m_capacity_begin + gap;
+		m_data_end = m_data_begin + current_size;
 	}
+	void reallocate(size_t new_capacity)
+	{
+		reallocate(new_capacity, size(), data_begin(), data_end());
+	}
+
 	void add_front(const value_type& e)
 	{
 		assert(size() < capacity());
@@ -588,7 +641,7 @@ public:
 	{
 		destroy_data(data_begin(), data_end());
 		m_data_begin = m_capacity_begin + capacity() / 2;
-		set_size(0);
+		m_data_end = m_data_begin;
 	}
 
 private:
@@ -711,7 +764,7 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
-	void reallocate(size_t new_capacity) { m_storage.reallocate(new_capacity, data_begin(), data_end()); }
+	void reallocate(size_t new_capacity) { m_storage.reallocate(new_capacity); }
 
 private:
 
@@ -745,31 +798,35 @@ protected:
 
 	void reallocate(size_t new_capacity)
 	{
-		if (m_storage.index() == STC)
+		// The new capacity will not fit in the buffer.
+		if (new_capacity > TRAITS.capacity)
 		{
-			// Moving out of the buffer: switch to dynamic storage.
-			if (new_capacity > get<STC>(m_storage).capacity())
+			// We're moving out of the buffer: switch to dynamic storage.
+			if (m_storage.index() == STC)
 			{
 				dynamic_type new_storage;
-				new_storage.reallocate(new_capacity, get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
-				new_storage.set_size(get<STC>(m_storage).size());
+				new_storage.reallocate(new_capacity, get<STC>(m_storage).size(),
+									   get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
 				m_storage = std::move(new_storage);
 			}
-			// Staying in the buffer: do nothing--the buffer capacity cannot change.
+			// We're already out of the buffer: adjust the dynamic capacity.
+			else						
+				get<DYN>(m_storage).reallocate(new_capacity);
 		}
+
+		// The new capacity will fit in the buffer.
 		else
-		{
-			// Staying out of the buffer: adjust the dynamic capacity.
-			if (new_capacity > get<STC>(m_storage).capacity())
+			// We're moving into the buffer: switch to buffer storage.
+			if (m_storage.index() == DYN)
 			{
-				get<DYN>(m_storage).reallocate(new_capacity, get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
+				assert(get<DYN>(m_storage).size() <= TRAITS.capacity);
+
+				dynamic_type temp_storage(std::move(get<DYN>(m_storage)));
+				m_storage.emplace<STC>();
+				get<STC>(m_storage).set_size(temp_storage.size());
+				move_data(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin());
 			}
-			// Moving into the buffer: switch to buffer storage.
-			else
-			{
-				// Do the switch.
-			}
-		}
+			// We're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
 
 private:
@@ -793,12 +850,14 @@ class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 public:
 
 	using value_type = T;
+
 	using inherited::size;
 	using inherited::capacity;
 	using inherited::reallocate;
 
 	using traits_type = decltype(TRAITS);
 	static constexpr traits_type traits = TRAITS;
+	using size_type = typename traits_type::size_type;
 
 	// Variable capacity means that the capacity must grow, and this growth must actually make progress.
 	// Zero capacity is not permitted (although this could be changed if it poses problems in generic contexts).
@@ -812,6 +871,12 @@ public:
 	// Maintaining elements in the middle of the capacity is more or less useless without the ability to shift.
 	static_assert(traits.location != sequence_location_lits::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
+
+	// A fixed capacity of any kind requires that the size type represent a count up to the requested capacity.
+	static_assert(traits.storage == sequence_storage_lits::VARIABLE ||
+				  traits.capacity <= std::numeric_limits<size_type>::max(),
+				  "Size type is insufficient to hold requested capacity.");
+
 
 	~sequence()
 	{

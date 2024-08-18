@@ -34,10 +34,10 @@ int main()
 
 	{
 	sequence<foo,
-		sequence_traits<unsigned> {
-			.storage = sequence_storage_lits::VARIABLE,
+		sequence_traits<unsigned char> {
+			.storage = sequence_storage_lits::BUFFERED,
 			.location = sequence_location_lits::FRONT,
-			.capacity = 10,
+			.capacity = 1000,
 		}> s3;
 	show(s3);
 	println("---------------------------------------------");
@@ -47,6 +47,11 @@ int main()
 
 	for (int i = 1; i <= 5; ++i)
 		s3.push_back(i);
+
+	println("capacity = {}", s3.capacity());
+	println("size = {}", s3.size());
+
+	s3.reserve(10);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
