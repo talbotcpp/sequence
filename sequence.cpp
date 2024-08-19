@@ -23,6 +23,8 @@ struct foo {
 template<typename SEQ>
 void show_elems(const SEQ& seq)
 {
+	if (seq.empty())
+		print("EMPTY");
 	for (auto&& e : seq)
 		print("{}\t", e.i);
 	println();
@@ -32,15 +34,17 @@ int main()
 {
 	println("---- test -----------------------------------");
 
-	{
-	sequence<foo,
-		sequence_traits<unsigned char> {
+	constexpr sequence_traits<size_t> traits {
 			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::MIDDLE,
+			.location = sequence_location_lits::FRONT,
 			.capacity = 10,
-		}> s3;
-	show(s3);
+	};
+	{
+	sequence<foo, traits> s3;
+///	vector<foo> s3;
+//	show(s3);
 	println("---------------------------------------------");
+	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
@@ -50,23 +54,34 @@ int main()
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
+	show_elems(s3);
 
 	s3.reserve(16);
 
+	//println("capacity = {}", s3.capacity());
+	//println("size = {}", s3.size());
+
+	//s3.clear();
+
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
+	show_elems(s3);
+
+	s3.push_back(42);
+
+	println("capacity = {}", s3.capacity());
+	println("size = {}", s3.size());
+	show_elems(s3);
 
 	s3.shrink_to_fit();
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
-
 	show_elems(s3);
 	}
 
 
 	println("---------------------------------------------");
-
 
 	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	//foo* e1 = p1 + 5;

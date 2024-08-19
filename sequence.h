@@ -31,10 +31,26 @@ struct sequence_traits
 	using size_type = SIZE;
 
 	// 'storage' specifies how the capacity is allocated:
-	//		STATIC:		The capacity is embedded in the sequence object (like std::inplace_vector or boost::static_vector). The capacity cannot change.
-	//		FIXED:		The capacity is dynamically allocated. The capacity cannot change.
-	//		VARIABLE:	The capacity is dynamically allocated (like std::vector). The capacity can change.
-	//		BUFFERED:	The capacity may be embedded (buffered) or dynamically allocated (like boost::small_vector). The capacity can change.
+	// 
+	//		STATIC:		The capacity is embedded in the sequence object (like std::inplace_vector or boost::static_vector).
+	//					The capacity cannot change size or move.
+	// 
+	//		FIXED:		The capacity is dynamically allocated. The capacity cannot change size. Clearing the sequence
+	//					deallocates the capacity. Erasing the sequence does not deallocate the capacity.
+	// 
+	//		VARIABLE:	The capacity is dynamically allocated (like std::vector). The capacity can change and move.
+	//					Neither clearing nor erasing the sequence deallocates the capacity (as with std::vector).
+	// 
+	//		BUFFERED:	The capacity may be embedded (buffered) or dynamically allocated (like boost::small_vector).
+	//					The capacity can change and move. Clearing the sequence deallocates the capacity if it was
+	//					dynamically allocated. Erasing the sequence does not deallocate the capacity. Reserving a
+	//					capacity less than or equal to the fixed capacity size has no effect. Reserving a capacity
+	//					greater than the capacity size causes the capacity to be dynamically (re)allocated. Calling
+	//					shrink_to_fit when the capacity is buffered has no effect. Calling it when the capacity is
+	//					dynamically allocated and the size is greater than the fixed capacity size has the expected
+	//					effect (as with std::vector). Calling it when the capacity is dynamically allocated and the
+	//					size is less than or equal to the fixed capacity size causes the capacity to be rebuffered
+	//					and the dynamic capacity to be deallocated.
 
 	sequence_storage_lits storage = sequence_storage_lits::VARIABLE;
 
@@ -678,7 +694,7 @@ public:
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
 
-	void clear() { return m_storage.clear(); }
+	void clear() { m_storage.clear(); }
 
 protected:
 
@@ -721,6 +737,12 @@ public:
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage ? m_storage->size() : 0; }
 
+	void clear()
+	{
+		m_storage->clear();
+		m_storage.reset();
+	}
+
 protected:
 
 	void add_front(const value_type& e)
@@ -762,6 +784,8 @@ public:
 	size_t capacity() const { return m_storage.capacity(); }
 	size_t size() const { return m_storage.size(); }
 
+	void clear() { m_storage.clear(); }
+
 protected:
 
 	void add_front(const value_type& e) { m_storage.add_front(e); }
@@ -791,6 +815,17 @@ public:
 
 	size_t capacity() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
 	size_t size() const { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
+
+	void clear()
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).clear();
+		else
+		{
+			destroy_data(get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
+			m_storage.emplace<STC>();
+		}
+	}
 
 protected:
 
