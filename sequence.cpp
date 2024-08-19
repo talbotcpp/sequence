@@ -17,6 +17,8 @@ struct foo {
 		println("  ~foo {}", i);
 		i = 99999;
 	}
+	operator int() const { return i; }
+
 	int i;
 };
 
@@ -26,7 +28,7 @@ void show_elems(const SEQ& seq)
 	if (seq.empty())
 		print("EMPTY");
 	for (auto&& e : seq)
-		print("{}\t", e.i);
+		print("{}\t", int(e));
 	println();
 }
 
@@ -35,53 +37,62 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::FRONT,
+			.storage = sequence_storage_lits::STATIC,
+			.location = sequence_location_lits::MIDDLE,
 			.capacity = 10,
 	};
 	{
 	sequence<foo, traits> s3;
 ///	vector<foo> s3;
 //	show(s3);
-	println("---------------------------------------------");
-	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
+//	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
 
 	for (int i = 1; i <= 6; ++i)
-		s3.push_back(i);
+		s3.emplace_back(i);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
 	show_elems(s3);
 
-	s3.reserve(16);
+	s3.erase(s3.begin() + 4);
+
+	println("capacity = {}", s3.capacity());
+	println("size = {}", s3.size());
+	show_elems(s3);
+
+	//s3.pop_back();
 
 	//println("capacity = {}", s3.capacity());
 	//println("size = {}", s3.size());
+	//show_elems(s3);
+
+//	s3.reserve(16);
 
 	//s3.clear();
 
-	println("capacity = {}", s3.capacity());
-	println("size = {}", s3.size());
-	show_elems(s3);
+	//println("capacity = {}", s3.capacity());
+	//println("size = {}", s3.size());
+	//show_elems(s3);
 
-	s3.push_back(42);
+	//s3.push_back(42);
 
-	println("capacity = {}", s3.capacity());
-	println("size = {}", s3.size());
-	show_elems(s3);
+	//println("capacity = {}", s3.capacity());
+	//println("size = {}", s3.size());
+	//show_elems(s3);
 
-	s3.shrink_to_fit();
+	//s3.shrink_to_fit();
 
-	println("capacity = {}", s3.capacity());
-	println("size = {}", s3.size());
-	show_elems(s3);
+	//println("capacity = {}", s3.capacity());
+	//println("size = {}", s3.size());
+	//show_elems(s3);
 	}
 
 
 	println("---------------------------------------------");
+
 
 	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	//foo* e1 = p1 + 5;

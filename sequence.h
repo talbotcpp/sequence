@@ -121,7 +121,7 @@ void shift_forward(T* begin, T* end, size_t distance)
 
 	for (auto dest = end + distance; end > begin;)
 	{
-		new(--dest) T(*--end);
+		new(--dest) T(std::move(*--end));
 		end->~T();
 	}
 }
@@ -133,7 +133,7 @@ void shift_reverse(T* begin, T* end, size_t distance)
 
 	for (auto dest = begin - distance; begin < end; ++dest, ++begin)
 	{
-		new(dest) T(*begin);
+		new(dest) T(std::move(*begin));
 		begin->~T();
 	}
 }
@@ -277,6 +277,28 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_size = 0;
 	}
+	void erase(value_type* element)
+	{
+		assert(element >= data_begin());
+		assert(element < data_end());
+
+		element->~value_type();
+		shift_reverse(element + 1, data_end(), 1);
+		--m_size;
+	}
+	void pop_front()
+	{
+		assert(m_size);
+
+		erase(data_begin());
+	}
+	void pop_back()
+	{
+		assert(m_size);
+
+		(data_end() - 1)->~value_type();
+		--m_size;
+	}
 
 private:
 
@@ -303,27 +325,52 @@ public:
 	const value_type* data_begin() const { return capacity_end() - m_size; }
 	const value_type* data_end() const { return capacity_end(); }
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
 
 		++m_size;
-		new(data_begin()) value_type(e);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(data_begin() > capacity_begin());
 
 		shift_reverse(data_begin(), data_end(), 1);
 		++m_size;
-		new(data_end() - 1) value_type(e);
+		new(data_end() - 1) value_type(std::forward<ARGS>(args)...);
 	}
 
 	void clear()
 	{
 		destroy_data(data_begin(), data_end());
 		m_size = 0;
+	}
+	void erase(value_type* element)
+	{
+		assert(element >= data_begin());
+		assert(element < data_end());
+		assert(size());
+
+		element->~value_type();
+		shift_forward(data_begin(), element, 1);
+		--m_size;
+	}
+	void pop_front()
+	{
+		assert(size());
+
+		data_begin()->~value_type();
+		--m_size;
+	}
+	void pop_back()
+	{
+		assert(size());
+
+		erase(data_end() - 1);
 	}
 
 private:
@@ -355,26 +402,28 @@ public:
 	const value_type* data_begin() const { return capacity_begin() + m_front_gap; }
 	const value_type* data_end() const { return capacity_end() - m_back_gap; }
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_front_gap != 0 || m_back_gap != 0);
+		assert(m_front_gap || m_back_gap);
 
 		if (m_front_gap == 0)
 		{
 			auto bg = m_back_gap / 2;
 			auto fg = m_back_gap - bg;
-			shift_reverse(data_begin(), data_end(), fg);
+			shift_forward(data_begin(), data_end(), fg);
 			m_back_gap = bg;
 			m_front_gap = fg - 1;
 		}
 		else --m_front_gap;
-		new(data_begin()) value_type(e);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_front_gap != 0 || m_back_gap != 0);
+		assert(m_front_gap || m_back_gap);
 
 		if (m_back_gap == 0)
 		{
@@ -385,7 +434,7 @@ public:
 			m_back_gap = bg - 1;
 		}
 		else --m_back_gap;
-		new(data_end() - 1) value_type(e);
+		new(data_end() - 1) value_type(std::forward<ARGS>(args)...);
 	}
 
 	void clear()
@@ -393,6 +442,37 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_front_gap = TRAITS.capacity / 2;
 		m_back_gap = TRAITS.capacity - TRAITS.capacity / 2;
+	}
+	void erase(value_type* element)
+	{
+		assert(element >= data_begin());
+		assert(element < data_end());
+
+		element->~value_type();
+		if (element - data_begin() > data_end() - element)
+		{
+			shift_reverse(element + 1, data_end(), 1);
+			++m_back_gap;
+		}
+		else
+		{
+			shift_forward(data_begin(), element, 1);
+			++m_front_gap;
+		}
+	}
+	void pop_front()
+	{
+		assert(size());
+
+		data_begin()->~value_type();
+		++m_front_gap;
+	}
+	void pop_back()
+	{
+		assert(size());
+
+		(data_end() - 1)->~value_type();
+		++m_back_gap;
 	}
 
 private:
@@ -695,6 +775,9 @@ public:
 	size_t size() const { return m_storage.size(); }
 
 	void clear() { m_storage.clear(); }
+	void erase(value_type* element) { m_storage.erase(element); }
+	void pop_front() { m_storage.pop_front(); }
+	void pop_back() { m_storage.pop_back(); }
 
 protected:
 
@@ -924,9 +1007,18 @@ public:
 		destroy_data(data_begin(), data_end());
 	}
 
+	value_type* data() { return data_begin(); }
+	value_type* begin() { return data_begin(); }
+	value_type* end() { return data_end(); }
 	const value_type* data() const { return data_begin(); }
 	const value_type* begin() const { return data_begin(); }
 	const value_type* end() const { return data_end(); }
+
+	value_type& front() { return *data_begin(); }
+	value_type& back() { return *(data_end() - 1); }
+	const value_type& front() const { return *data_begin(); }
+	const value_type& back() const { return *(data_end() - 1); }
+
 	bool empty() const { return size() == 0; }
 
 	void reserve(size_t new_capacity)
