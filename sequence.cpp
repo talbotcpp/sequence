@@ -37,8 +37,8 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::STATIC,
-			.location = sequence_location_lits::MIDDLE,
+			.storage = sequence_storage_lits::VARIABLE,
+			.location = sequence_location_lits::FRONT,
 			.capacity = 10,
 	};
 	{
@@ -51,6 +51,7 @@ int main()
 	println("size = {}", s3.size());
 
 	for (int i = 1; i <= 6; ++i)
+	//	s3.emplace_front(i);
 		s3.emplace_back(i);
 
 	println("capacity = {}", s3.capacity());
@@ -58,6 +59,7 @@ int main()
 	show_elems(s3);
 
 	s3.erase(s3.begin() + 4);
+	//s3.pop_front();
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());

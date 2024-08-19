@@ -281,6 +281,7 @@ public:
 	{
 		assert(element >= data_begin());
 		assert(element < data_end());
+		assert(size());
 
 		element->~value_type();
 		shift_reverse(element + 1, data_end(), 1);
@@ -288,13 +289,13 @@ public:
 	}
 	void pop_front()
 	{
-		assert(m_size);
+		assert(size());
 
 		erase(data_begin());
 	}
 	void pop_back()
 	{
-		assert(m_size);
+		assert(size());
 
 		(data_end() - 1)->~value_type();
 		--m_size;
@@ -580,21 +581,23 @@ public:
 		reallocate(new_capacity, size(), data_begin(), data_end());
 	}
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_end < m_capacity_end);
 
 		shift_forward(data_begin(), data_end(), 1);
-		new(data_begin()) value_type(e);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_end < m_capacity_end);
 
-		new(data_end()) value_type(e);
+		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
 
@@ -602,6 +605,29 @@ public:
 	{
 		destroy_data(data_begin(), data_end());
 		m_data_end = m_capacity_begin;
+	}
+	void erase(value_type* element)
+	{
+		assert(element >= data_begin());
+		assert(element < data_end());
+		assert(size());
+
+		element->~value_type();
+		shift_reverse(element + 1, data_end(), 1);
+		--m_data_end;
+	}
+	void pop_front()
+	{
+		assert(size());
+
+		erase(data_begin());
+	}
+	void pop_back()
+	{
+		assert(size());
+
+		(data_end() - 1)->~value_type();
+		--m_data_end;
 	}
 
 private:
@@ -640,28 +666,53 @@ public:
 		reallocate(new_capacity, size(), data_begin(), data_end());
 	}
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_begin > m_capacity_begin);
 
 		--m_data_begin;
-		new(data_begin()) value_type(e);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_begin > m_capacity_begin);
 
 		shift_reverse(data_begin(), data_end(), 1);
 		--m_data_begin;
-		new(data_end() - 1) value_type(e);
+		new(data_end() - 1) value_type(std::forward<ARGS>(args)...);
 	}
 
 	void clear()
 	{
 		destroy_data(data_begin(), data_end());
 		m_data_begin = m_capacity_end;
+	}
+	void erase(value_type* element)
+	{
+		assert(element >= data_begin());
+		assert(element < data_end());
+		assert(size());
+
+		element->~value_type();
+		shift_forward(data_begin(), element, 1);
+		++m_data_begin;
+	}
+	void pop_front()
+	{
+		assert(size());
+
+		data_begin()->~value_type();
+		++m_data_begin;
+	}
+	void pop_back()
+	{
+		assert(size());
+
+		erase(data_end() - 1);
 	}
 
 private:
@@ -825,20 +876,25 @@ public:
 		m_storage->clear();
 		m_storage.reset();
 	}
+	void erase(value_type* element) { m_storage->erase(element); }
+	void pop_front() { m_storage->pop_front(); }
+	void pop_back() { m_storage->pop_back(); }
 
 protected:
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		if (!m_storage)
 			m_storage.reset(new storage_type);
-		m_storage->add_front(e);
+		m_storage->add_front(std::forward<ARGS>(args)...);
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		if (!m_storage)
 			m_storage.reset(new storage_type);
-		m_storage->add_back(e);
+		m_storage->add_back(std::forward<ARGS>(args)...);
 	}
 	auto data_begin() { return m_storage ? m_storage->data_begin() : nullptr; }
 	auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
@@ -868,11 +924,16 @@ public:
 	size_t size() const { return m_storage.size(); }
 
 	void clear() { m_storage.clear(); }
+	void erase(value_type* element) { m_storage.erase(element); }
+	void pop_front() { m_storage.pop_front(); }
+	void pop_back() { m_storage.pop_back(); }
 
 protected:
 
-	void add_front(const value_type& e) { m_storage.add_front(e); }
-	void add_back(const value_type& e) { m_storage.add_back(e); }
+	template<typename... ARGS>
+	void add_front(ARGS&&... args) { m_storage.add_front(std::forward<ARGS>(args)...); }
+	template<typename... ARGS>
+	void add_back(ARGS&&... args) { m_storage.add_back(std::forward<ARGS>(args)...); }
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
