@@ -39,24 +39,25 @@ int main()
 {
 	println("---- test -----------------------------------");
 
-	//constexpr sequence_traits<size_t> traits {
-	//		.storage = sequence_storage_lits::VARIABLE,
-	//		.location = sequence_location_lits::MIDDLE,
-	//		.capacity = 10,
-	//};
+	constexpr sequence_traits<size_t> traits {
+			.storage = sequence_storage_lits::VARIABLE,
+			.location = sequence_location_lits::MIDDLE,
+			.capacity = 8,
+	};
 	{
-	sequence<foo, {
-		.storage = sequence_storage_lits::BUFFERED,
-		.location = sequence_location_lits::FRONT,
-		.capacity = 12,
-	}> s3;
+	sequence<foo, traits> s3;
+	//sequence<foo, {
+	//	.storage = sequence_storage_lits::STATIC,
+	//	.location = sequence_location_lits::FRONT,
+	//	.capacity = 12,
+	//}> s3;
 ///	vector<foo> s3;
 //	show(s3);
 //	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 
 //	static_vector<foo, 10> s3;
 
-	s3.reserve(16);
+//	s3.reserve(16);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
@@ -69,9 +70,10 @@ int main()
 	println("size = {}", s3.size());
 	show_elems(s3);
 
-	s3.erase(s3.begin() + 2, s3.begin() + 5);
+	//s3.erase(s3.begin() + 2, s3.begin() + 5);
 	//s3.erase(s3.begin() + 2);
 	//s3.pop_front();
+	s3.resize(12, 1234);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
@@ -107,6 +109,15 @@ int main()
 
 	println("---------------------------------------------");
 
+	//vector<int> v{1,2,3,4,5};
+	//println("capacity = {}", v.capacity());
+	//println("size = {}", v.size());
+	//show_elems(v);
+
+	//v.resize(10);
+	//println("capacity = {}", v.capacity());
+	//println("size = {}", v.size());
+	//show_elems(v);
 
 	//foo* p1 = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	//foo* e1 = p1 + 5;

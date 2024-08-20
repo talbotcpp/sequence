@@ -608,16 +608,12 @@ public:
 	const value_type* data_begin() const { return m_capacity_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t new_capacity, size_t current_size, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, size_t current_size, size_t new_size, value_type* d_begin, value_type* d_end)
 	{
 		assert(current_size <= new_capacity);
 
-		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, current_size), d_begin, d_end);
+		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, new_size), d_begin, d_end);
 		m_data_end = m_capacity_begin + current_size;
-	}
-	void reallocate(size_t new_capacity)
-	{
-		reallocate(new_capacity, size(), data_begin(), data_end());
 	}
 
 	template<typename... ARGS>
@@ -703,16 +699,12 @@ public:
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_capacity_end; }
 
-	void reallocate(size_t new_capacity, size_t current_size, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, size_t current_size, size_t new_size, value_type* d_begin, value_type* d_end)
 	{
 		assert(current_size <= new_capacity);
 
-		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, current_size), d_begin, d_end);
+		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, new_size), d_begin, d_end);
 		m_data_begin = m_capacity_end - current_size;
-	}
-	void reallocate(size_t new_capacity)
-	{
-		reallocate(new_capacity, size(), data_begin(), data_end());
 	}
 
 	template<typename... ARGS>
@@ -798,18 +790,14 @@ public:
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t new_capacity, size_t current_size, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_capacity, size_t current_size, size_t new_size, value_type* d_begin, value_type* d_end)
 	{
 		assert(current_size <= new_capacity);
 
-		size_t gap = front_gap<TRAITS.location>(new_capacity, current_size);
+		size_t gap = front_gap<TRAITS.location>(new_capacity, new_size);
 		make_new_capacity(new_capacity, gap, d_begin, d_end);
 		m_data_begin = m_capacity_begin + gap;
 		m_data_end = m_data_begin + current_size;
-	}
-	void reallocate(size_t new_capacity)
-	{
-		reallocate(new_capacity, size(), data_begin(), data_end());
 	}
 
 	template<typename... ARGS>
@@ -961,7 +949,7 @@ protected:
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
 
-	void reallocate(size_t new_capacity)
+	void reallocate(size_t new_capacity, size_t new_size)
 	{
 		throw std::bad_alloc();
 	}
@@ -1015,7 +1003,7 @@ protected:
 	auto data_begin() const { return m_storage ? m_storage->data_begin() : nullptr; }
 	auto data_end() const { return m_storage ? m_storage->data_end() : nullptr; }
 
-	void reallocate(size_t new_capacity)
+	void reallocate(size_t new_capacity, size_t new_size)
 	{
 		throw std::bad_alloc();
 	}
@@ -1053,7 +1041,11 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
-	void reallocate(size_t new_capacity) { m_storage.reallocate(new_capacity); }
+
+	void reallocate(size_t new_capacity, size_t new_size)
+	{
+		m_storage.reallocate(new_capacity, size(), new_size, data_begin(), data_end());
+	}
 
 private:
 
@@ -1126,7 +1118,7 @@ protected:
 	auto data_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
 	auto data_end() const { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
 
-	void reallocate(size_t new_capacity)
+	void reallocate(size_t new_capacity, size_t new_size)
 	{
 		// The new capacity will not fit in the buffer.
 		if (new_capacity > TRAITS.capacity)
@@ -1135,13 +1127,14 @@ protected:
 			if (m_storage.index() == STC)
 			{
 				dynamic_type new_storage;
-				new_storage.reallocate(new_capacity, get<STC>(m_storage).size(),
+				new_storage.reallocate(new_capacity, get<STC>(m_storage).size(), new_size,
 									   get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
 				m_storage = std::move(new_storage);
 			}
 			// We're already out of the buffer: adjust the dynamic capacity.
 			else						
-				get<DYN>(m_storage).reallocate(new_capacity);
+				get<DYN>(m_storage).reallocate(new_capacity, get<DYN>(m_storage).size(), new_size,
+											   get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
 		}
 
 		// The new capacity will fit in the buffer.
@@ -1184,6 +1177,7 @@ public:
 
 	using inherited::size;
 	using inherited::capacity;
+	using inherited::erase;
 
 	using traits_type = decltype(TRAITS);
 	static constexpr traits_type traits = TRAITS;
@@ -1230,36 +1224,47 @@ public:
 	void reserve(size_t new_capacity)
 	{
 		if (new_capacity > capacity())
-			reallocate(new_capacity);
+			reallocate(new_capacity, size());
 	}
 	void shrink_to_fit()
 	{
 		if (auto current_size = size(); current_size < capacity())
-			reallocate(current_size);
+			reallocate(current_size, current_size);
 	}
 
 	template<typename... ARGS>
 	void emplace_front(ARGS&&... args)
 	{
-		if (auto old_capacity = capacity(); size() == old_capacity)
-			reallocate(traits.grow(old_capacity));
+		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
+			reallocate(traits.grow(old_capacity), current_size);
 		add_front(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void emplace_back(ARGS&&... args)
 	{
-		if (auto old_capacity = capacity(); size() == old_capacity)
-			reallocate(traits.grow(old_capacity));
+		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
+			reallocate(traits.grow(old_capacity), current_size);
 		add_back(std::forward<ARGS>(args)...);
 	}
 
 	void push_front(const value_type& e) { emplace_front(e); }
 	void push_back(const value_type& e) { emplace_back(e); }
 
-	void resize(size_t new_size)
-	{}
-	void resize( size_type new_size, const value_type& value )
-	{}
+	template<typename... ARGS>
+	void resize(size_t new_size, ARGS&&... args)
+	{
+		auto old_size = size();
+
+		if (new_size < old_size)
+			erase(data_end() - (old_size - new_size), data_end());
+		else if (new_size > old_size)
+		{
+			if (new_size > capacity())
+				reallocate(new_size, new_size);
+			while (new_size-- > old_size)
+				add_back(std::forward<ARGS>(args)...);
+		}
+	}
 };
 
 
