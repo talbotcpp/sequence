@@ -32,25 +32,36 @@ void show_elems(const SEQ& seq)
 	println();
 }
 
+template<typename T, long long CAP, unsigned_integral SIZE = size_t> requires ( CAP > 0 )
+using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::STATIC, .capacity = CAP }>;
+
 int main()
 {
 	println("---- test -----------------------------------");
 
-	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::VARIABLE,
-			.location = sequence_location_lits::FRONT,
-			.capacity = 10,
-	};
+	//constexpr sequence_traits<size_t> traits {
+	//		.storage = sequence_storage_lits::VARIABLE,
+	//		.location = sequence_location_lits::MIDDLE,
+	//		.capacity = 10,
+	//};
 	{
-	sequence<foo, traits> s3;
+	sequence<foo, {
+		.storage = sequence_storage_lits::BUFFERED,
+		.location = sequence_location_lits::FRONT,
+		.capacity = 12,
+	}> s3;
 ///	vector<foo> s3;
 //	show(s3);
 //	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 
+//	static_vector<foo, 10> s3;
+
+	s3.reserve(16);
+
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
 
-	for (int i = 1; i <= 6; ++i)
+	for (int i = 1; i <= 8; ++i)
 	//	s3.emplace_front(i);
 		s3.emplace_back(i);
 
@@ -58,7 +69,8 @@ int main()
 	println("size = {}", s3.size());
 	show_elems(s3);
 
-	s3.erase(s3.begin() + 4);
+	s3.erase(s3.begin() + 2, s3.begin() + 5);
+	//s3.erase(s3.begin() + 2);
 	//s3.pop_front();
 
 	println("capacity = {}", s3.capacity());

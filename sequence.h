@@ -18,7 +18,7 @@ enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };		// See sequenc
 // sequence_traits - Structure used to supply the sequence traits. The default values have been chosen
 // to exactly model std::vector so that sequence can be used as a drop-in replacement with no adjustments.
 
-template<std::unsigned_integral SIZE = size_t, size_t CAP = 1>
+template<std::unsigned_integral SIZE = size_t>
 struct sequence_traits
 {
 	// 'size_type' is the type of the size field for fixed storage. This allows small sequences of
@@ -76,7 +76,7 @@ struct sequence_traits
 	// For BUFFERED storage 'capacity' is the size of the small object optimization buffer (SBO).
 	// 'capacity' must be greater than 0.
 
-	size_t capacity = CAP;
+	size_t capacity = 1;
 
 	// 'increment' specifies the linear capacity growth in elements. This must be greater than 0.
 
@@ -277,6 +277,16 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_size = 0;
 	}
+	void erase(value_type* begin, value_type* end)
+	{
+		assert(begin >= data_begin());
+		assert(end <= data_end());
+
+		size_t count = end - begin;
+		destroy_data(begin, end);
+		shift_reverse(end, data_end(), count);
+		m_size -= count;
+	}
 	void erase(value_type* element)
 	{
 		assert(element >= data_begin());
@@ -349,6 +359,16 @@ public:
 	{
 		destroy_data(data_begin(), data_end());
 		m_size = 0;
+	}
+	void erase(value_type* begin, value_type* end)
+	{
+		assert(begin >= data_begin());
+		assert(end <= data_end());
+
+		size_t count = end - begin;
+		destroy_data(begin, end);
+		shift_forward(data_begin(), begin, count);
+		m_size -= count;
 	}
 	void erase(value_type* element)
 	{
@@ -443,6 +463,25 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_front_gap = TRAITS.capacity / 2;
 		m_back_gap = TRAITS.capacity - TRAITS.capacity / 2;
+	}
+	void erase(value_type* begin, value_type* end)
+	{
+		assert(begin >= data_begin());
+		assert(end <= data_end());
+
+		size_t count = end - begin;
+		destroy_data(begin, end);
+
+		if (begin - data_begin() > data_end() - end)
+		{
+			shift_reverse(end, data_end(), count);
+			m_back_gap += count;
+		}
+		else
+		{
+			shift_forward(data_begin(), begin, count);
+			m_front_gap += count;
+		}
 	}
 	void erase(value_type* element)
 	{
@@ -606,6 +645,16 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_data_end = m_capacity_begin;
 	}
+	void erase(value_type* begin, value_type* end)
+	{
+		assert(begin >= data_begin());
+		assert(end <= data_end());
+
+		size_t count = end - begin;
+		destroy_data(begin, end);
+		shift_reverse(end, data_end(), count);
+		m_data_end -= count;
+	}
 	void erase(value_type* element)
 	{
 		assert(element >= data_begin());
@@ -691,6 +740,16 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_data_begin = m_capacity_end;
 	}
+	void erase(value_type* begin, value_type* end)
+	{
+		assert(begin >= data_begin());
+		assert(end <= data_end());
+
+		size_t count = end - begin;
+		destroy_data(begin, end);
+		shift_forward(data_begin(), begin, count);
+		m_data_begin += count;
+	}
 	void erase(value_type* element)
 	{
 		assert(element >= data_begin());
@@ -753,7 +812,8 @@ public:
 		reallocate(new_capacity, size(), data_begin(), data_end());
 	}
 
-	void add_front(const value_type& e)
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_begin > m_capacity_begin || m_data_end < m_capacity_end);
@@ -769,9 +829,10 @@ public:
 			m_data_end += offset;
 		}
 		--m_data_begin;
-		new(data_begin()) value_type(e);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
-	void add_back(const value_type& e)
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_begin > m_capacity_begin || m_data_end < m_capacity_end);
@@ -786,7 +847,7 @@ public:
 			m_data_begin -= offset;
 			m_data_end -= offset;
 		}
-		new(data_end()) value_type(e);
+		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
 
@@ -795,6 +856,57 @@ public:
 		destroy_data(data_begin(), data_end());
 		m_data_begin = m_capacity_begin + capacity() / 2;
 		m_data_end = m_data_begin;
+	}
+	void erase(value_type* begin, value_type* end)
+	{
+		assert(begin >= data_begin());
+		assert(end <= data_end());
+
+		size_t count = end - begin;
+		destroy_data(begin, end);
+
+		if (begin - data_begin() > data_end() - end)
+		{
+			shift_reverse(end, data_end(), count);
+			m_data_end -= count;
+		}
+		else
+		{
+			shift_forward(data_begin(), begin, count);
+			m_data_begin += count;
+		}
+	}
+	void erase(value_type* element)
+	{
+		assert(element >= data_begin());
+		assert(element < data_end());
+		assert(size());
+
+		element->~value_type();
+		if (element - data_begin() > data_end() - element)
+		{
+			shift_reverse(element + 1, data_end(), 1);
+			--m_data_end;
+		}
+		else
+		{
+			shift_forward(data_begin(), element, 1);
+			++m_data_begin;
+		}
+	}
+	void pop_front()
+	{
+		assert(size());
+
+		data_begin()->~value_type();
+		++m_data_begin;
+	}
+	void pop_back()
+	{
+		assert(size());
+
+		(data_end() - 1)->~value_type();
+		--m_data_end;
 	}
 
 private:
@@ -826,6 +938,7 @@ public:
 	size_t size() const { return m_storage.size(); }
 
 	void clear() { m_storage.clear(); }
+	void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
 	void erase(value_type* element) { m_storage.erase(element); }
 	void pop_front() { m_storage.pop_front(); }
 	void pop_back() { m_storage.pop_back(); }
@@ -876,6 +989,7 @@ public:
 		m_storage->clear();
 		m_storage.reset();
 	}
+	void erase(value_type* begin, value_type* end) { m_storage->erase(begin, end); }
 	void erase(value_type* element) { m_storage->erase(element); }
 	void pop_front() { m_storage->pop_front(); }
 	void pop_back() { m_storage->pop_back(); }
@@ -924,6 +1038,7 @@ public:
 	size_t size() const { return m_storage.size(); }
 
 	void clear() { m_storage.clear(); }
+	void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
 	void erase(value_type* element) { m_storage.erase(element); }
 	void pop_front() { m_storage.pop_front(); }
 	void pop_back() { m_storage.pop_back(); }
@@ -970,11 +1085,41 @@ public:
 			m_storage.emplace<STC>();
 		}
 	}
+	void erase(value_type* begin, value_type* end)
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).erase(begin, end);
+		else
+			get<DYN>(m_storage).erase(begin, end);
+	}
+	void erase(value_type* element)
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).erase(element);
+		else
+			get<DYN>(m_storage).erase(element);
+	}
+	auto pop_front() { return m_storage.index() == STC ? get<STC>(m_storage).pop_front() : get<DYN>(m_storage).pop_front(); }
+	auto pop_back() { return m_storage.index() == STC ? get<STC>(m_storage).pop_back() : get<DYN>(m_storage).pop_back(); }
 
 protected:
 
-	void add_front(const value_type& e) { m_storage.index() == STC ? get<STC>(m_storage).add_front(e) : get<DYN>(m_storage).add_front(e); }
-	void add_back(const value_type& e) { m_storage.index() == STC ? get<STC>(m_storage).add_back(e) : get<DYN>(m_storage).add_back(e); }
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).add_front(std::forward<ARGS>(args)...);
+		else
+			get<DYN>(m_storage).add_front(std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).add_back(std::forward<ARGS>(args)...);
+		else
+			get<DYN>(m_storage).add_back(std::forward<ARGS>(args)...);
+	}
 
 	auto data_begin() { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
 	auto data_end() { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
@@ -1113,10 +1258,8 @@ public:
 
 	void resize(size_t new_size)
 	{}
-
-private:
-
-
+	void resize( size_type new_size, const value_type& value )
+	{}
 };
 
 
