@@ -40,9 +40,9 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::VARIABLE,
-			.location = sequence_location_lits::MIDDLE,
-			.capacity = 8,
+			.storage = sequence_storage_lits::STATIC,
+			.location = sequence_location_lits::FRONT,
+			.capacity = 10,
 	};
 	{
 	sequence<foo, traits> s3;
@@ -70,10 +70,22 @@ int main()
 	println("size = {}", s3.size());
 	show_elems(s3);
 
+	//println();
+	//println("front = {}", (int) s3.front());
+	//println("back = {}", (int) s3.back());
+	//for (auto e = s3.rbegin(); e != s3.rend(); ++e)
+	//	print("{}\t", int(*e));
+//	for (auto&& e : ranges::reverse_view(s3))
+//	for (auto&& e : s3 | views::reverse)
+	//	print("{}\t", int(e));
+	//println();
+
 	//s3.erase(s3.begin() + 2, s3.begin() + 5);
 	//s3.erase(s3.begin() + 2);
 	//s3.pop_front();
-	s3.resize(12, 1234);
+	//s3.resize(12, 1234);
+
+	s3.emplace(s3.begin() + 2);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
@@ -109,7 +121,11 @@ int main()
 
 	println("---------------------------------------------");
 
-	//vector<int> v{1,2,3,4,5};
+//	vector<int> v{1,2,3,4,5};
+//	for (auto&& e : ranges::reverse_view(v))
+//	for (auto&& e : v | views::reverse)
+//		print("{}\t", e);
+
 	//println("capacity = {}", v.capacity());
 	//println("size = {}", v.size());
 	//show_elems(v);

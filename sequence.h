@@ -36,10 +36,12 @@ struct sequence_traits
 	//					The capacity cannot change size or move.
 	// 
 	//		FIXED:		The capacity is dynamically allocated. The capacity cannot change size. Clearing the sequence
-	//					deallocates the capacity. Erasing the sequence does not deallocate the capacity.
+	//					deallocates the capacity. Erasing the sequence does not deallocate the capacity. This is like
+	//					a std::vector which has been reserved and not allowed to reallocate, except that the in-class
+	//					storage is only one pointer. The size(s) are in the dynamic allocation and can be sized.
 	// 
 	//		VARIABLE:	The capacity is dynamically allocated (like std::vector). The capacity can change and move.
-	//					Neither clearing nor erasing the sequence deallocates the capacity (as with std::vector).
+	//					Neither clearing nor erasing the sequence deallocates the capacity (like std::vector).
 	// 
 	//		BUFFERED:	The capacity may be embedded (buffered) or dynamically allocated (like boost::small_vector).
 	//					The capacity can change and move. Clearing the sequence deallocates the capacity if it was
@@ -87,7 +89,8 @@ struct sequence_traits
 
 	float factor = 1.5;
 
-	// 'grow' is a utility function which returns a new (larger) capacity given the current capacity.
+	// 'grow' returns a new (larger) capacity given the current capacity. The calculation is based
+	// on the sequence_traits members which control capacity.
 
 	size_t grow(size_t cap) const
 	{
@@ -103,6 +106,20 @@ struct sequence_traits
 				return cap + std::max<size_t>(cap / 2, 1u);
 		}
 	};
+
+	// 'front_gap' returns the location of the start of the data given a capacity and size.
+	// The formula is based on the 'location' value.
+
+	size_t front_gap(size_t capacity, size_t size) const
+	{
+		switch (location)
+		{
+		default:
+		case sequence_location_lits::FRONT:		return 0;
+		case sequence_location_lits::BACK:		return capacity - size;
+		case sequence_location_lits::MIDDLE:	return (capacity - size) / 2;
+		}
+	}
 };
 
 
@@ -164,33 +181,23 @@ void move_data(T* data_begin, T* data_end, T* destination)
 }
 
 
-// The front_gap function encapsulates the calculation of the location of the start of the data
-// so that it can be easily selected by the sequence_traits::location value. This could probably
-// also be a simple function, but making it a function template matches the rest of the code.
+// ==============================================================================================================
+// sequence_types - This is a mix-in class which provides a number of types which are useful (and required for a
+// standard container).
 
-template<sequence_location_lits LOC>
-size_t front_gap(size_t capacity, size_t size)
+template<typename T, std::unsigned_integral SIZE>
+struct sequence_types
 {
-	static_assert(false, "An unimplemented specialization of front_gap was instantiated.");
-}
+	using value_type = T;
+	using size_type = SIZE;
 
-template<>
-size_t front_gap<sequence_location_lits::FRONT>(size_t capacity, size_t size)
-{
-	return 0;
-}
-
-template<>
-size_t front_gap<sequence_location_lits::BACK>(size_t capacity, size_t size)
-{
-	return capacity - size;
-}
-
-template<>
-size_t front_gap<sequence_location_lits::MIDDLE>(size_t capacity, size_t size)
-{
-	return (capacity - size) / 2;
-}
+	using reference = value_type&;
+	using const_reference = const value_type&;
+	using iterator = value_type*;
+	using const_iterator = const value_type*;
+	using reverse_iterator = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+};
 
 
 // ==============================================================================================================
@@ -237,6 +244,8 @@ template<typename T, sequence_traits TRAITS>
 class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	using value_type = T;
+	using iterator = value_type*;
+	using const_iterator = const value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using inherited::capacity_begin;
@@ -254,14 +263,20 @@ public:
 	const value_type* data_end() const { return capacity_begin() + m_size; }
 
 	template<typename... ARGS>
-	void add_front(ARGS&&... args)
+	void add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(data_end() < capacity_end());
+		assert(pos >= data_begin() && pos <= data_end());
 
-		shift_forward(data_begin(), data_end(), 1);
-		new(data_begin()) value_type(std::forward<ARGS>(args)...);
+		shift_forward(pos, data_end(), 1);
+		new(pos) value_type(std::forward<ARGS>(args)...);
 		++m_size;
+	}
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
+	{
+		add_at(data_begin(), std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
@@ -337,6 +352,17 @@ public:
 	const value_type* data_end() const { return capacity_end(); }
 
 	template<typename... ARGS>
+	void add_at(value_type* pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(data_begin() > capacity_begin());
+		assert(pos >= capacity_begin() && pos < capacity_end());
+
+		shift_reverse(data_begin(), pos, 1);
+		++m_size;
+		new(pos - 1) value_type(std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
@@ -347,12 +373,7 @@ public:
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
 	{
-		assert(size() < capacity());
-		assert(data_begin() > capacity_begin());
-
-		shift_reverse(data_begin(), data_end(), 1);
-		++m_size;
-		new(data_end() - 1) value_type(std::forward<ARGS>(args)...);
+		add_at(data_end(), std::forward<ARGS>(args)...);
 	}
 
 	void clear()
@@ -414,7 +435,7 @@ public:
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 	void set_size(size_t current_size)
 	{
-		m_front_gap = static_cast<size_type>(front_gap<TRAITS.location>(capacity(), current_size));
+		m_front_gap = static_cast<size_type>(TRAITS.front_gap(capacity(), current_size));
 		m_back_gap = static_cast<size_type>(capacity() - (m_front_gap + current_size));
 	}
 
@@ -612,7 +633,7 @@ public:
 	{
 		assert(current_size <= new_capacity);
 
-		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, new_size), d_begin, d_end);
+		make_new_capacity(new_capacity, TRAITS.front_gap(new_capacity, new_size), d_begin, d_end);
 		m_data_end = m_capacity_begin + current_size;
 	}
 
@@ -703,7 +724,7 @@ public:
 	{
 		assert(current_size <= new_capacity);
 
-		make_new_capacity(new_capacity, front_gap<TRAITS.location>(new_capacity, new_size), d_begin, d_end);
+		make_new_capacity(new_capacity, TRAITS.front_gap(new_capacity, new_size), d_begin, d_end);
 		m_data_begin = m_capacity_end - current_size;
 	}
 
@@ -794,7 +815,7 @@ public:
 	{
 		assert(current_size <= new_capacity);
 
-		size_t gap = front_gap<TRAITS.location>(new_capacity, new_size);
+		size_t gap = TRAITS.front_gap(new_capacity, new_size);
 		make_new_capacity(new_capacity, gap, d_begin, d_end);
 		m_data_begin = m_capacity_begin + gap;
 		m_data_end = m_data_begin + current_size;
@@ -921,6 +942,8 @@ class sequence_implementation<sequence_storage_lits::STATIC, T, TRAITS>
 public:
 
 	using value_type = T;
+	using iterator = value_type*;
+	using const_iterator = const value_type*;
 
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
@@ -933,6 +956,11 @@ public:
 
 protected:
 
+	template<typename... ARGS>
+	void add_at(iterator pos, ARGS&&... args)
+	{
+		m_storage.add_at(pos, std::forward<ARGS>(args)...);
+	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
@@ -959,7 +987,7 @@ private:
 	fixed_sequence_storage<TRAITS.location, T, TRAITS> m_storage;
 };
 
-// FIXED storage. This is kind of like a std::vector which has been reserved and not allowed to reallocate.
+// FIXED storage.
 
 template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::FIXED, T, TRAITS>
@@ -1013,7 +1041,7 @@ private:
 	std::unique_ptr<storage_type> m_storage;
 };
 
-// VARIABLE storage (like std::vector).
+// VARIABLE storage.
 
 template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::VARIABLE, T, TRAITS>
@@ -1162,18 +1190,25 @@ private:
 // sequence - This is the main class template.
 
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
+class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS> ///, public sequence_types<T, typename decltype(TRAITS)::size_type>
 {
 	using inherited = sequence_implementation<TRAITS.storage, T, TRAITS>;
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::reallocate;
+	using inherited::add_at;
 	using inherited::add_front;
 	using inherited::add_back;
 
 public:
 
 	using value_type = T;
+	using reference = value_type&;
+	using const_reference = const value_type&;
+	using iterator = value_type*;
+	using const_iterator = const value_type*;
+	using reverse_iterator = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 	using inherited::size;
 	using inherited::capacity;
@@ -1207,12 +1242,22 @@ public:
 		destroy_data(data_begin(), data_end());
 	}
 
-	value_type* data() { return data_begin(); }
-	value_type* begin() { return data_begin(); }
-	value_type* end() { return data_end(); }
-	const value_type* data() const { return data_begin(); }
-	const value_type* begin() const { return data_begin(); }
-	const value_type* end() const { return data_end(); }
+	iterator				begin() { return data_begin(); }
+	const_iterator			begin() const { return data_begin(); }
+	iterator				end() { return data_end(); }
+	const_iterator			end() const { return data_end(); }
+	reverse_iterator		rbegin() { return reverse_iterator(data_end()); }
+	const_reverse_iterator	rbegin() const { return const_reverse_iterator(data_end()); }
+	reverse_iterator		rend() { return reverse_iterator(data_begin()); }
+	const_reverse_iterator	rend() const { return const_reverse_iterator(data_begin()); }
+
+	const_iterator			cbegin() const { return data_begin(); }
+	const_iterator			cend() const { return data_end(); }
+	const_reverse_iterator	crbegin() const { return data_begin(); }
+	const_reverse_iterator	crend() const { return data_end(); }
+
+	value_type*				data() { return data_begin(); }
+	const value_type*		data() const { return data_begin(); }
 
 	value_type& front() { return *data_begin(); }
 	value_type& back() { return *(data_end() - 1); }
@@ -1232,6 +1277,15 @@ public:
 			reallocate(current_size, current_size);
 	}
 
+	template< class... ARGS >
+	iterator emplace(const_iterator cpos, ARGS&&... args)
+	{
+		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
+			reallocate(traits.grow(old_capacity), current_size);
+		auto pos = const_cast<iterator>(cpos);
+		add_at(pos, std::forward<ARGS>(args)...);
+		return pos;
+	}
 	template<typename... ARGS>
 	void emplace_front(ARGS&&... args)
 	{
