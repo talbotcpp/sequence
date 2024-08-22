@@ -182,25 +182,6 @@ void move_data(T* data_begin, T* data_end, T* destination)
 
 
 // ==============================================================================================================
-// sequence_types - This is a mix-in class which provides a number of types which are useful (and required for a
-// standard container).
-
-template<typename T, std::unsigned_integral SIZE>
-struct sequence_types
-{
-	using value_type = T;
-	using size_type = SIZE;
-
-	using reference = value_type&;
-	using const_reference = const value_type&;
-	using iterator = value_type*;
-	using const_iterator = const value_type*;
-	using reverse_iterator = std::reverse_iterator<iterator>;
-	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-};
-
-
-// ==============================================================================================================
 // fixed_capacity
 
 template<typename T, size_t CAP> requires (CAP != 0)
@@ -424,6 +405,7 @@ template<typename T, sequence_traits TRAITS>
 class fixed_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using inherited::capacity_begin;
@@ -444,6 +426,27 @@ public:
 	const value_type* data_begin() const { return capacity_begin() + m_front_gap; }
 	const value_type* data_end() const { return capacity_end() - m_back_gap; }
 
+	template<typename... ARGS>
+	void add_at(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(m_front_gap || m_back_gap);
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (m_front_gap == 0 || pos - data_begin() > data_end() - pos)
+		{
+			shift_forward(pos, data_end(), 1);
+			--m_back_gap;
+		}
+		else
+		{
+			shift_reverse(data_begin(), pos, 1);
+			--m_front_gap;
+			--pos;
+		}
+
+		new(pos) value_type(std::forward<ARGS>(args)...);
+	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{

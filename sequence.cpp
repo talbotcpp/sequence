@@ -41,7 +41,7 @@ int main()
 
 	constexpr sequence_traits<size_t> traits {
 			.storage = sequence_storage_lits::STATIC,
-			.location = sequence_location_lits::FRONT,
+			.location = sequence_location_lits::MIDDLE,
 			.capacity = 10,
 	};
 	{
