@@ -337,7 +337,7 @@ public:
 	{
 		assert(size() < capacity());
 		assert(data_begin() > capacity_begin());
-		assert(pos >= capacity_begin() && pos < capacity_end());
+		assert(pos >= data_begin() && pos <= data_end());
 
 		shift_reverse(data_begin(), pos, 1);
 		++m_size;
@@ -427,59 +427,59 @@ public:
 	const value_type* data_end() const { return capacity_end() - m_back_gap; }
 
 	template<typename... ARGS>
-	void add_at(iterator pos, ARGS&&... args)
+	void add_at_front(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_front_gap || m_back_gap);
 		assert(pos >= data_begin() && pos <= data_end());
 
-		if (m_front_gap == 0 || pos - data_begin() > data_end() - pos)
-		{
-			shift_forward(pos, data_end(), 1);
-			--m_back_gap;
-		}
-		else
-		{
-			shift_reverse(data_begin(), pos, 1);
-			--m_front_gap;
-			--pos;
-		}
-
-		new(pos) value_type(std::forward<ARGS>(args)...);
-	}
-	template<typename... ARGS>
-	void add_front(ARGS&&... args)
-	{
-		assert(size() < capacity());
-		assert(m_front_gap || m_back_gap);
-
 		if (m_front_gap == 0)
 		{
 			auto bg = m_back_gap / 2;
 			auto fg = m_back_gap - bg;
-			shift_forward(data_begin(), data_end(), fg);
+			shift_forward(pos, data_end(), fg);
 			m_back_gap = bg;
 			m_front_gap = fg - 1;
 		}
 		else --m_front_gap;
-		new(data_begin()) value_type(std::forward<ARGS>(args)...);
+		new(pos) value_type(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
-	void add_back(ARGS&&... args)
+	void add_at_back(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_front_gap || m_back_gap);
+		assert(pos >= data_begin() && pos <= data_end());
 
 		if (m_back_gap == 0)
 		{
 			auto fg = m_front_gap / 2;
 			auto bg = m_front_gap - fg;
-			shift_reverse(data_begin(), data_end(), bg);
+			shift_reverse(data_begin(), pos, bg);
 			m_front_gap = fg;
 			m_back_gap = bg - 1;
 		}
 		else --m_back_gap;
-		new(data_end() - 1) value_type(std::forward<ARGS>(args)...);
+		new(pos) value_type(std::forward<ARGS>(args)...);
+	}
+
+	template<typename... ARGS>
+	void add_at(iterator pos, ARGS&&... args)
+	{
+		if (pos - data_begin() > data_end() - pos)	// Inserting closer to the end.
+			add_at_back(pos, std::forward<ARGS>(args)...);
+		else										// Inserting closer to the beginning.
+			add_at_front(pos, std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
+	{
+		add_at_front(data_begin(), std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add_back(ARGS&&... args)
+	{
+		add_at_back(data_end(), std::forward<ARGS>(args)...);
 	}
 
 	void clear()
@@ -617,6 +617,7 @@ template<typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
 	using inherited::make_new_capacity;
 	using inherited::m_capacity_begin;
@@ -641,20 +642,25 @@ public:
 	}
 
 	template<typename... ARGS>
-	void add_front(ARGS&&... args)
+	void add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(m_data_end < m_capacity_end);
+		assert(pos >= data_begin() && pos <= data_end());
 
-		shift_forward(data_begin(), data_end(), 1);
-		new(data_begin()) value_type(std::forward<ARGS>(args)...);
+		shift_forward(pos, data_end(), 1);
+		new(pos) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
+	}
+	template<typename... ARGS>
+	void add_front(ARGS&&... args)
+	{
+		add_at(data_begin(), std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_data_end < m_capacity_end);
 
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
@@ -708,6 +714,7 @@ template<typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
 	using inherited::make_new_capacity;
 	using inherited::m_capacity_begin;
@@ -732,10 +739,20 @@ public:
 	}
 
 	template<typename... ARGS>
+	void add_at(value_type* pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(data_begin() > m_capacity_begin);
+		assert(pos >= data_begin() && pos <= data_end());
+
+		shift_reverse(data_begin(), pos, 1);
+		--m_data_begin;
+		new(pos - 1) value_type(std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_data_begin > m_capacity_begin);
 
 		--m_data_begin;
 		new(data_begin()) value_type(std::forward<ARGS>(args)...);
@@ -743,12 +760,7 @@ public:
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
 	{
-		assert(size() < capacity());
-		assert(m_data_begin > m_capacity_begin);
-
-		shift_reverse(data_begin(), data_end(), 1);
-		--m_data_begin;
-		new(data_end() - 1) value_type(std::forward<ARGS>(args)...);
+		add_at(data_end(), std::forward<ARGS>(args)...);
 	}
 
 	void clear()
@@ -799,6 +811,7 @@ template<typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : public dynamic_capacity<T, TRAITS>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
 	using inherited::make_new_capacity;
 	using inherited::m_capacity_begin;
@@ -824,6 +837,27 @@ public:
 		m_data_end = m_data_begin + current_size;
 	}
 
+	template<typename... ARGS>
+	void add_at(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(m_data_begin > m_capacity_begin || m_data_end < m_capacity_end);
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (m_data_begin == m_capacity_begin || (m_data_end != m_capacity_end && pos - m_data_begin > m_data_end - pos))
+		{
+			shift_forward(pos, m_data_end, 1);
+			++m_data_end;
+		}
+		else
+		{
+			shift_reverse(m_data_begin, pos, 1);
+			--m_data_begin;
+			--pos;
+		}
+
+		new(pos) value_type(std::forward<ARGS>(args)...);
+	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
@@ -996,6 +1030,7 @@ template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::FIXED, T, TRAITS>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
 
 public:
@@ -1015,6 +1050,13 @@ public:
 
 protected:
 
+	template<typename... ARGS>
+	void add_at(iterator pos, ARGS&&... args)
+	{
+		if (!m_storage)
+			m_storage.reset(new storage_type);
+		m_storage->add_at(pos, std::forward<ARGS>(args)...);
+	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
@@ -1050,6 +1092,7 @@ template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::VARIABLE, T, TRAITS>
 {
 	using value_type = T;
+	using iterator = value_type*;
 
 public:
 
@@ -1064,6 +1107,8 @@ public:
 
 protected:
 
+	template<typename... ARGS>
+	void add_at(iterator pos, ARGS&&... args) { m_storage.add_at(pos, std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
 	void add_front(ARGS&&... args) { m_storage.add_front(std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
@@ -1089,6 +1134,7 @@ template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using fixed_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;		// STC
 	using dynamic_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;	// DYN
 	enum { STC, DYN };

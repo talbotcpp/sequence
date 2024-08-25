@@ -42,7 +42,7 @@ int main()
 	constexpr sequence_traits<size_t> traits {
 			.storage = sequence_storage_lits::STATIC,
 			.location = sequence_location_lits::MIDDLE,
-			.capacity = 10,
+			.capacity = 16,
 	};
 	{
 	sequence<foo, traits> s3;
@@ -62,9 +62,13 @@ int main()
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
 
-	for (int i = 1; i <= 8; ++i)
-	//	s3.emplace_front(i);
+	for (int i = 1; i <= 9; ++i)
 		s3.emplace_back(i);
+	s3.emplace_front(0);
+
+	//for (int i = 1; i <= 9; ++i)
+	//	s3.emplace(s3.end(), i);
+	//s3.emplace(s3.begin(), 0);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
@@ -85,7 +89,7 @@ int main()
 	//s3.pop_front();
 	//s3.resize(12, 1234);
 
-	s3.emplace(s3.begin() + 2);
+	s3.emplace(s3.begin() + 6);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
