@@ -1,7 +1,7 @@
 # sequence
 Contiguous sequence container with adjustable performance characteristics.
 
-The various adjustable characteristics are controled by a struct non-type template parameter of type sequence_traits.
+The various adjustable characteristics are controlled by a struct non-type template parameter of type sequence_traits.
 The sequence_traits struct source contains the user documentation for the container:
 
 ```
@@ -56,7 +56,7 @@ struct sequence_traits
 	//		VECTOR:			Capacity grows in the same way as std::vector. This behavior is implementation dependent.
 	//						It is provided so that sequence can be used as an implementation of std::vector and/or a
 	//						drop-in replacement for std::vector with no changes in behavior, even if the std::vector
-	//						growth behavoir cannot be otherwise modeled with LINEAR or EXPONENTIAL growth modes.
+	//						growth behavior cannot be otherwise modeled with LINEAR or EXPONENTIAL growth modes.
 
 	sequence_growth_lits growth = sequence_growth_lits::VECTOR;
 
@@ -76,7 +76,6 @@ struct sequence_traits
 
 	float factor = 1.5;
 
-// Additional stuff here...
-
+	// ...
 }
 ```
