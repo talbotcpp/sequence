@@ -244,7 +244,7 @@ public:
 	const value_type* data_end() const { return capacity_begin() + m_size; }
 
 	template<typename... ARGS>
-	void add_at(iterator pos, ARGS&&... args)
+	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(data_end() < capacity_end());
@@ -253,6 +253,7 @@ public:
 		shift_forward(pos, data_end(), 1);
 		new(pos) value_type(std::forward<ARGS>(args)...);
 		++m_size;
+		return pos;
 	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
@@ -316,6 +317,7 @@ template<typename T, sequence_traits TRAITS>
 class fixed_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	using value_type = T;
+	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using inherited::capacity_begin;
@@ -333,7 +335,7 @@ public:
 	const value_type* data_end() const { return capacity_end(); }
 
 	template<typename... ARGS>
-	void add_at(value_type* pos, ARGS&&... args)
+	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
 		assert(data_begin() > capacity_begin());
@@ -341,7 +343,8 @@ public:
 
 		shift_reverse(data_begin(), pos, 1);
 		++m_size;
-		new(pos - 1) value_type(std::forward<ARGS>(args)...);
+		new(--pos) value_type(std::forward<ARGS>(args)...);
+		return pos;
 	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
@@ -427,8 +430,12 @@ public:
 	const value_type* data_end() const { return capacity_end() - m_back_gap; }
 
 	template<typename... ARGS>
-	void add_at(iterator pos, ARGS&&... args)
+	iterator add_at(iterator pos, ARGS&&... args)
 	{
+		assert(size() < capacity());
+		assert(m_front_gap || m_back_gap);
+		assert(pos >= data_begin() && pos <= data_end());
+
 		if (pos - data_begin() >= data_end() - pos)	// Inserting closer to the end--add at back.
 		{
 			if (m_back_gap == 0)
@@ -436,6 +443,8 @@ public:
 				recenter_reverse();
 				pos -= m_back_gap;
 			}
+			shift_forward(pos, data_end(), 1);
+
 			new(pos) value_type(std::forward<ARGS>(args)...);
 			--m_back_gap;
 		}
@@ -446,26 +455,33 @@ public:
 				recenter_forward();
 				pos += m_front_gap;
 			}
-			--m_front_gap;
+			shift_reverse(data_begin(), pos, 1);
+
 			new(--pos) value_type(std::forward<ARGS>(args)...);
+			--m_front_gap;
 		}
+		return pos;
 	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
+		assert(size() < capacity());
+		assert(m_front_gap || m_back_gap);
+
 		if (m_front_gap == 0)
 			recenter_forward();
 		--m_front_gap;
-		auto pos = data_begin();
-		new(pos) value_type(std::forward<ARGS>(args)...);
+		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
 	{
+		assert(size() < capacity());
+		assert(m_front_gap || m_back_gap);
+
 		if (m_back_gap == 0)
 			recenter_reverse();
-		auto pos = data_end();
-		new(pos) value_type(std::forward<ARGS>(args)...);
+		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		--m_back_gap;
 	}
 
@@ -548,37 +564,6 @@ private:
 		shift_reverse(data_begin(), data_end(), bg);
 		m_front_gap = fg;
 		m_back_gap = bg;
-	}
-
-	template<typename... ARGS>
-	void add_at_front(iterator pos, ARGS&&... args)
-	{
-		assert(size() < capacity());
-		assert(m_front_gap || m_back_gap);
-		assert(pos >= data_begin() && pos <= data_end());
-
-		if (m_front_gap == 0)
-			recenter_forward();
-		--m_front_gap;
-		new(pos) value_type(std::forward<ARGS>(args)...);
-	}
-	template<typename... ARGS>
-	void add_at_back(iterator pos, ARGS&&... args)
-	{
-		assert(size() < capacity());
-		assert(m_front_gap || m_back_gap);
-		assert(pos >= data_begin() && pos <= data_end());
-
-		if (m_back_gap == 0)
-		{
-			auto fg = m_front_gap / 2;
-			auto bg = m_front_gap - fg;
-			shift_reverse(data_begin(), pos, bg);
-			m_front_gap = fg;
-			m_back_gap = bg - 1;
-		}
-		else --m_back_gap;
-		new(pos) value_type(std::forward<ARGS>(args)...);
 	}
 
 	size_type m_front_gap = static_cast<size_type>(TRAITS.capacity / 2);
@@ -1034,9 +1019,9 @@ public:
 protected:
 
 	template<typename... ARGS>
-	void add_at(iterator pos, ARGS&&... args)
+	iterator add_at(iterator pos, ARGS&&... args)
 	{
-		m_storage.add_at(pos, std::forward<ARGS>(args)...);
+		return m_storage.add_at(pos, std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
@@ -1091,11 +1076,11 @@ public:
 protected:
 
 	template<typename... ARGS>
-	void add_at(iterator pos, ARGS&&... args)
+	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		if (!m_storage)
 			m_storage.reset(new storage_type);
-		m_storage->add_at(pos, std::forward<ARGS>(args)...);
+		return m_storage->add_at(pos, std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
@@ -1320,7 +1305,7 @@ public:
 	static_assert(traits.location != sequence_location_lits::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
 
-	// A fixed capacity of any kind requires that the size type represent a count up to the requested capacity.
+	// A fixed capacity of any kind requires that the size type can represent a count up to the fixed capacity size.
 	static_assert(traits.storage == sequence_storage_lits::VARIABLE ||
 				  traits.capacity <= std::numeric_limits<size_type>::max(),
 				  "Size type is insufficient to hold requested capacity.");
@@ -1371,9 +1356,7 @@ public:
 	{
 		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
 			reallocate(traits.grow(old_capacity), current_size);
-		auto pos = const_cast<iterator>(cpos);
-		add_at(pos, std::forward<ARGS>(args)...);
-		return pos;
+		return add_at(const_cast<iterator>(cpos), std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void emplace_front(ARGS&&... args)
@@ -1390,8 +1373,9 @@ public:
 		add_back(std::forward<ARGS>(args)...);
 	}
 
-	void push_front(const value_type& e) { emplace_front(e); }
-	void push_back(const value_type& e) { emplace_back(e); }
+	iterator insert(const_iterator cpos, const_reference e) { return emplace(cpos, e); }
+	void push_front(const_reference e) { emplace_front(e); }
+	void push_back(const_reference e) { emplace_back(e); }
 
 	template<typename... ARGS>
 	void resize(size_t new_size, ARGS&&... args)
@@ -1409,42 +1393,3 @@ public:
 		}
 	}
 };
-
-
-// show - Debugging display for sequence traits.
-
-template<typename SEQ>
-void show(const SEQ& seq)
-{
-	using traits_type = SEQ::traits_type;
-
-	std::println("Size Type:\t{}", typeid(traits_type::size_type).name());
-
-	std::print("Storage:\t");
-	switch (seq.traits.storage)
-	{
-		case sequence_storage_lits::STATIC:		std::println("STATIC");		break;
-		case sequence_storage_lits::FIXED:		std::println("FIXED");		break;
-		case sequence_storage_lits::VARIABLE:	std::println("VARIABLE");	break;
-		case sequence_storage_lits::BUFFERED:	std::println("BUFFERED");	break;
-	}
-	std::print("Location:\t");
-	switch (seq.traits.location)
-	{
-		case sequence_location_lits::FRONT:		std::println("FRONT");		break;
-		case sequence_location_lits::MIDDLE:	std::println("MIDDLE");		break;
-		case sequence_location_lits::BACK:		std::println("BACK");		break;
-	}
-	std::print("Growth:\t\t");
-	switch (seq.traits.growth)
-	{
-		case sequence_growth_lits::LINEAR:		std::println("LINEAR");			break;
-		case sequence_growth_lits::EXPONENTIAL:	std::println("EXPONENTIAL");	break;
-		case sequence_growth_lits::VECTOR:		std::println("VECTOR");			break;
-	}
-
-	std::println("Capacity:\t{}", seq.traits.capacity);
-	std::println("Increment:\t{}", seq.traits.increment);
-	std::println("Factor:\t\t{}", seq.traits.factor);
-	std::println("Size:\t\t{}", sizeof(seq));
-}

@@ -5,16 +5,57 @@ import std;
 
 using namespace std;
 
+// show - Debugging display for sequence traits.
+
+template<typename SEQ>
+void show(const SEQ& seq)
+{
+	using traits_type = SEQ::traits_type;
+
+	std::println("Size Type:\t{}", typeid(traits_type::size_type).name());
+
+	std::print("Storage:\t");
+	switch (seq.traits.storage)
+	{
+		case sequence_storage_lits::STATIC:		std::println("STATIC");		break;
+		case sequence_storage_lits::FIXED:		std::println("FIXED");		break;
+		case sequence_storage_lits::VARIABLE:	std::println("VARIABLE");	break;
+		case sequence_storage_lits::BUFFERED:	std::println("BUFFERED");	break;
+	}
+	std::print("Location:\t");
+	switch (seq.traits.location)
+	{
+		case sequence_location_lits::FRONT:		std::println("FRONT");		break;
+		case sequence_location_lits::MIDDLE:	std::println("MIDDLE");		break;
+		case sequence_location_lits::BACK:		std::println("BACK");		break;
+	}
+	std::print("Growth:\t\t");
+	switch (seq.traits.growth)
+	{
+		case sequence_growth_lits::LINEAR:		std::println("LINEAR");			break;
+		case sequence_growth_lits::EXPONENTIAL:	std::println("EXPONENTIAL");	break;
+		case sequence_growth_lits::VECTOR:		std::println("VECTOR");			break;
+	}
+
+	std::println("Capacity:\t{}", seq.traits.capacity);
+	std::println("Increment:\t{}", seq.traits.increment);
+	std::println("Factor:\t\t{}", seq.traits.factor);
+	std::println("Size:\t\t{}", sizeof(seq));
+	std::println();
+}
+
+// foo - Instrumented debugging type for life cycle testing.
+
 struct foo {
-	foo() : i(42) { println("  foo() {}", i); }
-	foo(int i) : i(i) { println("  foo(int) {}", i); }
-	foo(const foo& f) : i(f.i) { println("  foo(const foo&) {}", i); }
+	foo() : i(42) { std::println("  foo() {}", i); }
+	foo(int i) : i(i) { std::println("  foo(int) {}", i); }
+	foo(const foo& f) : i(f.i) { std::println("  foo(const foo&) {}", i); }
 	foo(foo&& f) : i(f.i) {
-		println("  foo(foo&&) {}", i);
+		std::println("  foo(foo&&) {}", i);
 		f.i = 666;
 	}
 	~foo() {
-		println("  ~foo {}", i);
+		std::println("  ~foo {}", i);
 		i = 99999;
 	}
 	operator int() const { return i; }
@@ -22,14 +63,16 @@ struct foo {
 	int i;
 };
 
+// show_elems - Simple element output for any container with elements convertible to int.
+
 template<typename SEQ>
 void show_elems(const SEQ& seq)
 {
 	if (seq.empty())
-		print("EMPTY");
+		std::print("EMPTY");
 	for (auto&& e : seq)
-		print("{}\t", int(e));
-	println();
+		std::print("{}\t", int(e));
+	std::println();
 }
 
 template<typename T, long long CAP, unsigned_integral SIZE = size_t> requires ( CAP > 0 )
@@ -40,8 +83,8 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::STATIC,
-			.location = sequence_location_lits::MIDDLE,
+			.storage = sequence_storage_lits::FIXED,
+			.location = sequence_location_lits::BACK,
 			.capacity = 16,
 	};
 	{
@@ -52,7 +95,7 @@ int main()
 	//	.capacity = 12,
 	//}> s3;
 ///	vector<foo> s3;
-//	show(s3);
+	show(s3);
 //	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 
 //	static_vector<foo, 10> s3;
@@ -62,13 +105,14 @@ int main()
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
 
-	for (int i = 1; i <= 9; ++i)
-		s3.emplace_back(i);
-	s3.emplace_front(0);
+	for (int i = 1; i <= 8; ++i)
+		s3.emplace_front(i);
+	//	s3.emplace_back(i);
+	show_elems(s3);
 
 	//for (int i = 1; i <= 9; ++i)
-	//	s3.emplace(s3.end(), i);
-	//s3.emplace(s3.begin(), 0);
+	//	s3.emplace(s3.begin(), i);
+	s3.insert(s3.begin() + 2, 1234);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
