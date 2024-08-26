@@ -427,59 +427,46 @@ public:
 	const value_type* data_end() const { return capacity_end() - m_back_gap; }
 
 	template<typename... ARGS>
-	void add_at_front(iterator pos, ARGS&&... args)
-	{
-		assert(size() < capacity());
-		assert(m_front_gap || m_back_gap);
-		assert(pos >= data_begin() && pos <= data_end());
-
-		if (m_front_gap == 0)
-		{
-			auto bg = m_back_gap / 2;
-			auto fg = m_back_gap - bg;
-			shift_forward(pos, data_end(), fg);
-			m_back_gap = bg;
-			m_front_gap = fg - 1;
-		}
-		else --m_front_gap;
-		new(pos) value_type(std::forward<ARGS>(args)...);
-	}
-	template<typename... ARGS>
-	void add_at_back(iterator pos, ARGS&&... args)
-	{
-		assert(size() < capacity());
-		assert(m_front_gap || m_back_gap);
-		assert(pos >= data_begin() && pos <= data_end());
-
-		if (m_back_gap == 0)
-		{
-			auto fg = m_front_gap / 2;
-			auto bg = m_front_gap - fg;
-			shift_reverse(data_begin(), pos, bg);
-			m_front_gap = fg;
-			m_back_gap = bg - 1;
-		}
-		else --m_back_gap;
-		new(pos) value_type(std::forward<ARGS>(args)...);
-	}
-
-	template<typename... ARGS>
 	void add_at(iterator pos, ARGS&&... args)
 	{
-		if (pos - data_begin() > data_end() - pos)	// Inserting closer to the end.
-			add_at_back(pos, std::forward<ARGS>(args)...);
-		else										// Inserting closer to the beginning.
-			add_at_front(pos, std::forward<ARGS>(args)...);
+		if (pos - data_begin() >= data_end() - pos)	// Inserting closer to the end--add at back.
+		{
+			if (m_back_gap == 0)
+			{
+				recenter_reverse();
+				pos -= m_back_gap;
+			}
+			new(pos) value_type(std::forward<ARGS>(args)...);
+			--m_back_gap;
+		}
+		else										// Inserting closer to the beginning--add at front.
+		{
+			if (m_front_gap == 0)
+			{
+				recenter_forward();
+				pos += m_front_gap;
+			}
+			--m_front_gap;
+			new(--pos) value_type(std::forward<ARGS>(args)...);
+		}
 	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
-		add_at_front(data_begin(), std::forward<ARGS>(args)...);
+		if (m_front_gap == 0)
+			recenter_forward();
+		--m_front_gap;
+		auto pos = data_begin();
+		new(pos) value_type(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
 	{
-		add_at_back(data_end(), std::forward<ARGS>(args)...);
+		if (m_back_gap == 0)
+			recenter_reverse();
+		auto pos = data_end();
+		new(pos) value_type(std::forward<ARGS>(args)...);
+		--m_back_gap;
 	}
 
 	void clear()
@@ -540,6 +527,59 @@ public:
 	}
 
 private:
+
+	void recenter_forward()
+	{
+		assert(m_front_gap == 0);
+
+		auto bg = m_back_gap / 2;						// We have to cache these because data_begin/end depend on the gaps.
+		auto fg = m_back_gap - bg;						// Leave more room at the front if gap is odd.
+		shift_forward(data_begin(), data_end(), fg);
+		m_front_gap = fg;
+		m_back_gap = bg;
+	}
+
+	void recenter_reverse()
+	{
+		assert(m_back_gap == 0);
+
+		auto fg = m_front_gap / 2;						// We have to cache these because data_begin/end depend on the gaps.
+		auto bg = m_front_gap - fg;						// Leave more room at the back if gap is odd.
+		shift_reverse(data_begin(), data_end(), bg);
+		m_front_gap = fg;
+		m_back_gap = bg;
+	}
+
+	template<typename... ARGS>
+	void add_at_front(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(m_front_gap || m_back_gap);
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (m_front_gap == 0)
+			recenter_forward();
+		--m_front_gap;
+		new(pos) value_type(std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add_at_back(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(m_front_gap || m_back_gap);
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (m_back_gap == 0)
+		{
+			auto fg = m_front_gap / 2;
+			auto bg = m_front_gap - fg;
+			shift_reverse(data_begin(), pos, bg);
+			m_front_gap = fg;
+			m_back_gap = bg - 1;
+		}
+		else --m_back_gap;
+		new(pos) value_type(std::forward<ARGS>(args)...);
+	}
 
 	size_type m_front_gap = static_cast<size_type>(TRAITS.capacity / 2);
 	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.capacity / 2);
