@@ -47,10 +47,12 @@ void show(const SEQ& seq)
 
 // foo - Instrumented debugging type for life cycle testing.
 
+struct no_answers{};
+
 struct foo {
 	foo() : i(42) { std::println("  foo() {}", i); }
 	foo(int i) : i(i) { std::println("  foo(int) {}", i); }
-	foo(const foo& f) : i(f.i) { std::println("  foo(const foo&) {}", i); }
+	foo(const foo& f) : i(f.i) { std::println("  foo(const foo&) {}", i); if (i == 42) throw no_answers(); }
 	foo(foo&& f) : i(f.i) {
 		std::println("  foo(foo&&) {}", i);
 		f.i = 666;
@@ -83,7 +85,7 @@ void show_cap(const SEQ& seq)
 {
 	std::print("{}:\t", seq.capacity());
 	for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
-		std::print("{}\t", *p);
+		std::print("{}\t", int(*p));
 	std::println();
 }
 
@@ -95,14 +97,24 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::VARIABLE,
+			.storage = sequence_storage_lits::STATIC,
 			.location = sequence_location_lits::FRONT,
-			.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 2,
-			.increment = 2,
+			//.growth = sequence_growth_lits::EXPONENTIAL,
+			.capacity = 8,
+			//.increment = 2,
 	};
 	{
-	sequence<int, traits> s3;
+	try {
+		sequence<foo, traits> s3{1,2,3,42,5,6};
+		println("capacity = {}", s3.capacity());
+		println("size = {}", s3.size());
+		show_cap(s3);
+		show_elems(s3);
+	}
+    catch(no_answers)
+    {
+		println("That's on a need-to-know basis!");
+    }
 	//sequence<foo, {
 	//	.storage = sequence_storage_lits::STATIC,
 	//	.location = sequence_location_lits::FRONT,
@@ -116,14 +128,11 @@ int main()
 
 //	s3.reserve(16);
 
-	println("capacity = {}", s3.capacity());
-	println("size = {}", s3.size());
-//	show_cap(s3);
-	for (int i = 1; i <= 8; ++i)
-	{
-		s3.push_back(i);
-//		show_cap(s3);
-	}
+//	for (int i = 1; i <= 8; ++i)
+//	{
+//		s3.push_back(i);
+////		show_cap(s3);
+//	}
 
 //	for (int i = 1; i <= 8; ++i)
 //		s3.emplace_front(i);
@@ -134,21 +143,21 @@ int main()
 	//	s3.emplace(s3.begin(), i);
 	//s3.insert(s3.begin() + 2, 1234);
 
-	println("capacity = {}", s3.capacity());
-	println("size = {}", s3.size());
+	//println("capacity = {}", s3.capacity());
+	//println("size = {}", s3.size());
 //	show_elems(s3);
 
-	for (int i = 0; i < 8; ++i)
-		print("{}\t", int(s3.at(i)));
-	println();
+	//for (int i = 0; i < 8; ++i)
+	//	print("{}\t", int(s3.at(i)));
+	//println();
 
-	try {
-		println("{}", int(s3.at(8)));
-	}
-    catch(const std::out_of_range& ex)
-    {
-		println("{}", ex.what());
-    }
+	//try {
+	//	println("{}", int(s3.at(8)));
+	//}
+ //   catch(const std::out_of_range& ex)
+ //   {
+	//	println("{}", ex.what());
+ //   }
 
 	//println("front = {}", (int) s3.front());
 	//println("back = {}", (int) s3.back());

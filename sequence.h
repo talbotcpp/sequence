@@ -238,12 +238,12 @@ class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_c
 	using const_iterator = const value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
-	using inherited::capacity_begin;
-	using inherited::capacity_end;
 
 public:
 
 	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
 
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
@@ -330,12 +330,12 @@ class fixed_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : fixed_ca
 	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
-	using inherited::capacity_begin;
-	using inherited::capacity_end;
 
 public:
 
 	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
 
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
@@ -422,12 +422,12 @@ class fixed_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : fixed_
 	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
-	using inherited::capacity_begin;
-	using inherited::capacity_end;
 
 public:
 
 	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
 
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 	void set_size(size_t current_size)
@@ -654,12 +654,12 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
 	using inherited::make_new_capacity;
-	using inherited::m_capacity_begin;
-	using inherited::m_capacity_end;
 
 public:
 
 	using inherited::capacity;
+	using inherited::m_capacity_begin;
+	using inherited::m_capacity_end;
 
 	size_t size() const { return m_data_end - m_capacity_begin; }
 
@@ -753,12 +753,12 @@ class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : public
 	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
 	using inherited::make_new_capacity;
-	using inherited::m_capacity_begin;
-	using inherited::m_capacity_end;
 
 public:
 
 	using inherited::capacity;
+	using inherited::m_capacity_begin;
+	using inherited::m_capacity_end;
 
 	size_t size() const { return m_capacity_end - m_data_begin; }
 
@@ -852,12 +852,12 @@ class dynamic_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : publ
 	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
 	using inherited::make_new_capacity;
-	using inherited::m_capacity_begin;
-	using inherited::m_capacity_end;
 
 public:
 
 	using inherited::capacity;
+	using inherited::m_capacity_begin;
+	using inherited::m_capacity_end;
 
 	size_t size() const { return m_data_end - m_data_begin; }
 
@@ -1074,6 +1074,8 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
+	auto capacity_begin() const { return m_storage.capacity_begin(); }
+	auto capacity_end() const { return m_storage.capacity_end(); }
 
 	void reallocate(size_t new_capacity, size_t new_size)
 	{
@@ -1138,6 +1140,8 @@ protected:
 	auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
 	auto data_begin() const { return m_storage ? m_storage->data_begin() : nullptr; }
 	auto data_end() const { return m_storage ? m_storage->data_end() : nullptr; }
+	auto capacity_begin() const { return m_storage ? m_storage->capacity_begin() : nullptr; }
+	auto capacity_end() const { return m_storage ? m_storage->capacity_end() : nullptr; }
 
 	void reallocate(size_t new_capacity, size_t new_size)
 	{
@@ -1270,6 +1274,8 @@ protected:
 	auto data_end() { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
 	auto data_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
 	auto data_end() const { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
+	auto capacity_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity_begin() : get<DYN>(m_storage).capacity_begin(); }
+	auto capacity_end() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity_end() : get<DYN>(m_storage).capacity_end(); }
 
 	void reallocate(size_t new_capacity, size_t new_size)
 	{
@@ -1363,7 +1369,13 @@ public:
 				  traits.capacity <= std::numeric_limits<size_type>::max(),
 				  "Size type is insufficient to hold requested capacity.");
 
-
+	sequence() = default;
+	sequence(std::initializer_list<value_type> il) : sequence{}
+	{
+		reserve(il.size());
+		for (auto&& i : il)
+			add_back(i);
+	}
 	~sequence()
 	{
 		destroy_data(data_begin(), data_end());
