@@ -108,8 +108,8 @@ int main()
 	//	.location = sequence_location_lits::FRONT,
 	//	.capacity = 12,
 	//}> s3;
-///	vector<foo> s3;
-	show(s3);
+//	vector<int> s3;
+//	show(s3);
 //	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 
 //	static_vector<foo, 10> s3;
@@ -118,11 +118,11 @@ int main()
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
-	show_cap(s3);
+//	show_cap(s3);
 	for (int i = 1; i <= 8; ++i)
 	{
 		s3.push_back(i);
-		show_cap(s3);
+//		show_cap(s3);
 	}
 
 //	for (int i = 1; i <= 8; ++i)
@@ -139,8 +139,17 @@ int main()
 //	show_elems(s3);
 
 	for (int i = 0; i < 8; ++i)
-		print("{}\t", int(s3[i]));
+		print("{}\t", int(s3.at(i)));
 	println();
+
+	try {
+		println("{}", int(s3.at(8)));
+	}
+    catch(const std::out_of_range& ex)
+    {
+		println("{}", ex.what());
+    }
+
 	//println("front = {}", (int) s3.front());
 	//println("back = {}", (int) s3.back());
 	//for (auto e = s3.rbegin(); e != s3.rend(); ++e)

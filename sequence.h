@@ -1391,6 +1391,16 @@ public:
 	const value_type& front() const { return *data_begin(); }
 	const value_type& back() const { return *(data_end() - 1); }
 
+	value_type& at(size_t index)
+	{
+		if (index >= size()) throw std::out_of_range(std::format(OUT_OF_RANGE_ERROR, index));
+		return *(data_begin() + index);
+	}
+	const value_type& at(size_t index) const
+	{
+		if (index >= size()) throw std::out_of_range(std::format(OUT_OF_RANGE_ERROR, index));
+		return *(data_begin() + index);
+	}
 	value_type& operator[](size_t index) { return *(data_begin() + index); }
 	const value_type& operator[](size_t index) const { return *(data_begin() + index); }
 
@@ -1452,4 +1462,8 @@ public:
 				add_back(std::forward<ARGS>(args)...);
 		}
 	}
+
+private:
+
+	constexpr static auto OUT_OF_RANGE_ERROR = "invalid sequence index {}";
 };
