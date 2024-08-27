@@ -109,7 +109,7 @@ struct sequence_traits
 			case sequence_growth_lits::LINEAR:
 				return cap + increment;
 			case sequence_growth_lits::EXPONENTIAL:
-				return cap + std::max<size_t>(size_t(cap * (factor - 1.f)), 1u);
+				return cap + std::max(size_t(cap * (factor - 1.f)), increment);
 			default:
 			case sequence_growth_lits::VECTOR:
 				return cap + std::max<size_t>(cap / 2, 1u);
@@ -244,6 +244,7 @@ class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_c
 public:
 
 	using inherited::capacity;
+
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
 
@@ -335,6 +336,7 @@ class fixed_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : fixed_ca
 public:
 
 	using inherited::capacity;
+
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
 
@@ -426,6 +428,7 @@ class fixed_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : fixed_
 public:
 
 	using inherited::capacity;
+
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 	void set_size(size_t current_size)
 	{
@@ -611,12 +614,13 @@ public:
 	}
 
 	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
+	const value_type* capacity_begin() const { return m_capacity_begin; }
+	const value_type* capacity_end() const { return m_capacity_end; }
 
 protected:
 
 	void make_new_capacity(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
 	{
-std::println("    reallocate({}, {})", new_capacity, offset);
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (data_begin)
@@ -627,10 +631,6 @@ std::println("    reallocate({}, {})", new_capacity, offset);
 
 		m_capacity_begin = new_store;
 		m_capacity_end = m_capacity_begin + new_capacity;
-
-for (auto p = m_capacity_begin; p != m_capacity_end; ++p)
-	std::print("{}\t", p->i);
-std::println();
 	}
 
 	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
@@ -660,6 +660,7 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 public:
 
 	using inherited::capacity;
+
 	size_t size() const { return m_data_end - m_capacity_begin; }
 
 	value_type* data_begin() { return m_capacity_begin; }
@@ -758,6 +759,7 @@ class dynamic_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : public
 public:
 
 	using inherited::capacity;
+
 	size_t size() const { return m_capacity_end - m_data_begin; }
 
 	value_type* data_begin() { return m_data_begin; }
@@ -856,6 +858,7 @@ class dynamic_sequence_storage<sequence_location_lits::MIDDLE, T, TRAITS> : publ
 public:
 
 	using inherited::capacity;
+
 	size_t size() const { return m_data_end - m_data_begin; }
 
 	value_type* data_begin() { return m_data_begin; }
@@ -1037,9 +1040,11 @@ public:
 	using value_type = T;
 	using iterator = value_type*;
 	using const_iterator = const value_type*;
+	using size_type = typename decltype(TRAITS)::size_type;
 
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
+	size_t max_size() const { return std::numeric_limits<size_type>::max(); }
 
 	void clear() { m_storage.clear(); }
 	void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
@@ -1088,11 +1093,13 @@ class sequence_implementation<sequence_storage_lits::FIXED, T, TRAITS>
 	using value_type = T;
 	using iterator = value_type*;
 	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
+	using size_type = typename decltype(TRAITS)::size_type;
 
 public:
 
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage ? m_storage->size() : 0; }
+	size_t max_size() const { return std::numeric_limits<size_type>::max(); }
 
 	void clear()
 	{
@@ -1154,6 +1161,7 @@ public:
 
 	size_t capacity() const { return m_storage.capacity(); }
 	size_t size() const { return m_storage.size(); }
+	size_t max_size() const { return std::numeric_limits<size_t>::max(); }
 
 	void clear() { m_storage.clear(); }
 	void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
@@ -1174,6 +1182,8 @@ protected:
 	auto data_end() { return m_storage.data_end(); }
 	auto data_begin() const { return m_storage.data_begin(); }
 	auto data_end() const { return m_storage.data_end(); }
+	auto capacity_begin() const { return m_storage.capacity_begin(); }
+	auto capacity_end() const { return m_storage.capacity_end(); }
 
 	void reallocate(size_t new_capacity, size_t new_size)
 	{
@@ -1200,6 +1210,7 @@ public:
 
 	size_t capacity() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
 	size_t size() const { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
+	size_t max_size() const { return std::numeric_limits<size_t>::max(); }
 
 	void clear()
 	{
@@ -1326,6 +1337,8 @@ public:
 
 	using inherited::size;
 	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
 	using inherited::erase;
 
 	using traits_type = decltype(TRAITS);
@@ -1377,6 +1390,9 @@ public:
 	value_type& back() { return *(data_end() - 1); }
 	const value_type& front() const { return *data_begin(); }
 	const value_type& back() const { return *(data_end() - 1); }
+
+	value_type& operator[](size_t index) { return *(data_begin() + index); }
+	const value_type& operator[](size_t index) const { return *(data_begin() + index); }
 
 	bool empty() const { return size() == 0; }
 

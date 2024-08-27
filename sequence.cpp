@@ -13,6 +13,7 @@ void show(const SEQ& seq)
 	using traits_type = SEQ::traits_type;
 
 	std::println("Size Type:\t{}", typeid(traits_type::size_type).name());
+	std::println("Max Size:\t{}", seq.max_size());
 
 	std::print("Storage:\t");
 	switch (seq.traits.storage)
@@ -75,6 +76,17 @@ void show_elems(const SEQ& seq)
 	std::println();
 }
 
+// show_cap - Shows the capacity viewed as a given type. Note that this is UB!
+
+template<typename SEQ>
+void show_cap(const SEQ& seq)
+{
+	std::print("{}:\t", seq.capacity());
+	for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
+		std::print("{}\t", *p);
+	std::println();
+}
+
 template<typename T, long long CAP, unsigned_integral SIZE = size_t> requires ( CAP > 0 )
 using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::STATIC, .capacity = CAP }>;
 
@@ -82,13 +94,15 @@ int main()
 {
 	println("---- test -----------------------------------");
 
-	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::MIDDLE,
-			.capacity = 8,
+	constexpr sequence_traits<unsigned char> traits {
+			.storage = sequence_storage_lits::VARIABLE,
+			.location = sequence_location_lits::FRONT,
+			.growth = sequence_growth_lits::EXPONENTIAL,
+			.capacity = 2,
+			.increment = 2,
 	};
 	{
-	sequence<foo, traits> s3;
+	sequence<int, traits> s3;
 	//sequence<foo, {
 	//	.storage = sequence_storage_lits::STATIC,
 	//	.location = sequence_location_lits::FRONT,
@@ -104,21 +118,29 @@ int main()
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
-
+	show_cap(s3);
 	for (int i = 1; i <= 8; ++i)
-		s3.emplace_front(i);
+	{
+		s3.push_back(i);
+		show_cap(s3);
+	}
+
+//	for (int i = 1; i <= 8; ++i)
+//		s3.emplace_front(i);
 	//	s3.emplace_back(i);
-	show_elems(s3);
+//	show_elems(s3);
 
 	//for (int i = 1; i <= 9; ++i)
 	//	s3.emplace(s3.begin(), i);
-	s3.insert(s3.begin() + 2, 1234);
+	//s3.insert(s3.begin() + 2, 1234);
 
 	println("capacity = {}", s3.capacity());
 	println("size = {}", s3.size());
-	show_elems(s3);
+//	show_elems(s3);
 
-	//println();
+	for (int i = 0; i < 8; ++i)
+		print("{}\t", int(s3[i]));
+	println();
 	//println("front = {}", (int) s3.front());
 	//println("back = {}", (int) s3.back());
 	//for (auto e = s3.rbegin(); e != s3.rend(); ++e)
@@ -133,11 +155,11 @@ int main()
 	//s3.pop_front();
 	//s3.resize(12, 1234);
 
-	s3.emplace(s3.begin() + 6);
+	//s3.emplace(s3.begin() + 6);
 
-	println("capacity = {}", s3.capacity());
-	println("size = {}", s3.size());
-	show_elems(s3);
+	//println("capacity = {}", s3.capacity());
+	//println("size = {}", s3.size());
+	//show_elems(s3);
 
 	//s3.pop_back();
 
