@@ -8,27 +8,27 @@ The sequence_traits struct source contains the user documentation for the contai
 template<std::unsigned_integral SIZE = size_t>
 struct sequence_traits {
 
-// 'size_type' is the type of the size field for fixed storage. This allows small sequences of
+// `size_type` is the type of the size field for fixed storage. This allows small sequences of
 // small types to be made significantly more space efficient by representing the size with a
-// smaller type than size_t. This size reduction may (or may not) also result in faster run times.
-// (Note that this type is not used in this structure. Using it for 'capacity' complicates
-// sequence_storage without offering any real benefits, and it's not correct for 'increment'
+// smaller type than `size_t`. This size reduction may (or may not) also result in faster run times.
+// (Note that this type is not used in this structure. Using it for `capacity` complicates
+// sequence_storage without offering any real benefits, and it's not correct for `increment`
 // because the SBO (see below) may be small but the dynamic size large.)
 
 using size_type = SIZE;
 
-// 'storage' specifies how the capacity is allocated:
+// `storage` specifies how the capacity is allocated:
 // 
-// STATIC:   The capacity is embedded in the sequence object (like std::inplace_vector or boost::static_vector).
-//           The capacity cannot change size or move.
+// STATIC:   The capacity is embedded in the sequence object (like `std::inplace_vector` or
+//			`boost::static_vector`). The capacity cannot change size or move.
 // 
 // FIXED:    The capacity is dynamically allocated. The capacity cannot change size. Clearing the sequence
 //           deallocates the capacity. Erasing the sequence does not deallocate the capacity. This is like
-//           a std::vector which has been reserved and not allowed to reallocate, except that the in-class
-//           storage is only one pointer. The size(s) are in the dynamic allocation and can be sized.
+//           a `std::vector` which has been reserved and not allowed to reallocate, except that the in-class
+//           storage is only one pointer. The size(s) are in the dynamic allocation and are of type `size_type`.
 // 
-// VARIABLE: The capacity is dynamically allocated (like std::vector). The capacity can change and move.
-//           Neither clearing nor erasing the sequence deallocates the capacity (like std::vector).
+// VARIABLE: The capacity is dynamically allocated (like `std::vector`). The capacity can change and move.
+//           Neither clearing nor erasing the sequence deallocates the capacity (like `std::vector`).
 // 
 // BUFFERED: The capacity may be embedded (buffered) or dynamically allocated (like boost::small_vector).
 //           The capacity can change and move. Clearing the sequence deallocates the capacity if it was
