@@ -1304,7 +1304,7 @@ private:
 // sequence - This is the main class template.
 
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS> ///, public sequence_types<T, typename decltype(TRAITS)::size_type>
+class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 {
 	using inherited = sequence_implementation<TRAITS.storage, T, TRAITS>;
 	using inherited::data_begin;
