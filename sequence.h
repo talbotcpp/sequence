@@ -1231,6 +1231,14 @@ public:
 protected:
 
 	template<typename... ARGS>
+	iterator add_at(iterator pos, ARGS&&... args)
+	{
+		if (m_storage.index() == STC)
+			return get<STC>(m_storage).add_at(pos, std::forward<ARGS>(args)...);
+		else
+			return get<DYN>(m_storage).add_at(pos, std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
 		if (m_storage.index() == STC)
@@ -1387,7 +1395,11 @@ public:
 	iterator emplace(const_iterator cpos, ARGS&&... args)
 	{
 		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
+		{
+			size_t index = cpos - data_begin();
 			reallocate(traits.grow(old_capacity), current_size);
+			cpos = data_begin() + index;
+		}
 		return add_at(const_cast<iterator>(cpos), std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>

@@ -83,9 +83,9 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<size_t> traits {
-			.storage = sequence_storage_lits::VARIABLE,
+			.storage = sequence_storage_lits::BUFFERED,
 			.location = sequence_location_lits::MIDDLE,
-			.capacity = 16,
+			.capacity = 8,
 	};
 	{
 	sequence<foo, traits> s3;
