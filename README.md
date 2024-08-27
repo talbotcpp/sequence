@@ -8,11 +8,11 @@ The sequence_traits struct source contains the user documentation for the contai
 template<std::unsigned_integral SIZE = size_t>
 struct sequence_traits {
 
-// `size_type` is the type of the size field for fixed storage. This allows small sequences of
+// **size_type** is the type of the size field for fixed storage. This allows small sequences of
 // small types to be made significantly more space efficient by representing the size with a
-// smaller type than `size_t`. This size reduction may (or may not) also result in faster run times.
-// (Note that this type is not used in this structure. Using it for `capacity` complicates
-// sequence_storage without offering any real benefits, and it's not correct for `increment`
+// smaller type than **size_t**. This size reduction may (or may not) also result in faster run times.
+// (Note that this type is not used in this structure. Using it for **capacity** complicates
+// sequence_storage without offering any real benefits, and it's not correct for **increment**
 // because the SBO (see below) may be small but the dynamic size large.)
 
 using size_type = SIZE;
