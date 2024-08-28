@@ -1296,7 +1296,7 @@ protected:
 				dynamic_type temp_storage(std::move(get<DYN>(m_storage)));
 				m_storage.emplace<STC>();
 				get<STC>(m_storage).set_size(temp_storage.size());
-				std::uninitialized_move(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin();
+				std::uninitialized_move(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin());
 				destroy_data(temp_storage.data_begin(), temp_storage.data_end());
 			}
 			// We're already in the buffer: do nothing (the buffer capacity cannot change).
