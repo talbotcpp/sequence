@@ -52,8 +52,15 @@ struct no_answers{};
 struct foo {
 	foo() : i(42) { std::println("  foo() {}", i); }
 	foo(int i) : i(i) { std::println("  foo(int) {}", i); }
-	foo(const foo& f) : i(f.i) { std::println("  foo(const foo&) {}", i); if (i == 42) throw no_answers(); }
+	foo(const foo& f) : i(f.i) {
+		std::println("  foo(const foo&) {}", i);
+	}
 	foo(foo&& f) : i(f.i) {
+		if (i == 42)
+		{
+			std::println("  foo BAD");
+			throw no_answers();
+		}
 		std::println("  foo(foo&&) {}", i);
 		f.i = 666;
 	}
@@ -71,8 +78,7 @@ struct foo {
 template<typename SEQ>
 void show_elems(const SEQ& seq)
 {
-	if (seq.empty())
-		std::print("EMPTY");
+	std::print("{}>\t", seq.size());
 	for (auto&& e : seq)
 		std::print("{}\t", int(e));
 	std::println();
@@ -97,24 +103,41 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::FIXED,
 			.location = sequence_location_lits::FRONT,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
 			.capacity = 8,
 			//.increment = 2,
 	};
 	{
-	try {
-		sequence<foo, traits> s3{1,2,3,42,5,6};
-		println("capacity = {}", s3.capacity());
-		println("size = {}", s3.size());
-		show_cap(s3);
-		show_elems(s3);
+		try {
+			sequence<foo, traits> s1{9,8,7};
+			show_cap(s1);
+			show_elems(s1);
+			sequence<foo, traits> s2{1,2,3,4,5};
+			show_cap(s2);
+			show_elems(s2);
+			println();
+			s1.swap(s2);
+			show_cap(s1);
+			show_elems(s1);
+			show_cap(s2);
+			show_elems(s2);
+		}
+		catch(no_answers)
+		{
+			println("That's on a need-to-know basis!");
+		}
 	}
-    catch(no_answers)
-    {
-		println("That's on a need-to-know basis!");
-    }
+	println("---------------------------------------------");
+
+	//try {
+	//	sequence<foo, traits> s3{1,2,3,42,5,6};
+	//	println("capacity = {}", s3.capacity());
+	//	println("size = {}", s3.size());
+	//	show_cap(s3);
+	//	show_elems(s3);
+	//}
 	//sequence<foo, {
 	//	.storage = sequence_storage_lits::STATIC,
 	//	.location = sequence_location_lits::FRONT,
@@ -204,10 +227,6 @@ int main()
 	//println("capacity = {}", s3.capacity());
 	//println("size = {}", s3.size());
 	//show_elems(s3);
-	}
-
-
-	println("---------------------------------------------");
 
 //	vector<int> v{1,2,3,4,5};
 //	for (auto&& e : ranges::reverse_view(v))

@@ -187,7 +187,10 @@ class fixed_capacity
 
 public:
 
-	fixed_capacity() {}
+	fixed_capacity()
+	{
+
+	}
 	fixed_capacity(fixed_capacity&&) {}
 	~fixed_capacity() {}
 
@@ -223,6 +226,7 @@ class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_c
 	using value_type = T;
 	using iterator = value_type*;
 	using const_iterator = const value_type*;
+	using reference = value_type&;
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 
@@ -231,6 +235,34 @@ public:
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
+
+	fixed_sequence_storage() = default;
+	fixed_sequence_storage(const fixed_sequence_storage& rhs)
+	{
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_size = rhs.m_size;
+	}
+	fixed_sequence_storage(fixed_sequence_storage&& rhs)
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_size = rhs.m_size;
+	}
+	fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
+	{
+		destroy_data(data_begin(), data_end());
+		m_size = 0;
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_size = rhs.m_size;
+		return *this;
+	}
+	fixed_sequence_storage& operator=(fixed_sequence_storage&& rhs)
+	{
+		destroy_data(data_begin(), data_end());
+		m_size = 0;
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_size = rhs.m_size;
+		return *this;
+	}
 
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
@@ -324,6 +356,18 @@ public:
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
 
+	fixed_sequence_storage() = default;
+	fixed_sequence_storage(const fixed_sequence_storage& rhs)
+	{
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
+		m_size = rhs.m_size;
+	}
+	fixed_sequence_storage(fixed_sequence_storage&& rhs)
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
+		m_size = rhs.m_size;
+	}
+
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
 
@@ -415,6 +459,20 @@ public:
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
+
+	fixed_sequence_storage() = default;
+	fixed_sequence_storage(const fixed_sequence_storage& rhs)
+	{
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
+		m_front_gap = rhs.m_front_gap;
+		m_back_gap = rhs.m_back_gap;
+	}
+	fixed_sequence_storage(fixed_sequence_storage&& rhs)
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
+		m_front_gap = rhs.m_front_gap;
+		m_back_gap = rhs.m_back_gap;
+	}
 
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 	void set_size(size_t current_size)
@@ -651,6 +709,19 @@ public:
 	using inherited::m_capacity_begin;
 	using inherited::m_capacity_end;
 
+	dynamic_sequence_storage() = default;
+	dynamic_sequence_storage(const dynamic_sequence_storage& rhs)
+	{
+		make_new_capacity(rhs.size(), 0, nullptr, nullptr);
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), m_capacity_begin);
+		m_data_end = m_capacity_end;
+	}
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
+	{
+		make_new_capacity(rhs.size(), 0, rhs.data_begin(), rhs.data_end());
+		m_data_end = m_capacity_end;
+	}
+
 	size_t size() const { return m_data_end - m_capacity_begin; }
 
 	value_type* data_begin() { return m_capacity_begin; }
@@ -750,6 +821,19 @@ public:
 	using inherited::m_capacity_begin;
 	using inherited::m_capacity_end;
 
+	dynamic_sequence_storage() = default;
+	dynamic_sequence_storage(const dynamic_sequence_storage& rhs)
+	{
+		make_new_capacity(rhs.size(), 0, nullptr, nullptr);
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), m_capacity_begin);
+		m_data_begin = m_capacity_begin;
+	}
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
+	{
+		make_new_capacity(rhs.size(), 0, rhs.data_begin(), rhs.data_end());
+		m_data_begin = m_capacity_begin;
+	}
+
 	size_t size() const { return m_capacity_end - m_data_begin; }
 
 	value_type* data_begin() { return m_data_begin; }
@@ -848,6 +932,21 @@ public:
 	using inherited::capacity;
 	using inherited::m_capacity_begin;
 	using inherited::m_capacity_end;
+
+	dynamic_sequence_storage() = default;
+	dynamic_sequence_storage(const dynamic_sequence_storage& rhs)
+	{
+		make_new_capacity(rhs.size(), 0, nullptr, nullptr);
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), m_capacity_begin);
+		m_data_begin = m_capacity_begin;
+		m_data_end = m_capacity_end;
+	}
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
+	{
+		make_new_capacity(rhs.size(), 0, rhs.data_begin(), rhs.data_end());
+		m_data_begin = m_capacity_begin;
+		m_data_end = m_capacity_end;
+	}
 
 	size_t size() const { return m_data_end - m_data_begin; }
 
@@ -1025,6 +1124,8 @@ class sequence_implementation
 template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::STATIC, T, TRAITS>
 {
+	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
+
 public:
 
 	using value_type = T;
@@ -1041,6 +1142,11 @@ public:
 	void erase(value_type* element) { m_storage.erase(element); }
 	void pop_front() { m_storage.pop_front(); }
 	void pop_back() { m_storage.pop_back(); }
+
+	void swap(sequence_implementation& other)
+	{
+		std::swap(m_storage, other.m_storage);
+	}
 
 protected:
 
@@ -1074,7 +1180,7 @@ protected:
 
 private:
 
-	fixed_sequence_storage<TRAITS.location, T, TRAITS> m_storage;
+	storage_type m_storage;
 };
 
 // FIXED storage.
@@ -1102,6 +1208,11 @@ public:
 	void erase(value_type* element) { m_storage->erase(element); }
 	void pop_front() { m_storage->pop_front(); }
 	void pop_back() { m_storage->pop_back(); }
+
+	void swap(sequence_implementation& other)
+	{
+		std::swap(m_storage, other.m_storage);
+	}
 
 protected:
 
@@ -1361,6 +1472,8 @@ public:
 				  "Size type is insufficient to hold requested capacity.");
 
 	sequence() = default;
+	sequence(const sequence&) = default;
+	sequence(sequence&&) = default;
 	sequence(std::initializer_list<value_type> il) : sequence{}
 	{
 		reserve(il.size());
@@ -1371,6 +1484,9 @@ public:
 	{
 		destroy_data(data_begin(), data_end());
 	}
+
+	sequence& operator=(const sequence&) = default;
+	sequence& operator=(sequence&&) = default;
 
 	iterator				begin() { return data_begin(); }
 	const_iterator			begin() const { return data_begin(); }
