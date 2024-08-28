@@ -177,19 +177,6 @@ void destroy_data(T* begin, T* end)
 }
 
 
-// The move_data function encapsulates the process of moving elements from one storage space
-// to another. It executes the move, then destroys the moved-from element. Note: this could
-// be optimized to use only one loop, but since std::uninitialized_move is probably optimized
-// to handle simple types, that might not help in many cases unless it's done carefully.
-
-template<typename T>
-void move_data(T* data_begin, T* data_end, T* destination)
-{
-	std::uninitialized_move(data_begin, data_end, destination);
-	destroy_data(data_begin, data_end);
-}
-
-
 // ==============================================================================================================
 // fixed_capacity
 
@@ -624,7 +611,10 @@ protected:
 		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
 
 		if (data_begin)
-			move_data(data_begin, data_end, new_store + offset);
+		{
+			std::uninitialized_move(data_begin, data_end, new_store + offset);
+			destroy_data(data_begin, data_end);
+		}
 
 		if (m_capacity_begin)
 			delete static_cast<void*>(m_capacity_begin);
@@ -1306,7 +1296,8 @@ protected:
 				dynamic_type temp_storage(std::move(get<DYN>(m_storage)));
 				m_storage.emplace<STC>();
 				get<STC>(m_storage).set_size(temp_storage.size());
-				move_data(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin());
+				std::uninitialized_move(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin();
+				destroy_data(temp_storage.data_begin(), temp_storage.data_end());
 			}
 			// We're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
