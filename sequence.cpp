@@ -127,7 +127,7 @@ int main()
 
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::STATIC,
-			.location = sequence_location_lits::FRONT,
+			.location = sequence_location_lits::MIDDLE,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
 			.capacity = 12,
 			//.increment = 2,
@@ -137,17 +137,20 @@ int main()
 		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
 		show_cap(s1);
 		show_elems(s1);
-//		for (int i = 9; i > 0; --i)
-//			s1.pop_front();
+		for (int i = 5; i > 0; --i)
+			s1.pop_front();
 ////			s1.pop_back();
-//		s1.erase(s1.begin(), s1.end());
-		s1.pop_back();
+//		s1.erase(s1.begin()+3);
+//		s1.erase(s1.begin(), s1.begin());
+//		s1.pop_front();
 		show_cap(s1);
 		show_elems(s1);
+
+		s1.emplace(s1.end()-1, 69);
 //		s1.emplace_back(13);
 ////		s1.emplace_front(0);
-//		show_cap(s1);
-//		show_elems(s1);
+		show_cap(s1);
+		show_elems(s1);
 
 		try {
 //			sequence<foo, traits> s1{1,2,3,4};
