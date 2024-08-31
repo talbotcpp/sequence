@@ -310,34 +310,43 @@ public:
 	template<std::ranges::range R>
 	void fill(R range)
 	{
+		assert(range.size() <= capacity());
+
 		for (auto&& i : range)
 			add_back(i);
 	}
 
 	void clear()
 	{
-		destroy_data(data_begin(), data_end());
 		m_size = 0;
+		destroy_data(data_begin(), data_end());
 	}
-	void erase(value_type* begin, value_type* end)
+	void erase(value_type* erase_beg, value_type* erase_end)
 	{
-		assert(begin >= data_begin());
-		assert(end <= data_end());
+		assert(erase_beg >= data_begin());
+		assert(erase_end <= data_end());
+		assert(erase_end >= erase_beg);
 
-		size_t count = end - begin;
-		destroy_data(begin, end);
-		shift_reverse(end, data_end(), count);
-		m_size -= count;
+		if (erase_end != erase_beg)
+		{
+			auto end = data_end();
+			auto dst = erase_beg;
+			auto src = erase_end;
+			while (src != end)
+				*dst++ = std::move(*src++);
+
+			m_size -= static_cast<size_type>(erase_end - erase_beg);
+			destroy_data(dst, end);
+		}
 	}
-	void erase(value_type* element)
+	void erase(value_type* dst)
 	{
-		assert(element >= data_begin());
-		assert(element < data_end());
-		assert(size());
+		assert(dst >= data_begin() && dst < data_end());
 
-		element->~value_type();
-		shift_reverse(element + 1, data_end(), 1);
+		for (auto src = dst + 1, end = data_end(); src != end;)
+			*dst++ = std::move(*src++);
 		--m_size;
+		dst->~value_type();
 	}
 	void pop_front()
 	{
@@ -349,8 +358,8 @@ public:
 	{
 		assert(size());
 
-		(data_end() - 1)->~value_type();
 		--m_size;
+		data_end()->~value_type();
 	}
 
 private:
@@ -430,6 +439,8 @@ public:
 	template<std::ranges::range R>
 	void fill(R range)
 	{
+		assert(range.size() <= capacity());
+
 		for (auto&& i : std::ranges::reverse_view(range))
 			add_front(i);
 	}
@@ -529,7 +540,7 @@ public:
 		{
 			if (m_back_gap == 0)
 			{
-				recenter_reverse();
+				recenter();
 				pos -= m_back_gap;
 			}
 			shift_forward(pos, data_end(), 1);
@@ -541,7 +552,7 @@ public:
 		{
 			if (m_front_gap == 0)
 			{
-				recenter_forward();
+				recenter();
 				pos += m_front_gap;
 			}
 			shift_reverse(data_begin(), pos, 1);
@@ -558,7 +569,7 @@ public:
 		assert(m_front_gap || m_back_gap);
 
 		if (m_front_gap == 0)
-			recenter_forward();
+			recenter();
 		new(data_begin() - 1) value_type(std::forward<ARGS>(args)...);
 		--m_front_gap;
 	}
@@ -569,13 +580,16 @@ public:
 		assert(m_front_gap || m_back_gap);
 
 		if (m_back_gap == 0)
-			recenter_reverse();
+			recenter();
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		--m_back_gap;
 	}
 	template<std::ranges::sized_range R>
 	void fill(R range)
 	{
+		assert(range.size() <= capacity());
+
+		// Set the gaps to center the elements. Note that the sequence is still empty: the gaps equal the capacity.
 		m_front_gap = static_cast<size_type>(TRAITS.front_gap(range.size()));
 		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
 		for (auto&& i : range)
@@ -641,35 +655,26 @@ public:
 
 private:
 
-	void recenter_forward()
+	// This function recenters the elements to prepare for size growth. If the remaining space is odd, then the
+	// extra space will be at the front if we are making space at the front, otherwise it will be at the back.
+	
+	void recenter()
 	{
-		assert(m_front_gap == 0);
-		assert(m_back_gap != 0);
+		assert(m_back_gap == 0 || m_front_gap == 0);
+		assert(m_back_gap != 0 || m_front_gap != 0);
 
 		auto sz = size();
 		auto temp = std::move(*this);
 		destroy_data(data_begin(), data_end());
-		auto bg = TRAITS.front_gap(capacity(), sz);	// Leave more room at the front (if the total gap is odd).
-		auto fg = capacity() - (bg + sz);
-		std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
-		m_front_gap = static_cast<size_type>(fg);
-		m_back_gap = static_cast<size_type>(bg);
-	}
-
-	void recenter_reverse()
-	{
-		assert(m_back_gap == 0);
-		assert(m_front_gap != 0);
-
-		auto sz = size();
-		auto temp = std::move(*this);
-		destroy_data(data_begin(), data_end());
-		auto fg = TRAITS.front_gap(capacity(), sz);	// Leave more room at the back (if the total gap is odd).
+		auto fg = TRAITS.front_gap(capacity(), sz);
 		auto bg = capacity() - (fg + sz);
+		if (m_front_gap == 0) std::swap(fg, bg);
 		std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
 		m_front_gap = static_cast<size_type>(fg);
 		m_back_gap = static_cast<size_type>(bg);
 	}
+
+	// Empty sequences with odd capacity will have the extra space at the back.
 
 	size_type m_front_gap = static_cast<size_type>(TRAITS.front_gap());
 	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.front_gap());
@@ -1509,7 +1514,7 @@ public:
 	// Variable capacity means that the capacity must grow, and this growth must actually make progress.
 	// Zero capacity is not permitted (although this could be changed if it poses problems in generic contexts).
 	static_assert(traits.capacity > 0,
-				  "Fixed, initial, and buffer capacity must be greater than 0.");
+				  "Capacity must be greater than 0.");
 	static_assert(traits.increment > 0,
 				  "Linear capacity growth must be greater than 0.");
 	static_assert(traits.factor > 1.0f,
