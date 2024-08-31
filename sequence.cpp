@@ -96,6 +96,52 @@ struct foo {
 	int i;
 };
 
+// Lifetime counter
+
+struct life {
+	life() : birth(++count) { std::println("  life() {}/{}", i, birth); }
+	life(int i) : i(i), birth(++count) { std::println("  life(int) {}/{}", i, birth); }
+	life(const life& l) : i(l.i), birth(++count)
+	{
+		std::println("  life(const life&) {}/{}", i, birth);
+	}
+	life(life&& l) : i(l.i), birth(++count)
+	{
+		std::println("  life(life&&) {}/{}", i, birth);
+		l.i = 666;
+	}
+	~life()
+	{
+		std::println("  ~life {}/{}", i, birth);
+		i = 99999;
+	}
+
+	//auto operator<=>(const life& l) const { return i <=> l.i; }
+	//auto operator==(const life& l) const { return i == l.i; }
+
+	life& operator=(const life& l)
+	{
+		i = l.i;
+		std::println("  op=(const life&) {}/{}", i, birth);
+		return *this;
+	}
+	life& operator=(life&& l)
+	{
+		i = l.i;
+		std::println("  op=(life&&) {}/{}", i, birth);
+		l.i = 666;
+		return *this;
+	}
+
+	operator int() const { return i; }
+
+	static int count;
+	int i = 42, birth;
+};
+
+int life::count = 0;
+
+
 // show_elems - Simple element output for any container with elements convertible to int.
 
 template<typename SEQ>
@@ -166,6 +212,15 @@ int main()
 //		show_cap(s1);
 	}
 	println("---------------------------------------------");
+
+	vector<life> v;
+	for (int i = 1; i <= 10; ++i)
+	//	v.emplace(v.begin(), i);
+		v.emplace_back(i);
+	//sort(v.begin(), v.end());
+	for (auto&& e : v)
+		std::print("{}/{}\t", e.i, e.birth);
+	println();
 
 	//try {
 	//	sequence<foo, traits> s3{1,2,3,42,5,6};
