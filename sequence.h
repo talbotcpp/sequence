@@ -119,15 +119,19 @@ struct sequence_traits
 	// 'front_gap' returns the location of the start of the data given a capacity and size.
 	// The formula is based on the 'location' value.
 
-	size_t front_gap(size_t capacity, size_t size) const
+	size_t front_gap(size_t cap, size_t size) const
 	{
 		switch (location)
 		{
 		default:
 		case sequence_location_lits::FRONT:		return 0;
-		case sequence_location_lits::BACK:		return capacity - size;
-		case sequence_location_lits::MIDDLE:	return (capacity - size) / 2;
+		case sequence_location_lits::BACK:		return cap - size;
+		case sequence_location_lits::MIDDLE:	return (cap - size) / 2;
 		}
+	}
+	size_t front_gap(size_t size = 0) const
+	{
+		return front_gap(capacity, size);
 	}
 };
 
@@ -187,10 +191,7 @@ class fixed_capacity
 
 public:
 
-	fixed_capacity()
-	{
-
-	}
+	fixed_capacity() {}
 	fixed_capacity(fixed_capacity&&) {}
 	~fixed_capacity() {}
 
@@ -279,9 +280,18 @@ public:
 		assert(data_end() < capacity_end());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		shift_forward(pos, data_end(), 1);
-		new(pos) value_type(std::forward<ARGS>(args)...);
-		++m_size;
+		auto dst = data_end();
+		if (m_size == 0 || pos == dst)
+			add_back(std::forward<ARGS>(args)...);
+		else
+		{
+			value_type temp(std::forward<ARGS>(args)...);
+			new(dst) value_type(std::move(*(dst - 1)));
+			++m_size;
+			for (auto src = --dst - 1; dst != pos;)
+				*dst-- = std::move(*src--);
+			*pos = std::move(temp);
+		}
 		return pos;
 	}
 	template<typename... ARGS>
@@ -296,6 +306,12 @@ public:
 
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_size;
+	}
+	template<std::ranges::range R>
+	void fill(R range)
+	{
+		for (auto&& i : range)
+			add_back(i);
 	}
 
 	void clear()
@@ -383,9 +399,19 @@ public:
 		assert(data_begin() > capacity_begin());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		shift_reverse(data_begin(), pos, 1);
-		++m_size;
-		new(--pos) value_type(std::forward<ARGS>(args)...);
+		auto dst = data_begin();
+		if (m_size == 0 || pos == dst)
+			add_front(std::forward<ARGS>(args)...);
+		else
+		{
+			value_type temp(std::forward<ARGS>(args)...);
+			new(dst - 1) value_type(std::move(*dst));
+			++m_size;
+			--pos;
+			for (auto src = dst + 1; dst != pos;)
+				*dst++ = std::move(*src++);
+			*pos = std::move(temp);
+		}
 		return pos;
 	}
 	template<typename... ARGS>
@@ -393,13 +419,19 @@ public:
 	{
 		assert(size() < capacity());
 
+		new(data_begin() - 1) value_type(std::forward<ARGS>(args)...);
 		++m_size;
-		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
 	{
 		add_at(data_end(), std::forward<ARGS>(args)...);
+	}
+	template<std::ranges::range R>
+	void fill(R range)
+	{
+		for (auto&& i : std::ranges::reverse_view(range))
+			add_front(i);
 	}
 
 	void clear()
@@ -527,8 +559,8 @@ public:
 
 		if (m_front_gap == 0)
 			recenter_forward();
+		new(data_begin() - 1) value_type(std::forward<ARGS>(args)...);
 		--m_front_gap;
-		new(data_begin()) value_type(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void add_back(ARGS&&... args)
@@ -541,12 +573,20 @@ public:
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		--m_back_gap;
 	}
+	template<std::ranges::sized_range R>
+	void fill(R range)
+	{
+		m_front_gap = static_cast<size_type>(TRAITS.front_gap(range.size()));
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
+		for (auto&& i : range)
+			add_back(i);
+	}
 
 	void clear()
 	{
 		destroy_data(data_begin(), data_end());
-		m_front_gap = TRAITS.capacity / 2;
-		m_back_gap = TRAITS.capacity - TRAITS.capacity / 2;
+		m_front_gap = static_cast<size_type>(TRAITS.front_gap());
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
 	}
 	void erase(value_type* begin, value_type* end)
 	{
@@ -604,27 +644,35 @@ private:
 	void recenter_forward()
 	{
 		assert(m_front_gap == 0);
+		assert(m_back_gap != 0);
 
-		auto bg = m_back_gap / 2;						// We have to cache these because data_begin/end depend on the gaps.
-		auto fg = m_back_gap - bg;						// Leave more room at the front if gap is odd.
-		shift_forward(data_begin(), data_end(), fg);
-		m_front_gap = fg;
-		m_back_gap = bg;
+		auto sz = size();
+		auto temp = std::move(*this);
+		destroy_data(data_begin(), data_end());
+		auto bg = TRAITS.front_gap(capacity(), sz);	// Leave more room at the front (if the total gap is odd).
+		auto fg = capacity() - (bg + sz);
+		std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
+		m_front_gap = static_cast<size_type>(fg);
+		m_back_gap = static_cast<size_type>(bg);
 	}
 
 	void recenter_reverse()
 	{
 		assert(m_back_gap == 0);
+		assert(m_front_gap != 0);
 
-		auto fg = m_front_gap / 2;						// We have to cache these because data_begin/end depend on the gaps.
-		auto bg = m_front_gap - fg;						// Leave more room at the back if gap is odd.
-		shift_reverse(data_begin(), data_end(), bg);
-		m_front_gap = fg;
-		m_back_gap = bg;
+		auto sz = size();
+		auto temp = std::move(*this);
+		destroy_data(data_begin(), data_end());
+		auto fg = TRAITS.front_gap(capacity(), sz);	// Leave more room at the back (if the total gap is odd).
+		auto bg = capacity() - (fg + sz);
+		std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
+		m_front_gap = static_cast<size_type>(fg);
+		m_back_gap = static_cast<size_type>(bg);
 	}
 
-	size_type m_front_gap = static_cast<size_type>(TRAITS.capacity / 2);
-	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.capacity / 2);
+	size_type m_front_gap = static_cast<size_type>(TRAITS.front_gap());
+	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.front_gap());
 };
 
 
@@ -1165,6 +1213,10 @@ protected:
 	{
 		m_storage.add_back(std::forward<ARGS>(args)...);
 	}
+	void fill(std::initializer_list<value_type> il)
+	{
+		m_storage.fill(il);
+	}
 
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
@@ -1432,6 +1484,7 @@ class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 	using inherited::add_at;
 	using inherited::add_front;
 	using inherited::add_back;
+	using inherited::fill;
 
 public:
 
@@ -1476,9 +1529,7 @@ public:
 	sequence(sequence&&) = default;
 	sequence(std::initializer_list<value_type> il) : sequence{}
 	{
-		reserve(il.size());
-		for (auto&& i : il)
-			add_back(i);
+		fill(il);
 	}
 	~sequence()
 	{

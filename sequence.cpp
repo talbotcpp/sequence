@@ -52,22 +52,45 @@ struct no_answers{};
 struct foo {
 	foo() : i(42) { std::println("  foo() {}", i); }
 	foo(int i) : i(i) { std::println("  foo(int) {}", i); }
-	foo(const foo& f) : i(f.i) {
+	foo(const foo& f) : i(f.i)
+	{
 		std::println("  foo(const foo&) {}", i);
 	}
-	foo(foo&& f) : i(f.i) {
-		if (i == 42)
+	foo(foo&& f) : i(f.i)
+	{
+		if (i == 86)
 		{
-			std::println("  foo BAD");
+			std::println("  foo(foo&&) BAD");
 			throw no_answers();
 		}
 		std::println("  foo(foo&&) {}", i);
 		f.i = 666;
 	}
-	~foo() {
+	~foo()
+	{
 		std::println("  ~foo {}", i);
 		i = 99999;
 	}
+
+	foo& operator=(const foo& f)
+	{
+		i = f.i;
+		std::println("  foo(const foo&) {}", i);
+		return *this;
+	}
+	foo& operator=(foo&& f)
+	{
+		i = f.i;
+		if (i == 86)
+		{
+			std::println("  op=(foo&&) BAD");
+			throw no_answers();
+		}
+		std::println("  op=(foo&&) {}", i);
+		f.i = 666;
+		return *this;
+	}
+
 	operator int() const { return i; }
 
 	int i;
@@ -103,31 +126,34 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::FIXED,
-			.location = sequence_location_lits::FRONT,
+			.storage = sequence_storage_lits::STATIC,
+			.location = sequence_location_lits::MIDDLE,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 8,
+			.capacity = 12,
 			//.increment = 2,
 	};
 	{
+		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
+		show_cap(s1);
+		show_elems(s1);
+		for (int i = 9; i > 0; --i)
+			s1.pop_front();
+		show_cap(s1);
+		show_elems(s1);
+		s1.emplace_back(13);
+
 		try {
-			sequence<foo, traits> s1{9,8,7};
-			show_cap(s1);
-			show_elems(s1);
-			sequence<foo, traits> s2{1,2,3,4,5};
-			show_cap(s2);
-			show_elems(s2);
-			println();
-			s1.swap(s2);
-			show_cap(s1);
-			show_elems(s1);
-			show_cap(s2);
-			show_elems(s2);
+//			s1.insert(s1.begin()+2, 33);
 		}
 		catch(no_answers)
 		{
-			println("That's on a need-to-know basis!");
+			println("Bad soda");
 		}
+		catch(std::bad_alloc err)
+		{
+			println("Bad alloc: {}", err.what());
+		}
+		show_cap(s1);
 	}
 	println("---------------------------------------------");
 
@@ -267,7 +293,21 @@ int main()
 }
 
 /*
-	foo* p = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
+			sequence<foo, traits> s1{9,8,7};
+			show_cap(s1);
+			show_elems(s1);
+			sequence<foo, traits> s2{1,2,3,4,5};
+			show_cap(s2);
+			show_elems(s2);
+			println();
+			s1.swap(s2);
+			show_cap(s1);
+			show_elems(s1);
+			show_cap(s2);
+			show_elems(s2);
+
+
+foo* p = static_cast<foo*>(operator new( sizeof(foo) * 5 ));
 	foo* e = p + 5;
 
 	new(p + 2) foo(1234);
