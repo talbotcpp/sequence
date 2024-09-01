@@ -308,7 +308,7 @@ public:
 		++m_size;
 	}
 	template<std::ranges::range R>
-	void fill(R range)
+	void fill(const R& range)
 	{
 		assert(range.size() <= capacity());
 
@@ -728,54 +728,51 @@ template<typename T, sequence_traits TRAITS>
 class dynamic_capacity
 {
 	using value_type = T;
+	using pointer = value_type*;
+	using const_pointer = const value_type*;
 
 public:
 
-	dynamic_capacity() = default;
-	dynamic_capacity(dynamic_capacity&& rhs)
+	dynamic_capacity() : m_capacity_end(nullptr) {}
+	dynamic_capacity(size_t cap) :
+		m_capacity_begin(operator new(sizeof(value_type) * cap))
 	{
-		m_capacity_begin = rhs.m_capacity_begin;
-		rhs.m_capacity_begin = nullptr;
-		m_capacity_end = rhs.m_capacity_end;
+		m_capacity_end = capacity_begin() + cap;
 	}
-	dynamic_capacity& operator=(dynamic_capacity&& rhs)
-	{
-		m_capacity_begin = rhs.m_capacity_begin;
-		rhs.m_capacity_begin = nullptr;
-		m_capacity_end = rhs.m_capacity_end;
-		return *this;
-	}
-	~dynamic_capacity()
-	{
-		if (m_capacity_begin)
-			delete static_cast<void*>(m_capacity_begin);
-	}
+	dynamic_capacity(const dynamic_capacity&) = delete;
+	dynamic_capacity& operator=(const dynamic_capacity&) = delete;
 
-	size_t capacity() const { return m_capacity_end - m_capacity_begin; }
-	const value_type* capacity_begin() const { return m_capacity_begin; }
-	const value_type* capacity_end() const { return m_capacity_end; }
+	size_t capacity() const { return capacity_end() - capacity_begin(); }
+	pointer capacity_begin() { return static_cast<pointer>(m_capacity_begin.get()); }
+	pointer capacity_end() { return m_capacity_end; }
+	const_pointer capacity_begin() const { return static_cast<const_pointer>(m_capacity_begin.get()); }
+	const_pointer capacity_end() const { return m_capacity_end; }
 
 protected:
 
+	void swap(dynamic_capacity& rhs)
+	{
+		std::swap(m_capacity_begin, rhs.m_capacity_begin);
+		std::swap(m_capacity_end, rhs.m_capacity_end);
+	}
+
 	void make_new_capacity(size_t new_capacity, size_t offset, value_type* data_begin, value_type* data_end)
 	{
-		auto new_store = static_cast<value_type*>(operator new(sizeof(value_type) * new_capacity));
+		auto new_store = operator new(sizeof(value_type) * new_capacity);
 
 		if (data_begin)
 		{
-			std::uninitialized_move(data_begin, data_end, new_store + offset);
+			std::uninitialized_move(data_begin, data_end, static_cast<value_type*>(new_store) + offset);
 			destroy_data(data_begin, data_end);
 		}
 
-		if (m_capacity_begin)
-			delete static_cast<void*>(m_capacity_begin);
-
-		m_capacity_begin = new_store;
-		m_capacity_end = m_capacity_begin + new_capacity;
+		m_capacity_begin.reset(new_store);
+		m_capacity_end = capacity_begin() + new_capacity;
 	}
 
-	value_type* m_capacity_begin = nullptr;	// Owning pointer using new/delete.
-	value_type* m_capacity_end = nullptr;
+	using deleter_type = decltype([](void* p){ delete p; });
+	std::unique_ptr<void, deleter_type> m_capacity_begin;
+	pointer m_capacity_end;
 };
 
 
@@ -794,52 +791,67 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 	using value_type = T;
 	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
-	using inherited::make_new_capacity;
 
 public:
 
 	using inherited::capacity;
-	using inherited::m_capacity_begin;
-	using inherited::m_capacity_end;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
 
 	dynamic_sequence_storage() = default;
-	dynamic_sequence_storage(const dynamic_sequence_storage& rhs)
+	dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
-		make_new_capacity(rhs.size(), 0, nullptr, nullptr);
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), m_capacity_begin);
-		m_data_end = m_capacity_end;
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_data_end = capacity_end();
 	}
-	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs) : inherited(rhs.size())
 	{
-		make_new_capacity(rhs.size(), 0, rhs.data_begin(), rhs.data_end());
-		m_data_end = m_capacity_end;
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		destroy_data(rhs.data_begin(), rhs.data_end());
+		m_data_end = capacity_end();
 	}
 
-	size_t size() const { return m_data_end - m_capacity_begin; }
+	size_t size() const { return data_end() - data_begin(); }
 
-	value_type* data_begin() { return m_capacity_begin; }
+	value_type* data_begin() { return capacity_begin(); }
 	value_type* data_end() { return m_data_end; }
-	const value_type* data_begin() const { return m_capacity_begin; }
+	const value_type* data_begin() const { return capacity_begin(); }
 	const value_type* data_end() const { return m_data_end; }
 
-	void reallocate(size_t new_capacity, size_t current_size, size_t new_size, value_type* d_begin, value_type* d_end)
+	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
 	{
-		assert(current_size <= new_capacity);
+		assert(new_size <= new_cap);
+		assert(current_size <= new_cap);
 
-		make_new_capacity(new_capacity, TRAITS.front_gap(new_capacity, new_size), d_begin, d_end);
-		m_data_end = m_capacity_begin + current_size;
+		inherited new_capacity(new_cap);
+		if (data_begin() != data_end())	// This is redundant. Is it actually an optimization?
+		{
+			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + TRAITS.front_gap(new_cap, new_size));
+			destroy_data(data_begin(), data_end());
+		}
+		this->swap(new_capacity);
+		m_data_end = data_begin() + current_size;
 	}
 
 	template<typename... ARGS>
 	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_data_end < m_capacity_end);
+		assert(data_end() < capacity_end());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		shift_forward(pos, data_end(), 1);
-		new(pos) value_type(std::forward<ARGS>(args)...);
-		++m_data_end;
+		auto dst = data_end();
+		if (size() == 0 || pos == dst)
+			add_back(std::forward<ARGS>(args)...);
+		else
+		{
+			value_type temp(std::forward<ARGS>(args)...);
+			new(dst) value_type(std::move(*(dst - 1)));
+			++m_data_end;
+			for (auto src = --dst - 1; dst != pos;)
+				*dst-- = std::move(*src--);
+			*pos = std::move(temp);
+		}
 		return pos;
 }
 	template<typename... ARGS>
@@ -855,31 +867,47 @@ public:
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
+	template<std::ranges::range R>
+	void fill(const R& range)
+	{
+		inherited new_capacity(range.size());
+		std::uninitialized_copy(range.begin(), range.end(), new_capacity.capacity_begin());
+		this->swap(new_capacity);
+		m_data_end = data_begin() + range.size();
+	}
 
 	void clear()
 	{
-		destroy_data(data_begin(), data_end());
-		m_data_end = m_capacity_begin;
+		auto end = data_end();
+		m_data_end = data_begin();
+		destroy_data(data_begin(), end);
 	}
-	void erase(value_type* begin, value_type* end)
+	void erase(value_type* erase_beg, value_type* erase_end)
 	{
-		assert(begin >= data_begin());
-		assert(end <= data_end());
+		assert(erase_beg >= data_begin());
+		assert(erase_end <= data_end());
+		assert(erase_end >= erase_beg);
 
-		size_t count = end - begin;
-		destroy_data(begin, end);
-		shift_reverse(end, data_end(), count);
-		m_data_end -= count;
+		if (erase_end != erase_beg)
+		{
+			auto end = data_end();
+			auto dst = erase_beg;
+			auto src = erase_end;
+			while (src != end)
+				*dst++ = std::move(*src++);
+
+			m_data_end -= erase_end - erase_beg;
+			destroy_data(dst, end);
+		}
 	}
-	void erase(value_type* element)
+	void erase(value_type* dst)
 	{
-		assert(element >= data_begin());
-		assert(element < data_end());
-		assert(size());
+		assert(dst >= data_begin() && dst < data_end());
 
-		element->~value_type();
-		shift_reverse(element + 1, data_end(), 1);
+		for (auto src = dst + 1, end = data_end(); src != end;)
+			*dst++ = std::move(*src++);
 		--m_data_end;
+		dst->~value_type();
 	}
 	void pop_front()
 	{
@@ -891,8 +919,8 @@ public:
 	{
 		assert(size());
 
-		(data_end() - 1)->~value_type();
 		--m_data_end;
+		data_end()->~value_type();
 	}
 
 private:
@@ -1334,6 +1362,14 @@ protected:
 			m_storage.reset(new storage_type);
 		m_storage->add_back(std::forward<ARGS>(args)...);
 	}
+	void fill(std::initializer_list<value_type> il)
+	{
+		assert(!m_storage);
+
+		m_storage.reset(new storage_type);
+		m_storage->fill(il);
+	}
+
 	auto data_begin() { return m_storage ? m_storage->data_begin() : nullptr; }
 	auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
 	auto data_begin() const { return m_storage ? m_storage->data_begin() : nullptr; }
@@ -1379,6 +1415,10 @@ protected:
 	void add_front(ARGS&&... args) { m_storage.add_front(std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
 	void add_back(ARGS&&... args) { m_storage.add_back(std::forward<ARGS>(args)...); }
+	void fill(std::initializer_list<value_type> il)
+	{
+		m_storage.fill(il);
+	}
 
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
@@ -1389,7 +1429,7 @@ protected:
 
 	void reallocate(size_t new_capacity, size_t new_size)
 	{
-		m_storage.reallocate(new_capacity, size(), new_size, data_begin(), data_end());
+		m_storage.reallocate(new_capacity, new_size, size());
 	}
 
 private:
