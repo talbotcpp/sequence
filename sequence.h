@@ -174,12 +174,98 @@ void shift_reverse(T* begin, T* end, size_t distance)
 // been moved somewhere else.
 
 template<typename T>
-void destroy_data(T* begin, T* end)
+void destroy_data(T* data_begin, T* data_end)
 {
-	for (auto&& element : span<T>(begin, end))
+	for (auto&& element : span<T>(data_begin, data_end))
 		element.~T();
 }
 
+
+// The erase functions implement the erase element and erase range algorithms for front
+// and back erasure. These algorithms are used for both fixed and dynamic storage.
+
+template<typename T, std::regular_invocable<size_t> FUNC>
+void front_erase(T* data_begin, T* data_end, T* erase_begin, T* erase_end, FUNC adjust)
+{
+	assert(erase_begin >= data_begin);
+	assert(erase_end <= data_end);
+	assert(erase_end >= erase_begin);
+
+	if (erase_begin != erase_end)
+	{
+		auto beg = data_begin - 1;
+		auto dst = erase_end - 1;
+		auto src = erase_begin - 1;
+		while (src != beg)
+			*dst-- = std::move(*src--);
+		adjust(erase_end - erase_begin);
+		destroy_data(data_begin, ++dst);
+	}
+}
+
+template<typename T, std::regular_invocable FUNC>
+void front_erase(T* data_begin, T* data_end, T* dst, FUNC adjust)
+{
+	assert(dst >= data_begin && dst < data_end);
+
+	auto src = dst - 1;
+	while (dst != data_begin)
+		*dst-- = std::move(*src--);
+	adjust();
+	dst->~T();
+}
+
+template<typename T, std::regular_invocable<size_t> FUNC>
+void back_erase(T* data_begin, T* data_end, T* erase_begin, T* erase_end, FUNC adjust)
+{
+	assert(erase_begin >= data_begin);
+	assert(erase_end <= data_end);
+	assert(erase_end >= erase_begin);
+
+	if (erase_begin != erase_end)
+	{
+		auto dst = erase_begin;
+		auto src = erase_end;
+		while (src != data_end)
+			*dst++ = std::move(*src++);
+		adjust(erase_end - erase_begin);
+		destroy_data(dst, data_end);
+	}
+}
+
+template<typename T, std::regular_invocable FUNC>
+void back_erase(T* data_begin, T* data_end, T* dst, FUNC adjust)
+{
+	assert(dst >= data_begin && dst < data_end);
+
+	auto src = dst + 1;
+	while (src != data_end)
+		*dst++ = std::move(*src++);
+	adjust();
+	dst->~T();
+}
+
+// The recenter function shifts the elements in a MIDDLE location capacity to prepare for size growth.
+// If the remaining space is odd, then the extra space will be at the front if we are making space at
+// the front, otherwise it will be at the back.
+/*
+template<typename T>
+std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end)
+{
+	assert(data_begin == capacity_begin || data_end == capacity_end);
+	assert(data_begin != capacity_begin || data_end != capacity_end);
+
+	auto size = data_end - data_begin;
+	auto temp = std::move(*this);
+	destroy_data(data_begin(), data_end());
+	auto fg = TRAITS.front_gap(capacity(), size);
+	auto bg = capacity() - (fg + size);
+	if (m_data_begin == capacity_begin()) std::swap(fg, bg);
+	std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
+	m_data_begin = capacity_begin() + fg;
+	m_data_end = m_data_begin + size;
+}
+*/
 
 // ==============================================================================================================
 // fixed_capacity
@@ -323,32 +409,14 @@ public:
 		m_size = 0;
 		destroy_data(data_begin(), end);
 	}
-	void erase(value_type* erase_beg, value_type* erase_end)
+	void erase(value_type* erase_begin, value_type* erase_end)
 	{
-		assert(erase_beg >= data_begin());
-		assert(erase_end <= data_end());
-		assert(erase_end >= erase_beg);
-
-		if (erase_end != erase_beg)
-		{
-			auto end = data_end();
-			auto dst = erase_beg;
-			auto src = erase_end;
-			while (src != end)
-				*dst++ = std::move(*src++);
-
-			m_size -= static_cast<size_type>(erase_end - erase_beg);
-			destroy_data(dst, end);
-		}
+		back_erase(data_begin(), data_end(), erase_begin, erase_end,
+				   [this](size_t count){ m_size -= static_cast<size_type>(count); });
 	}
-	void erase(value_type* dst)
+	void erase(value_type* element)
 	{
-		assert(dst >= data_begin() && dst < data_end());
-
-		for (auto src = dst + 1, end = data_end(); src != end;)
-			*dst++ = std::move(*src++);
-		--m_size;
-		dst->~value_type();
+		back_erase(data_begin(), data_end(), element, [this](){ --m_size; });
 	}
 	void pop_front()
 	{
@@ -454,32 +522,14 @@ public:
 		m_size = 0;
 		destroy_data(begin, data_end());
 	}
-	void erase(value_type* erase_beg, value_type* erase_end)
+	void erase(value_type* erase_begin, value_type* erase_end)
 	{
-		assert(erase_beg >= data_begin());
-		assert(erase_end <= data_end());
-		assert(erase_end >= erase_beg);
-
-		if (erase_end != erase_beg)
-		{
-			auto beg = data_begin();
-			auto dst = erase_end - 1;
-			auto src = erase_beg - 1;
-			while (src != beg - 1)
-				*dst-- = std::move(*src--);
-
-			m_size -= static_cast<size_type>(erase_end - erase_beg);
-			destroy_data(beg, data_begin());
-		}
+		front_erase(data_begin(), data_end(), erase_begin, erase_end,
+					[this](size_t count){ m_size -= static_cast<size_type>(count); });
 	}
-	void erase(value_type* dst)
+	void erase(value_type* element)
 	{
-		assert(dst >= data_begin() && dst < data_end());
-
-		for (auto src = dst - 1, beg = data_begin(); dst != beg;)
-			*dst-- = std::move(*src--);
-		--m_size;
-		dst->~value_type();
+		front_erase(data_begin(), data_end(), element, [this](){ --m_size; });
 	}
 	void pop_front()
 	{
@@ -633,55 +683,23 @@ public:
 		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
 		destroy_data(begin, end);
 	}
-	void erase(value_type* erase_beg, value_type* erase_end)
+	void erase(value_type* erase_begin, value_type* erase_end)
 	{
-		assert(erase_beg >= data_begin());
-		assert(erase_end <= data_end());
-		assert(erase_end >= erase_beg);
-
-		if (erase_end != erase_beg)
-		{
-			if (erase_beg - data_begin() > data_end() - erase_end)	// Erasing near the back: do a back erase.
-			{
-				auto end = data_end();
-				auto dst = erase_beg;
-				auto src = erase_end;
-				while (src != end)
-					*dst++ = std::move(*src++);
-
-				m_back_gap += static_cast<size_type>(erase_end - erase_beg);
-				destroy_data(dst, end);
-			}
-			else													// Erasing near the front: do a front erase.
-			{
-				auto beg = data_begin();
-				auto dst = erase_end - 1;
-				auto src = erase_beg - 1;
-				while (src != beg - 1)
-					*dst-- = std::move(*src--);
-
-				m_front_gap += static_cast<size_type>(erase_end - erase_beg);
-				destroy_data(beg, data_begin());
-			}
-		}
+		// If we are erasing nearer the back or dead center, erase at the back. Otherwise erase at the front.
+		if (erase_begin - data_begin() >= data_end() - erase_end)
+			back_erase(data_begin(), data_end(), erase_begin, erase_end,
+						[this](size_t count){ m_back_gap += static_cast<size_type>(count); });
+		else
+			front_erase(data_begin(), data_end(), erase_begin, erase_end,
+						[this](size_t count){ m_front_gap += static_cast<size_type>(count); });
 	}
-	void erase(value_type* dst)
+	void erase(value_type* element)
 	{
-		assert(dst >= data_begin() && dst < data_end());
-
-		if (dst - data_begin() > data_end() - dst)	// Erasing near the back: do a back erase.
-		{
-			for (auto src = dst + 1, end = data_end(); src != end;)
-				*dst++ = std::move(*src++);
-			++m_back_gap;
-		}
-		else										// Erasing near the front: do a front erase.
-		{
-			for (auto src = dst - 1, beg = data_begin(); dst != beg;)
-				*dst-- = std::move(*src--);
-			++m_front_gap;
-		}
-		dst->~value_type();
+		// If we are erasing nearer the back or dead center, erase at the back. Otherwise erase at the front.
+		if (element - data_begin() >= data_end() - element)
+			back_erase(data_begin(), data_end(), element, [this](){ ++m_back_gap; });
+		else
+			front_erase(data_begin(), data_end(), element, [this](){ ++m_front_gap; });
 	}
 	void pop_front()
 	{
@@ -759,7 +777,7 @@ protected:
 	template<std::ranges::sized_range R>
 	void fill(const R& range)
 	{
-		decltype(*this) new_capacity(range.size());
+		dynamic_capacity<T, TRAITS> new_capacity(range.size());
 		std::uninitialized_copy(range.begin(), range.end(), new_capacity.capacity_begin());
 		this->swap(new_capacity);
 	}
@@ -880,32 +898,14 @@ public:
 		m_data_end = capacity_begin();
 		destroy_data(data_begin(), end);
 	}
-	void erase(value_type* erase_beg, value_type* erase_end)
+	void erase(value_type* erase_begin, value_type* erase_end)
 	{
-		assert(erase_beg >= data_begin());
-		assert(erase_end <= data_end());
-		assert(erase_end >= erase_beg);
-
-		if (erase_end != erase_beg)
-		{
-			auto end = data_end();
-			auto dst = erase_beg;
-			auto src = erase_end;
-			while (src != end)
-				*dst++ = std::move(*src++);
-
-			m_data_end -= erase_end - erase_beg;
-			destroy_data(dst, end);
-		}
+		back_erase(data_begin(), data_end(), erase_begin, erase_end,
+				   [this](size_t count){ m_data_end -= count; });
 	}
-	void erase(value_type* dst)
+	void erase(value_type* element)
 	{
-		assert(dst >= data_begin() && dst < data_end());
-
-		for (auto src = dst + 1, end = data_end(); src != end;)
-			*dst++ = std::move(*src++);
-		--m_data_end;
-		dst->~value_type();
+		back_erase(data_begin(), data_end(), element, [this](){ --m_data_end; });
 	}
 	void pop_front()
 	{
@@ -1022,32 +1022,14 @@ public:
 		m_data_begin = capacity_end();
 		destroy_data(begin, data_end());
 	}
-	void erase(value_type* erase_beg, value_type* erase_end)
+	void erase(value_type* erase_begin, value_type* erase_end)
 	{
-		assert(erase_beg >= data_begin());
-		assert(erase_end <= data_end());
-		assert(erase_end >= erase_beg);
-
-		if (erase_end != erase_beg)
-		{
-			auto beg = data_begin();
-			auto dst = erase_end - 1;
-			auto src = erase_beg - 1;
-			while (src != beg - 1)
-				*dst-- = std::move(*src--);
-
-			m_data_begin += erase_end - erase_beg;
-			destroy_data(beg, data_begin());
-		}
+		front_erase(data_begin(), data_end(), erase_begin, erase_end,
+					[this](size_t count){ m_data_begin += count; });
 	}
-	void erase(value_type* dst)
+	void erase(value_type* element)
 	{
-		assert(dst >= data_begin() && dst < data_end());
-
-		for (auto src = dst - 1, beg = data_begin(); dst != beg;)
-			*dst-- = std::move(*src--);
-		++m_data_begin;
-		dst->~value_type();
+		front_erase(data_begin(), data_end(), element, [this](){ ++m_data_begin; });
 	}
 	void pop_front()
 	{
@@ -1210,42 +1192,23 @@ public:
 		m_data_end = m_data_begin;
 		destroy_data(begin, end);
 	}
-	void erase(value_type* begin, value_type* end)
+	void erase(value_type* erase_begin, value_type* erase_end)
 	{
-		assert(begin >= data_begin());
-		assert(end <= data_end());
-
-		size_t count = end - begin;
-		destroy_data(begin, end);
-
-		if (begin - data_begin() > data_end() - end)
-		{
-			shift_reverse(end, data_end(), count);
-			m_data_end -= count;
-		}
+		// If we are erasing nearer the back or dead center, erase at the back. Otherwise erase at the front.
+		if (erase_begin - data_begin() >= data_end() - erase_end)
+			back_erase(data_begin(), data_end(), erase_begin, erase_end,
+						[this](size_t count){ m_data_end -= count; });
 		else
-		{
-			shift_forward(data_begin(), begin, count);
-			m_data_begin += count;
-		}
+			front_erase(data_begin(), data_end(), erase_begin, erase_end,
+						[this](size_t count){ m_data_begin += count; });
 	}
 	void erase(value_type* element)
 	{
-		assert(element >= data_begin());
-		assert(element < data_end());
-		assert(size());
-
-		element->~value_type();
-		if (element - data_begin() > data_end() - element)
-		{
-			shift_reverse(element + 1, data_end(), 1);
-			--m_data_end;
-		}
+		// If we are erasing nearer the back or dead center, erase at the back. Otherwise erase at the front.
+		if (element - data_begin() >= data_end() - element)
+			back_erase(data_begin(), data_end(), element, [this](){ --m_data_end; });
 		else
-		{
-			shift_forward(data_begin(), element, 1);
-			++m_data_begin;
-		}
+			front_erase(data_begin(), data_end(), element, [this](){ ++m_data_begin; });
 	}
 	void pop_front()
 	{

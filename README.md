@@ -108,12 +108,14 @@ It is provided so that `sequence` can be used as an implementation of, or drop-i
 for, `std::vector` with no changes in behavior, even if the `std::vector`
 growth behavior cannot be modeled with the `LINEAR` or `EXPONENTIAL` growth modes.
 
-## growth
+## capacity
 ```C++
 size_t capacity = 1;
 ```
 This member provides the size of the fixed capacity for `STATIC` and `FIXED` storages.
-For `VARIABLE` storage it is the initial capacity when allocation first occurs. (Newly constructed empty containers have no capacity.)
+For `VARIABLE` storage it is the initial capacity when rallocation first occurs.
+(Newly constructed empty containers have no capacity, and containers constructed from initializer lists
+have a capacity equal to the size of the initializer list.)
 For `BUFFERED` storage it is the size of the small object optimization buffer (SBO).
 This value must be greater than 0.
 
