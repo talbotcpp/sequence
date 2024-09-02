@@ -139,6 +139,34 @@ struct sequence_traits
 // ==============================================================================================================
 // Utility functions
 
+// The add functions implement the algorithms for adding an element at the front
+// or back. These algorithms are used for both fixed and dynamic storage.
+
+template<typename T, std::regular_invocable FUNC, typename... ARGS>
+T* back_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
+{
+	T temp(std::forward<ARGS>(args)...);
+	new(dst) T(std::move(*(dst - 1)));
+	adjust();
+	for (auto src = --dst - 1; dst != pos;)
+		*dst-- = std::move(*src--);
+	*pos = std::move(temp);
+	return pos;
+}
+
+template<typename T, std::regular_invocable FUNC, typename... ARGS>
+T* front_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
+{
+	T temp(std::forward<ARGS>(args)...);
+	new(dst - 1) T(std::move(*dst));
+	adjust();
+	--pos;
+	for (auto src = dst + 1; dst != pos;)
+		*dst++ = std::move(*src++);
+	*pos = std::move(temp);
+	return pos;
+}
+
 // The destroy_data function encapsulates calling the element destructors. It is called
 // in the sequence destructor and elsewhere when elements are either going away or have
 // been moved somewhere else.
@@ -149,7 +177,6 @@ void destroy_data(T* data_begin, T* data_end)
 	for (auto&& element : span<T>(data_begin, data_end))
 		element.~T();
 }
-
 
 // The erase functions implement the erase element and erase range algorithms for front
 // and back erasure. These algorithms are used for both fixed and dynamic storage.
@@ -337,21 +364,12 @@ public:
 	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(data_end() < capacity_end());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		auto dst = data_end();
-		if (m_size == 0 || pos == dst)
+		if (size() == 0 || pos == data_end())
 			add_back(std::forward<ARGS>(args)...);
 		else
-		{
-			value_type temp(std::forward<ARGS>(args)...);
-			new(dst) value_type(std::move(*(dst - 1)));
-			++m_size;
-			for (auto src = --dst - 1; dst != pos;)
-				*dst-- = std::move(*src--);
-			*pos = std::move(temp);
-		}
+			pos = back_add_at(data_end(), pos, [this](){ ++m_size; }, std::forward<ARGS>(args)...);
 		return pos;
 	}
 	template<typename... ARGS>
@@ -449,22 +467,12 @@ public:
 	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(data_begin() > capacity_begin());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		auto dst = data_begin();
-		if (m_size == 0 || pos == dst)
+		if (m_size == 0 || pos == data_begin())
 			add_front(std::forward<ARGS>(args)...);
 		else
-		{
-			value_type temp(std::forward<ARGS>(args)...);
-			new(dst - 1) value_type(std::move(*dst));
-			++m_size;
-			--pos;
-			for (auto src = dst + 1; dst != pos;)
-				*dst++ = std::move(*src++);
-			*pos = std::move(temp);
-		}
+			pos = front_add_at(data_begin(), pos, [this](){ ++m_size; }, std::forward<ARGS>(args)...);
 		return pos;
 	}
 	template<typename... ARGS>
@@ -569,32 +577,20 @@ public:
 	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_front_gap || m_back_gap);
 		assert(pos >= data_begin() && pos <= data_end());
 
-		auto dbeg = data_begin();
-		auto dend = data_end();
-
-		if (size() == 0 || pos == dend)
+		if (size() == 0 || pos == data_end())
 			add_back(std::forward<ARGS>(args)...);
-		else if (pos == dbeg)
+		else if (pos == data_begin())
 			add_front(std::forward<ARGS>(args)...);
-
-		else if (pos - dbeg >= dend - pos)			// Inserting closer to the end--add at back.
+		else if (pos - data_begin() >= data_end() - pos)			// Inserting closer to the end--add at back.
 		{
 			if (m_back_gap == 0)
 			{
 				recenter();
 				pos -= m_back_gap;
 			}
-
-			value_type temp(std::forward<ARGS>(args)...);
-			auto dst = data_end();
-			new(dst) value_type(std::move(*(dst - 1)));
-			--m_back_gap;
-			for (auto src = --dst - 1; dst != pos;)
-				*dst-- = std::move(*src--);
-			*pos = std::move(temp);
+			pos = back_add_at(data_end(), pos, [this](){ --m_back_gap; }, std::forward<ARGS>(args)...);
 		}
 		else										// Inserting closer to the beginning--add at front.
 		{
@@ -603,15 +599,7 @@ public:
 				recenter();
 				pos += m_front_gap;
 			}
-
-			value_type temp(std::forward<ARGS>(args)...);
-			auto dst = data_begin();
-			new(dst - 1) value_type(std::move(*dst));
-			--m_front_gap;
-			--pos;
-			for (auto src = dst + 1; dst != pos;)
-				*dst++ = std::move(*src++);
-			*pos = std::move(temp);
+			pos = front_add_at(data_begin(), pos, [this](){ --m_front_gap; }, std::forward<ARGS>(args)...);
 		}
 		return pos;
 	}
@@ -820,23 +808,14 @@ public:
 	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(data_end() < capacity_end());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		auto dst = data_end();
-		if (size() == 0 || pos == dst)
+		if (size() == 0 || pos == data_end())
 			add_back(std::forward<ARGS>(args)...);
 		else
-		{
-			value_type temp(std::forward<ARGS>(args)...);
-			new(dst) value_type(std::move(*(dst - 1)));
-			++m_data_end;
-			for (auto src = --dst - 1; dst != pos;)
-				*dst-- = std::move(*src--);
-			*pos = std::move(temp);
-		}
+			pos = back_add_at(data_end(), pos, [this](){ ++m_data_end; }, std::forward<ARGS>(args)...);
 		return pos;
-}
+	}
 	template<typename... ARGS>
 	void add_front(ARGS&&... args)
 	{
@@ -943,22 +922,12 @@ public:
 	iterator add_at(value_type* pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(data_begin() > capacity_begin());
 		assert(pos >= data_begin() && pos <= data_end());
 
-		auto dst = data_begin();
-		if (size() == 0 || pos == dst)
+		if (size() == 0 || pos == data_begin())
 			add_front(std::forward<ARGS>(args)...);
 		else
-		{
-			value_type temp(std::forward<ARGS>(args)...);
-			new(dst - 1) value_type(std::move(*dst));
-			--m_data_begin;
-			--pos;
-			for (auto src = dst + 1; dst != pos;)
-				*dst++ = std::move(*src++);
-			*pos = std::move(temp);
-		}
+			pos = front_add_at(data_begin(), pos, [this](){ --m_data_begin; }, std::forward<ARGS>(args)...);
 		return pos;
 	}
 	template<typename... ARGS>
@@ -1071,7 +1040,6 @@ public:
 	iterator add_at(iterator pos, ARGS&&... args)
 	{
 		assert(size() < capacity());
-		assert(m_data_begin > capacity_begin() || m_data_end < capacity_end());
 		assert(pos >= data_begin() && pos <= data_end());
 
 		auto dbeg = data_begin();
@@ -1089,15 +1057,7 @@ public:
 				recenter();
 				pos -= capacity_end() - m_data_end;
 			}
-
-			value_type temp(std::forward<ARGS>(args)...);
-			auto dst = data_end();
-			new(dst) value_type(std::move(*(dst - 1)));
-			++m_data_end;
-
-			for (auto src = --dst - 1; dst != pos;)
-				*dst-- = std::move(*src--);
-			*pos = std::move(temp);
+			pos = back_add_at(data_end(), pos, [this](){ ++m_data_end; }, std::forward<ARGS>(args)...);
 		}
 		else										// Inserting closer to the beginning--add at front.
 		{
@@ -1106,16 +1066,7 @@ public:
 				recenter();
 				pos += m_data_begin - capacity_begin();
 			}
-
-			value_type temp(std::forward<ARGS>(args)...);
-			auto dst = data_begin();
-			new(dst - 1) value_type(std::move(*dst));
-			--m_data_begin;
-
-			--pos;
-			for (auto src = dst + 1; dst != pos;)
-				*dst++ = std::move(*src++);
-			*pos = std::move(temp);
+			pos = front_add_at(data_begin(), pos, [this](){ --m_data_begin; }, std::forward<ARGS>(args)...);
 		}
 		return pos;
 	}
