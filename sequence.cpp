@@ -170,25 +170,25 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::VARIABLE,
+			.storage = sequence_storage_lits::STATIC,
 			.location = sequence_location_lits::BACK,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 8,
+			.capacity = 12,
 			//.increment = 2,
 	};
 	{
-		sequence<foo, traits> s1;
-		show_cap(s1);
-		show_elems(s1);
+		//sequence<foo, traits> s1;
+		//show_cap(s1);
+		//show_elems(s1);
 
-		for (int i = 1; i <= 8; ++i)
-			s1.emplace_front(i);
-		show_cap(s1);
-		show_elems(s1);
-		s1.emplace_front(9);
+		//for (int i = 1; i <= 8; ++i)
+		//	s1.emplace_front(i);
+		//show_cap(s1);
+		//show_elems(s1);
+		//s1.emplace_front(9);
 
 
-//		sequence<foo, traits> s1{1,2,3,4,5};
+		sequence<foo, traits> s1{1,2,3,4,5};
 //		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
 //		for (int i = 5; i > 0; --i)
 //			s1.pop_front();
