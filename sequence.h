@@ -137,37 +137,7 @@ struct sequence_traits
 
 
 // ==============================================================================================================
-// The shift_... functions move sequential elements in memory by the requested amount.
-// Forward is toward the end (increasing memory). Reverse is toward the beginning (decreasing memory).
-// The preconditions are:
-//		end is not prior to begin
-//		distance is non-zero (this algorithm is destructive for zero distance)
-//		distance does not result in overflowing the array
-
-template<typename T>
-void shift_forward(T* begin, T* end, size_t distance)
-{
-	assert(distance != 0);
-
-	for (auto dest = end + distance; end > begin;)
-	{
-		new(--dest) T(std::move(*--end));
-		end->~T();
-	}
-}
-
-template<typename T>
-void shift_reverse(T* begin, T* end, size_t distance)
-{
-	assert(distance != 0);
-
-	for (auto dest = begin - distance; begin < end; ++dest, ++begin)
-	{
-		new(dest) T(std::move(*begin));
-		begin->~T();
-	}
-}
-
+// Utility functions
 
 // The destroy_data function encapsulates calling the element destructors. It is called
 // in the sequence destructor and elsewhere when elements are either going away or have
@@ -248,24 +218,28 @@ void back_erase(T* data_begin, T* data_end, T* dst, FUNC adjust)
 // The recenter function shifts the elements in a MIDDLE location capacity to prepare for size growth.
 // If the remaining space is odd, then the extra space will be at the front if we are making space at
 // the front, otherwise it will be at the back.
-/*
-template<typename T>
+
+template<typename CAPACITY, typename T>
 std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end)
 {
 	assert(data_begin == capacity_begin || data_end == capacity_end);
 	assert(data_begin != capacity_begin || data_end != capacity_end);
 
+	auto capacity = capacity_end - capacity_begin;
 	auto size = data_end - data_begin;
-	auto temp = std::move(*this);
-	destroy_data(data_begin(), data_end());
-	auto fg = TRAITS.front_gap(capacity(), size);
-	auto bg = capacity() - (fg + size);
-	if (m_data_begin == capacity_begin()) std::swap(fg, bg);
-	std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
-	m_data_begin = capacity_begin() + fg;
-	m_data_end = m_data_begin + size;
+
+	CAPACITY temp(size);
+	std::uninitialized_move(data_begin, data_end, temp.capacity_begin());
+	destroy_data(data_begin, data_end);
+
+	auto fg = sequence_traits{.location = sequence_location_lits::MIDDLE}.front_gap(capacity, size);
+	auto bg = capacity - (fg + size);
+	if (data_begin == capacity_begin) std::swap(fg, bg);
+	std::uninitialized_move(temp.capacity_begin(), temp.capacity_begin() + size, capacity_begin + fg);
+
+	return {fg, bg};
 }
-*/
+
 
 // ==============================================================================================================
 // fixed_capacity
@@ -278,7 +252,7 @@ class fixed_capacity
 public:
 
 	fixed_capacity() {}
-	fixed_capacity(fixed_capacity&&) {}
+	fixed_capacity(size_t cap) {}
 	~fixed_capacity() {}
 
 	constexpr static size_t capacity() { return CAP; }
@@ -724,18 +698,9 @@ private:
 	
 	void recenter()
 	{
-		assert(m_back_gap == 0 || m_front_gap == 0);
-		assert(m_back_gap != 0 || m_front_gap != 0);
-
-		auto sz = size();
-		auto temp = std::move(*this);
-		destroy_data(data_begin(), data_end());
-		auto fg = TRAITS.front_gap(capacity(), sz);
-		auto bg = capacity() - (fg + sz);
-		if (m_front_gap == 0) std::swap(fg, bg);
-		std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
-		m_front_gap = static_cast<size_type>(fg);
-		m_back_gap = static_cast<size_type>(bg);
+		auto [front_gap, back_gap] = ::recenter<inherited>(capacity_begin(), capacity_end(), data_begin(), data_end());
+		m_front_gap = static_cast<size_type>(front_gap);
+		m_back_gap = static_cast<size_type>(back_gap);
 	}
 
 	// Empty sequences with odd capacity will have the extra space at the back.
@@ -1232,18 +1197,9 @@ private:
 	
 	void recenter()
 	{
-		assert(m_data_begin == capacity_begin() || m_data_end == capacity_end());
-		assert(m_data_begin != capacity_begin() || m_data_end != capacity_end());
-
-		auto sz = size();
-		auto temp = std::move(*this);
-		destroy_data(data_begin(), data_end());
-		auto fg = TRAITS.front_gap(capacity(), sz);
-		auto bg = capacity() - (fg + sz);
-		if (m_data_begin == capacity_begin()) std::swap(fg, bg);
-		std::uninitialized_move(temp.data_begin(), temp.data_end(), capacity_begin() + fg);
-		m_data_begin = capacity_begin() + fg;
-		m_data_end = m_data_begin + sz;
+		auto [front_gap, back_gap] = ::recenter<inherited>(capacity_begin(), capacity_end(), data_begin(), data_end());
+		m_data_begin = capacity_begin() + front_gap;
+		m_data_end = capacity_end() - back_gap;
 	}
 
 	value_type* m_data_begin = nullptr;
