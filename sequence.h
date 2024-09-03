@@ -1209,6 +1209,7 @@ public:
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
 	size_t max_size() const { return std::numeric_limits<size_type>::max(); }
+	bool is_dynamic() const { return false; }
 
 	void clear() { m_storage.clear(); }
 	void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
@@ -1275,6 +1276,7 @@ public:
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage ? m_storage->size() : 0; }
 	size_t max_size() const { return std::numeric_limits<size_type>::max(); }
+	bool is_dynamic() const { return true; }
 
 	void clear()
 	{
@@ -1352,6 +1354,7 @@ public:
 	size_t capacity() const { return m_storage.capacity(); }
 	size_t size() const { return m_storage.size(); }
 	size_t max_size() const { return std::numeric_limits<size_t>::max(); }
+	bool is_dynamic() const { return true; }
 
 	void clear() { m_storage.clear(); }
 	void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
@@ -1410,6 +1413,7 @@ public:
 	size_t capacity() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
 	size_t size() const { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
 	size_t max_size() const { return std::numeric_limits<size_t>::max(); }
+	bool is_dynamic() const { return m_storage.index() == DYN; }
 
 	void clear()
 	{

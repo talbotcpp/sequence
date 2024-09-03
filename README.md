@@ -145,3 +145,10 @@ void swap(sequence& other);
 For `FIXED` and `VARIABLE` storage modes, this member provides O(1) swap. For `BUFFERED` storage,
 it will provide O(1) swap for two unbuffered containers, but will be O(n) if one or both are buffered.
 For `STATIC` storage it provides O(n) swap (as if by `std::swap`).
+
+## is_dynamic
+```C++
+bool is_dynamic() const;
+```
+Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
+but it is available for all modes so that generic contexts can make use of it for the other modes as well.
