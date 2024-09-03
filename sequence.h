@@ -244,7 +244,7 @@ void back_erase(T* data_begin, T* data_end, T* dst, FUNC adjust)
 
 // The recenter function shifts the elements in a MIDDLE location capacity to prepare for size growth.
 // If the remaining space is odd, then the extra space will be at the front if we are making space at
-// the front, otherwise it will be at the back.
+// the front, otherwise it will be at the back. It returns the new front and back gaps.
 
 template<typename CAPACITY, typename T>
 std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end)
@@ -778,8 +778,27 @@ public:
 	dynamic_sequence_storage(dynamic_sequence_storage&& rhs) : inherited(rhs.size())
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		destroy_data(rhs.data_begin(), rhs.data_end());
 		m_data_end = capacity_end();
+		destroy_data(rhs.data_begin(), rhs.data_end());
+	}
+	dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
+	{
+		clear();
+		if (rhs.capacity() > capacity())
+			reallocate(rhs.capacity(), rhs.size(), 0);
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_data_end = capacity_begin() + rhs.size();
+		return *this;
+	}
+	dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
+	{
+		clear();
+		if (rhs.capacity() > capacity())
+			reallocate(rhs.capacity(), rhs.size(), 0);
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_data_end = capacity_begin() + rhs.size();
+		destroy_data(rhs.data_begin(), rhs.data_end());
+		return *this;
 	}
 
 	value_type* data_begin() { return capacity_begin(); }
@@ -788,6 +807,12 @@ public:
 	const value_type* data_end() const { return m_data_end; }
 
 	size_t size() const { return data_end() - data_begin(); }
+
+	void swap(dynamic_sequence_storage& rhs)
+	{
+		inherited::swap(rhs);
+		std::swap(m_data_end, rhs.m_data_end);
+	}
 
 	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
 	{
@@ -1334,6 +1359,11 @@ public:
 	void pop_front() { m_storage.pop_front(); }
 	void pop_back() { m_storage.pop_back(); }
 
+	void swap(sequence_implementation& other)
+	{
+		m_storage.swap(other.m_storage);
+	}
+
 protected:
 
 	template<typename... ARGS>
@@ -1408,6 +1438,28 @@ public:
 	auto pop_front() { return m_storage.index() == STC ? get<STC>(m_storage).pop_front() : get<DYN>(m_storage).pop_front(); }
 	auto pop_back() { return m_storage.index() == STC ? get<STC>(m_storage).pop_back() : get<DYN>(m_storage).pop_back(); }
 
+	void swap(sequence_implementation& other)
+	{
+		if (m_storage.index() == STC)
+		{
+			if (other.m_storage.index() == STC)
+			{
+				std::swap(get<STC>(m_storage), get<STC>(other.m_storage));
+			}
+			else
+			{
+			}
+		}
+		else
+		{
+			if (other.m_storage.index() == STC)
+			{
+			}
+			else
+				get<DYN>(m_storage).swap(get<DYN>(other.m_storage));
+		}
+	}
+
 protected:
 
 	template<typename... ARGS>
@@ -1433,6 +1485,19 @@ protected:
 			get<STC>(m_storage).add_back(std::forward<ARGS>(args)...);
 		else
 			get<DYN>(m_storage).add_back(std::forward<ARGS>(args)...);
+	}
+	void fill(std::initializer_list<value_type> il)
+	{
+		assert(m_storage.index() == STC);
+		assert(get<STC>(m_storage).size() == 0);
+
+		if (il.size() <= TRAITS.capacity)
+			get<STC>(m_storage).fill(il);
+		else
+		{
+			m_storage.emplace<DYN>();
+			get<DYN>(m_storage).fill(il);
+		}
 	}
 
 	auto data_begin() { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }

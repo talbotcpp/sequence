@@ -135,3 +135,13 @@ float factor = 1.5;
 This member provides the factor by which the capacity grows when `EXPONENTIAL` growth is selected,
 but if the change in size calculated by multiplying the capacity by the factor
 is less than `increment`, the capacity will grow by `increment`. This value must be greater than 1.
+
+# sequence class
+
+## swap
+```C++
+void swap(sequence& other);
+```
+For `FIXED` and `VARIABLE` storage modes, this member provides O(1) swap. For `BUFFERED` storage,
+it will provide O(1) swap for two unbuffered containers, but will be O(n) if one or both are buffered.
+For `STATIC` storage it provides O(n) swap (as if by `std::swap`).
