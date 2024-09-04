@@ -268,6 +268,9 @@ std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_b
 }
 
 
+// ==============================================================================================================
+// Concepts
+
 template<typename T>
 concept sequence_storage = requires(T& t)
 {
@@ -278,8 +281,11 @@ concept sequence_storage = requires(T& t)
     t.size();
 };
 
+
 // ==============================================================================================================
-// fixed_capacity
+// Fixed capacity storage classes.
+
+// fixed_capacity - This is the base class for fixed_sequence_storage instantiations. It handles the capacity.
 
 template<typename T, size_t CAP> requires (CAP != 0)
 class fixed_capacity
@@ -309,7 +315,7 @@ private:
 };
 
 
-// fixed_sequence_storage - Helper class for sequence which provides the 3 different element management strategies
+// fixed_sequence_storage - This class provides the 3 different element management strategies
 // for fixed capacity sequences (local or dynamically allocated).
 
 template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
@@ -371,13 +377,11 @@ public:
 		return *this;
 	}
 
-	size_t size() const { return m_size; }
-	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
-
 	value_type* data_begin() { return capacity_begin(); }
 	value_type* data_end() { return capacity_begin() + m_size; }
 	const value_type* data_begin() const { return capacity_begin(); }
 	const value_type* data_end() const { return capacity_begin() + m_size; }
+	size_t size() const { return m_size; }
 
 	template<typename... ARGS>
 	iterator add_at(iterator pos, ARGS&&... args)
@@ -404,7 +408,7 @@ public:
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_size;
 	}
-	template<std::ranges::range R>
+	template<std::ranges::sized_range R>
 	void fill(const R& range)
 	{
 		assert(range.size() <= capacity());
@@ -473,6 +477,12 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
 		m_size = rhs.m_size;
 	}
+	template<sequence_storage SEQ>
+	fixed_sequence_storage(SEQ&& rhs)
+	{
+		m_size = static_cast<size_type>(rhs.size());
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - m_size);
+	}
 	~fixed_sequence_storage()
 	{
 		destroy_data(data_begin(), data_end());
@@ -493,13 +503,11 @@ public:
 		return *this;
 	}
 
-	size_t size() const { return m_size; }
-	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
-
 	value_type* data_begin() { return capacity_end() - m_size; }
 	value_type* data_end() { return capacity_end(); }
 	const value_type* data_begin() const { return capacity_end() - m_size; }
 	const value_type* data_end() const { return capacity_end(); }
+	size_t size() const { return m_size; }
 
 	template<typename... ARGS>
 	iterator add_at(iterator pos, ARGS&&... args)
@@ -526,7 +534,7 @@ public:
 	{
 		add_at(data_end(), std::forward<ARGS>(args)...);
 	}
-	template<std::ranges::range R>
+	template<std::ranges::sized_range R>
 	void fill(const R& range)
 	{
 		assert(range.size() <= capacity());
@@ -598,6 +606,15 @@ public:
 		m_front_gap = rhs.m_front_gap;
 		m_back_gap = rhs.m_back_gap;
 	}
+	template<sequence_storage SEQ>
+	fixed_sequence_storage(SEQ&& rhs)
+	{
+		auto size = rhs.size();
+		auto offset = TRAITS.front_gap(size);
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + offset);
+		m_front_gap = static_cast<size_type>(offset);
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + size));
+	}
 	~fixed_sequence_storage()
 	{
 		destroy_data(data_begin(), data_end());
@@ -620,17 +637,11 @@ public:
 		return *this;
 	}
 
-	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
-	void set_size(size_t current_size)
-	{
-		m_front_gap = static_cast<size_type>(TRAITS.front_gap(capacity(), current_size));
-		m_back_gap = static_cast<size_type>(capacity() - (m_front_gap + current_size));
-	}
-
 	value_type* data_begin() { return capacity_begin() + m_front_gap; }
 	value_type* data_end() { return capacity_end() - m_back_gap; }
 	const value_type* data_begin() const { return capacity_begin() + m_front_gap; }
 	const value_type* data_end() const { return capacity_end() - m_back_gap; }
+	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 
 	template<typename... ARGS>
 	iterator add_at(iterator pos, ARGS&&... args)
@@ -684,7 +695,7 @@ public:
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		--m_back_gap;
 	}
-	template<std::ranges::range R>
+	template<std::ranges::sized_range R>
 	void fill(const R& range)
 	{
 		assert(range.size() <= capacity());
@@ -871,7 +882,6 @@ public:
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return capacity_begin(); }
 	const value_type* data_end() const { return m_data_end; }
-
 	size_t size() const { return data_end() - data_begin(); }
 
 	void swap(dynamic_sequence_storage& rhs)
@@ -977,12 +987,18 @@ public:
 	dynamic_sequence_storage() = default;
 	dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_data_begin = capacity_begin();
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), m_data_begin);
 	}
 	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
+	}
+	template<sequence_storage SEQ>
+	dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
+	{
+		m_data_begin = capacity_end() - rhs.size();
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), m_data_begin);
 	}
 	~dynamic_sequence_storage()
 	{
@@ -1010,7 +1026,6 @@ public:
 	value_type* data_end() { return capacity_end(); }
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return capacity_end(); }
-
 	size_t size() const { return data_end() - data_begin(); }
 
 	void swap(dynamic_sequence_storage& rhs)
@@ -1117,13 +1132,21 @@ public:
 	dynamic_sequence_storage() = default;
 	dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_data_begin = capacity_begin();
 		m_data_end = capacity_end();
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), m_data_begin);
 	}
 	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
+	}
+	template<sequence_storage SEQ>
+	dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
+	{
+		auto size = rhs.size();
+		m_data_begin = capacity_begin() + TRAITS.front_gap(capacity(), size);
+		m_data_end = m_data_begin + size;
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), m_data_begin);
 	}
 	~dynamic_sequence_storage()
 	{
@@ -1152,7 +1175,6 @@ public:
 	value_type* data_end() { return m_data_end; }
 	const value_type* data_begin() const { return m_data_begin; }
 	const value_type* data_end() const { return m_data_end; }
-
 	size_t size() const { return m_data_end - m_data_begin; }
 
 	void swap(dynamic_sequence_storage& rhs)
@@ -1656,20 +1678,9 @@ protected:
 		}
 
 		// The new capacity will fit in the buffer.
-		else
-			if (m_storage.index() == DYN)		// We're moving into the buffer: switch to buffer storage.
-			{
-				assert(get<DYN>(m_storage).size() <= TRAITS.capacity);
-	//			dynamic_type temp(std::move(get<DYN>(m_storage)));
+		else if (m_storage.index() == DYN)		// We're moving into the buffer: switch to buffer storage.
 				m_storage.emplace<STC>(dynamic_type(std::move(get<DYN>(m_storage))));
-	//			m_storage = fixed_type(get<DYN>(m_storage));
-				//dynamic_type temp_storage(std::move(get<DYN>(m_storage)));
-				//m_storage.emplace<STC>();
-				//get<STC>(m_storage).set_size(temp_storage.size());
-				//std::uninitialized_move(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin());
-				//destroy_data(temp_storage.data_begin(), temp_storage.data_end());
-			}
-			// We're already in the buffer: do nothing (the buffer capacity cannot change).
+		// If we're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
 
 private:

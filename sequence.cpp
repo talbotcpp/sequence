@@ -171,7 +171,7 @@ int main()
 
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::FRONT,
+			.location = sequence_location_lits::MIDDLE,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
 			.capacity = 6,
 			//.increment = 2,

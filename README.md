@@ -9,8 +9,8 @@ within the capacity. It also offers control over the way the capacity grows if g
 
 This is a prototype—a toy implementation meant to be a proof-of-concept and illustration.
 It is incomplete in many ways, and is not production-ready code. Specifically it is missing a number of important
-features, including allocators, exception handling, and especially test tooling and a comprehensive test suite.
-The latter implies that it is almost completely untested.
+features (e.g. allocators), and it lacks some test tooling and a comprehensive test suite.
+The latter implies that it is relatively untested.
 
 ## sequence class
 
