@@ -335,18 +335,21 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
 	}
-	fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
+	~fixed_sequence_storage()
 	{
 		destroy_data(data_begin(), data_end());
-		m_size = 0;
+	}
+
+	fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
+	{
+		clear();
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
 		return *this;
 	}
 	fixed_sequence_storage& operator=(fixed_sequence_storage&& rhs)
 	{
-		destroy_data(data_begin(), data_end());
-		m_size = 0;
+		clear();
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
 		return *this;
@@ -454,6 +457,25 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
 		m_size = rhs.m_size;
 	}
+	~fixed_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
+	}
+
+	fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
+	{
+		clear();
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
+		m_size = rhs.m_size;
+		return *this;
+	}
+	fixed_sequence_storage& operator=(fixed_sequence_storage&& rhs)
+	{
+		clear();
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
+		m_size = rhs.m_size;
+		return *this;
+	}
 
 	size_t size() const { return m_size; }
 	void set_size(size_t current_size) { m_size = static_cast<size_type>(current_size); }
@@ -559,6 +581,27 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
 		m_front_gap = rhs.m_front_gap;
 		m_back_gap = rhs.m_back_gap;
+	}
+	~fixed_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
+	}
+
+	fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
+	{
+		clear();
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
+		m_front_gap = rhs.m_front_gap;
+		m_back_gap = rhs.m_back_gap;
+		return *this;
+	}
+	fixed_sequence_storage& operator=(fixed_sequence_storage&& rhs)
+	{
+		clear();
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
+		m_front_gap = rhs.m_front_gap;
+		m_back_gap = rhs.m_back_gap;
+		return *this;
 	}
 
 	size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
@@ -717,7 +760,9 @@ public:
 		m_capacity_end = capacity_begin() + cap;
 	}
 	dynamic_capacity(const dynamic_capacity&) = delete;
+	dynamic_capacity(dynamic_capacity&& rhs) = default;
 	dynamic_capacity& operator=(const dynamic_capacity&) = delete;
+	dynamic_capacity& operator=(dynamic_capacity&& rhs) = default;
 
 	size_t capacity() const { return capacity_end() - capacity_begin(); }
 	pointer capacity_begin() { return static_cast<pointer>(m_capacity_begin.get()); }
@@ -775,12 +820,15 @@ public:
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_data_end = capacity_end();
 	}
-	dynamic_sequence_storage(dynamic_sequence_storage&& rhs) : inherited(rhs.size())
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_end = capacity_end();
-		destroy_data(rhs.data_begin(), rhs.data_end());
+		swap(rhs);
 	}
+	~dynamic_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
+	}
+
 	dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
 	{
 		clear();
@@ -793,11 +841,7 @@ public:
 	dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
 	{
 		clear();
-		if (rhs.capacity() > capacity())
-			reallocate(rhs.capacity(), rhs.size(), 0);
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_end = capacity_begin() + rhs.size();
-		destroy_data(rhs.data_begin(), rhs.data_end());
+		swap(rhs);
 		return *this;
 	}
 
@@ -825,7 +869,7 @@ public:
 			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + TRAITS.front_gap(new_cap, new_size));
 			destroy_data(data_begin(), data_end());
 		}
-		this->swap(new_capacity);
+		inherited::swap(new_capacity);
 		m_data_end = capacity_begin() + current_size;
 	}
 
@@ -914,11 +958,30 @@ public:
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_data_begin = capacity_begin();
 	}
-	dynamic_sequence_storage(dynamic_sequence_storage&& rhs) : inherited(rhs.size())
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		destroy_data(rhs.data_begin(), rhs.data_end());
-		m_data_begin = capacity_begin();
+		swap(rhs);
+	}
+	~dynamic_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
+	}
+
+	dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
+	{
+		clear();
+		if (rhs.capacity() > capacity())
+			reallocate(rhs.capacity(), rhs.size(), 0);
+		auto begin = capacity_end() - rhs.size();
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), begin);
+		m_data_begin = begin;
+		return *this;
+	}
+	dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
+	{
+		clear();
+		swap(rhs);
+		return *this;
 	}
 
 	value_type* data_begin() { return m_data_begin; }
@@ -927,6 +990,12 @@ public:
 	const value_type* data_end() const { return capacity_end(); }
 
 	size_t size() const { return data_end() - data_begin(); }
+
+	void swap(dynamic_sequence_storage& rhs)
+	{
+		inherited::swap(rhs);
+		std::swap(m_data_begin, rhs.m_data_begin);
+	}
 
 	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
 	{
@@ -1030,11 +1099,31 @@ public:
 		m_data_begin = capacity_begin();
 		m_data_end = capacity_end();
 	}
-	dynamic_sequence_storage(dynamic_sequence_storage&& rhs) : inherited(rhs.size())
+	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_begin = capacity_begin();
-		m_data_end = capacity_end();
+		swap(rhs);
+	}
+	~dynamic_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
+	}
+
+	dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
+	{
+		clear();
+		if (rhs.capacity() > capacity())
+			reallocate(rhs.capacity(), rhs.size(), 0);
+		auto begin = capacity_begin() + TRAITS.front_gap(capacity(), rhs.size());
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), begin);
+		m_data_begin = begin;
+		m_data_end = m_data_begin + rhs.size();
+		return *this;
+	}
+	dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
+	{
+		clear();
+		swap(rhs);
+		return *this;
 	}
 
 	value_type* data_begin() { return m_data_begin; }
@@ -1043,6 +1132,13 @@ public:
 	const value_type* data_end() const { return m_data_end; }
 
 	size_t size() const { return m_data_end - m_data_begin; }
+
+	void swap(dynamic_sequence_storage& rhs)
+	{
+		inherited::swap(rhs);
+		std::swap(m_data_begin, rhs.m_data_begin);
+		std::swap(m_data_end, rhs.m_data_end);
+	}
 
 	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
 	{
@@ -1444,21 +1540,27 @@ public:
 
 	void swap(sequence_implementation& other)
 	{
+		auto swap_mixed = [](sequence_implementation& stc, sequence_implementation& dyn)
+		{
+			assert(stc.m_storage.index() == STC);
+			assert(dyn.m_storage.index() == DYN);
+
+			dynamic_type temp = std::move(get<DYN>(dyn.m_storage));
+			dyn.m_storage.emplace<STC>(std::move(get<STC>(stc.m_storage)));
+			stc.m_storage.emplace<DYN>(std::move(temp));
+		};
+
 		if (m_storage.index() == STC)
 		{
 			if (other.m_storage.index() == STC)
-			{
 				std::swap(get<STC>(m_storage), get<STC>(other.m_storage));
-			}
 			else
-			{
-			}
+				swap_mixed(*this, other);
 		}
 		else
 		{
 			if (other.m_storage.index() == STC)
-			{
-			}
+				swap_mixed(other, *this);
 			else
 				get<DYN>(m_storage).swap(get<DYN>(other.m_storage));
 		}
@@ -1611,10 +1713,6 @@ public:
 	sequence(std::initializer_list<value_type> il) : sequence{}
 	{
 		fill(il);
-	}
-	~sequence()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	sequence& operator=(const sequence&) = default;

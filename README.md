@@ -152,3 +152,15 @@ bool is_dynamic() const;
 ```
 Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
 but it is available for all modes so that generic contexts can make use of it for the other modes as well.
+
+# Open Questions
+
+## Should move operations clear?
+Should move operations clear the moved-from container after moving the elements? Doing so is rather tidy,
+but it might introduce unnecessary work at the time of the move. If this isn't done (in other words, if a
+lazy approach is taken) the container will delete the moved-from elements when it
+is destructed. This might be much later, which might be a good thing in some situations.
+## Should swap operations optimize on size?
+If a O(n) swap takes place, should the algorithm check the container sizes and cache the smaller one?
+This would be a win if the sizes are quite different or if the moves are expensive, but it adds
+two O(1) size calculations and an integer comparison.

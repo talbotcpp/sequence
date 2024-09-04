@@ -171,9 +171,9 @@ int main()
 
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::FRONT,
+			.location = sequence_location_lits::MIDDLE,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 4,
+			.capacity = 2,
 			//.increment = 2,
 	};
 
@@ -189,9 +189,9 @@ int main()
 		//s1.emplace_front(9);
 
 
-		sequence<foo, traits> s1{1,2,3,4};
+//		sequence<foo, traits> s1{1,2,3,4};
 //		sequence<foo, traits> s1{1,2,3,4,5,6};
-//		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
+		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
 		//show_cap(s1);
 		//show_elems(s1);
 //		for (int i = 8; i > 0; --i)
@@ -205,8 +205,9 @@ int main()
 //		s1.emplace_back(13);
 //		s1.emplace_front(111);
 
+		sequence<foo, traits> s2{1,2,3,4};
 //		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10,11,12};
-		sequence<foo, traits> s2{9,10,11,12};
+//		sequence<foo, traits> s2{9,10,11,12};
 		//for (int i = 8; i > 0; --i)
 		//	s2.pop_front();
 
@@ -218,7 +219,8 @@ int main()
 		show_elems(s2);
 		println();
 
-		s1.swap(s2);
+//		s1.swap(s2);
+		s2.swap(s1);
 
 		println("S1 ----------------------------------------------");
 		show_cap(s1);
@@ -227,6 +229,18 @@ int main()
 		show_cap(s2);
 		show_elems(s2);
 		println();
+
+		//println("s2 ----------------------------------------------");
+		//show_cap(s2);
+		//show_elems(s2);
+		//println();
+
+		//sequence<foo, traits> s3 = move(s2);
+
+		//println("s3 ----------------------------------------------");
+		//show_cap(s3);
+		//show_elems(s3);
+		//println();
 
 		try {
 //			sequence<foo, traits> s1{1,2,3,4};
