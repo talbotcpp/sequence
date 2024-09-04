@@ -156,7 +156,7 @@ void show_elems(const SEQ& seq)
 template<typename SEQ>
 void show_cap(const SEQ& seq)
 {
-	std::print("{}:\t", seq.capacity());
+	std::print("{}{}\t", seq.capacity(), seq.is_dynamic() ? 'D' : 'S');
 	for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
 		std::print("{}\t", int(*p));
 	std::println();
@@ -171,9 +171,9 @@ int main()
 
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::MIDDLE,
+			.location = sequence_location_lits::FRONT,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 2,
+			.capacity = 6,
 			//.increment = 2,
 	};
 
@@ -191,7 +191,7 @@ int main()
 
 //		sequence<foo, traits> s1{1,2,3,4};
 //		sequence<foo, traits> s1{1,2,3,4,5,6};
-		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
+//		sequence<foo, traits> s1{1,2,3,4,5,6,7,8,9,10,11,12};
 		//show_cap(s1);
 		//show_elems(s1);
 //		for (int i = 8; i > 0; --i)
@@ -210,29 +210,32 @@ int main()
 //		sequence<foo, traits> s2{9,10,11,12};
 		//for (int i = 8; i > 0; --i)
 		//	s2.pop_front();
-
-		println("S1 ----------------------------------------------");
-		show_cap(s1);
-		show_elems(s1);
+//
+		//println("S1 ----------------------------------------------");
+		//show_cap(s1);
+		//show_elems(s1);
 		println("s2 ----------------------------------------------");
 		show_cap(s2);
 		show_elems(s2);
-		println();
+//		println();
+//
+////		s1.swap(s2);
+//		s2.swap(s1);
+// 		s1.clear();
+ 		s2.reserve(8);
 
-//		s1.swap(s2);
-		s2.swap(s1);
-
-		println("S1 ----------------------------------------------");
-		show_cap(s1);
-		show_elems(s1);
+		//println("S1 ----------------------------------------------");
+		//show_cap(s1);
+		//show_elems(s1);
 		println("s2 ----------------------------------------------");
 		show_cap(s2);
 		show_elems(s2);
-		println();
 
-		//println("s2 ----------------------------------------------");
-		//show_cap(s2);
-		//show_elems(s2);
+ 		s2.shrink_to_fit();
+
+		println("s2 ----------------------------------------------");
+		show_cap(s2);
+		show_elems(s2);
 		//println();
 
 		//sequence<foo, traits> s3 = move(s2);

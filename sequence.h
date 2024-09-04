@@ -268,6 +268,16 @@ std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_b
 }
 
 
+template<typename T>
+concept sequence_storage = requires(T& t)
+{
+    t.capacity_begin();
+    t.capacity_end();
+    t.data_begin();
+    t.data_end();
+    t.size();
+};
+
 // ==============================================================================================================
 // fixed_capacity
 
@@ -334,6 +344,12 @@ public:
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
+	}
+	template<sequence_storage SEQ>
+	fixed_sequence_storage(SEQ&& rhs)
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_size = static_cast<size_type>(rhs.size());
 	}
 	~fixed_sequence_storage()
 	{
@@ -824,6 +840,12 @@ public:
 	{
 		swap(rhs);
 	}
+	template<sequence_storage SEQ>
+	dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_data_end = capacity_begin() + rhs.size();
+	}
 	~dynamic_sequence_storage()
 	{
 		destroy_data(data_begin(), data_end());
@@ -1008,7 +1030,7 @@ public:
 			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + TRAITS.front_gap(new_cap, new_size));
 			destroy_data(data_begin(), data_end());
 		}
-		this->swap(new_capacity);
+		inherited::swap(new_capacity);
 		m_data_begin = capacity_end() - current_size;
 	}
 
@@ -1152,7 +1174,7 @@ public:
 			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + offset);
 			destroy_data(data_begin(), data_end());
 		}
-		this->swap(new_capacity);
+		inherited::swap(new_capacity);
 		m_data_begin = capacity_begin() + offset;
 		m_data_end = m_data_begin + current_size;
 	}
@@ -1516,10 +1538,7 @@ public:
 		if (m_storage.index() == STC)
 			get<STC>(m_storage).clear();
 		else
-		{
-			destroy_data(get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
 			m_storage.emplace<STC>();
-		}
 	}
 	void erase(value_type* begin, value_type* end)
 	{
@@ -1535,8 +1554,20 @@ public:
 		else
 			get<DYN>(m_storage).erase(element);
 	}
-	auto pop_front() { return m_storage.index() == STC ? get<STC>(m_storage).pop_front() : get<DYN>(m_storage).pop_front(); }
-	auto pop_back() { return m_storage.index() == STC ? get<STC>(m_storage).pop_back() : get<DYN>(m_storage).pop_back(); }
+	void pop_front()
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).pop_front();
+		else
+			get<DYN>(m_storage).pop_front();
+	}
+	void pop_back()
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).pop_back();
+		else
+			get<DYN>(m_storage).pop_back();
+	}
 
 	void swap(sequence_implementation& other)
 	{
@@ -1618,32 +1649,25 @@ protected:
 		// The new capacity will not fit in the buffer.
 		if (new_capacity > TRAITS.capacity)
 		{
-			// We're moving out of the buffer: switch to dynamic storage.
-			if (m_storage.index() == STC)
-			{
-				dynamic_type new_storage;
-				new_storage.reallocate(new_capacity, get<STC>(m_storage).size(), new_size,
-									   get<STC>(m_storage).data_begin(), get<STC>(m_storage).data_end());
-				m_storage = std::move(new_storage);
-			}
-			// We're already out of the buffer: adjust the dynamic capacity.
-			else						
-				get<DYN>(m_storage).reallocate(new_capacity, get<DYN>(m_storage).size(), new_size,
-											   get<DYN>(m_storage).data_begin(), get<DYN>(m_storage).data_end());
+			if (m_storage.index() == STC)		// We're moving out of the buffer: switch to dynamic storage.
+				m_storage = dynamic_type(new_capacity, get<STC>(m_storage));
+			else								// We're already out of the buffer: adjust the dynamic capacity.		
+				get<DYN>(m_storage).reallocate(new_capacity, new_size, get<DYN>(m_storage).size());
 		}
 
 		// The new capacity will fit in the buffer.
 		else
-			// We're moving into the buffer: switch to buffer storage.
-			if (m_storage.index() == DYN)
+			if (m_storage.index() == DYN)		// We're moving into the buffer: switch to buffer storage.
 			{
 				assert(get<DYN>(m_storage).size() <= TRAITS.capacity);
-
-				dynamic_type temp_storage(std::move(get<DYN>(m_storage)));
-				m_storage.emplace<STC>();
-				get<STC>(m_storage).set_size(temp_storage.size());
-				std::uninitialized_move(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin());
-				destroy_data(temp_storage.data_begin(), temp_storage.data_end());
+	//			dynamic_type temp(std::move(get<DYN>(m_storage)));
+				m_storage.emplace<STC>(dynamic_type(std::move(get<DYN>(m_storage))));
+	//			m_storage = fixed_type(get<DYN>(m_storage));
+				//dynamic_type temp_storage(std::move(get<DYN>(m_storage)));
+				//m_storage.emplace<STC>();
+				//get<STC>(m_storage).set_size(temp_storage.size());
+				//std::uninitialized_move(temp_storage.data_begin(), temp_storage.data_end(), get<STC>(m_storage).data_begin());
+				//destroy_data(temp_storage.data_begin(), temp_storage.data_end());
 			}
 			// We're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
