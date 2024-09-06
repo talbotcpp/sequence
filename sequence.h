@@ -1785,8 +1785,8 @@ public:
 		if (index >= size()) throw std::out_of_range(std::format(OUT_OF_RANGE_ERROR, index));
 		return *(data_begin() + index);
 	}
-	value_type& operator[](size_t index) { return *(data_begin() + index); }
-	const value_type& operator[](size_t index) const { return *(data_begin() + index); }
+	value_type& operator[](size_t index) & { return *(data_begin() + index); }
+	const value_type& operator[](size_t index) const && { return *(data_begin() + index); }
 
 	bool empty() const { return size() == 0; }
 

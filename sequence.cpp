@@ -205,8 +205,8 @@ int main()
 //		s1.emplace_back(13);
 //		s1.emplace_front(111);
 
-		sequence<foo, traits> s2{1,2,3,4};
-//		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10,11,12};
+//		sequence<foo, traits> s2{1,2,3,4};
+		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10,11,12};
 //		sequence<foo, traits> s2{9,10,11,12};
 		//for (int i = 8; i > 0; --i)
 		//	s2.pop_front();
@@ -217,25 +217,34 @@ int main()
 		println("s2 ----------------------------------------------");
 		show_cap(s2);
 		show_elems(s2);
-//		println();
+
+		for (int i = 1; i <= 9; ++i)
+			std::print("{}\t", int(s2[i]));
+		println();
+
+		s2[4] = 256;
+
+		show_cap(s2);
+		show_elems(s2);
+
 //
 ////		s1.swap(s2);
 //		s2.swap(s1);
 // 		s1.clear();
- 		s2.reserve(8);
+ //		s2.reserve(8);
 
 		//println("S1 ----------------------------------------------");
 		//show_cap(s1);
 		//show_elems(s1);
-		println("s2 ----------------------------------------------");
-		show_cap(s2);
-		show_elems(s2);
+		//println("s2 ----------------------------------------------");
+		//show_cap(s2);
+		//show_elems(s2);
 
- 		s2.shrink_to_fit();
+ 	//	s2.shrink_to_fit();
 
-		println("s2 ----------------------------------------------");
-		show_cap(s2);
-		show_elems(s2);
+		//println("s2 ----------------------------------------------");
+		//show_cap(s2);
+		//show_elems(s2);
 		//println();
 
 		//sequence<foo, traits> s3 = move(s2);
