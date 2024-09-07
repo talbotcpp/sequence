@@ -170,10 +170,10 @@ int main()
 	println("---- test -----------------------------------");
 
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::MIDDLE,
+			.storage = sequence_storage_lits::VARIABLE,
+			.location = sequence_location_lits::BACK,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 6,
+			.capacity = 12,
 			//.increment = 2,
 	};
 
@@ -205,8 +205,10 @@ int main()
 //		s1.emplace_back(13);
 //		s1.emplace_front(111);
 
-//		sequence<foo, traits> s2{1,2,3,4};
-		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10,11,12};
+		println("s2 ----------------------------------------------");
+
+		sequence<foo, traits> s2{1,2,3,4};
+//		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10,11,12};
 //		sequence<foo, traits> s2{9,10,11,12};
 		//for (int i = 8; i > 0; --i)
 		//	s2.pop_front();
@@ -214,18 +216,13 @@ int main()
 		//println("S1 ----------------------------------------------");
 		//show_cap(s1);
 		//show_elems(s1);
-		println("s2 ----------------------------------------------");
 		show_cap(s2);
 		show_elems(s2);
 
-		for (int i = 1; i <= 9; ++i)
-			std::print("{}\t", int(s2[i]));
-		println();
+		//s2.resize(8, 7);
 
-		s2[4] = 256;
-
-		show_cap(s2);
-		show_elems(s2);
+		//show_cap(s2);
+		//show_elems(s2);
 
 //
 ////		s1.swap(s2);
@@ -268,6 +265,7 @@ int main()
 //		show_cap(s1);
 	}
 	println("---------------------------------------------");
+}
 
 	//vector<life> v;
 	//for (int i = 1; i <= 10; ++i)
@@ -411,7 +409,6 @@ int main()
 	//for (auto i = p2; i != e2; ++i)
 	//	print("{}\t", i->i);
 	//println("");
-}
 
 /*
 			sequence<foo, traits> s1{9,8,7};

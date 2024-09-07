@@ -103,7 +103,7 @@ struct sequence_traits
 
 	size_t grow(size_t cap) const
 	{
-		if (cap == 0) return capacity;
+		if (cap < capacity) return capacity;
 		switch (growth)
 		{
 			case sequence_growth_lits::LINEAR:
@@ -408,6 +408,12 @@ public:
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_size;
 	}
+	template<typename... ARGS>
+	void add(size_t count, ARGS&&... args)
+	{
+		while (count--)
+			add_back(std::forward<ARGS>(args)...);
+	}
 	template<std::ranges::sized_range R>
 	void fill(const R& range)
 	{
@@ -533,6 +539,12 @@ public:
 	void add_back(ARGS&&... args)
 	{
 		add_at(data_end(), std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add(size_t count, ARGS&&... args)
+	{
+		while (count--)
+			add_front(std::forward<ARGS>(args)...);
 	}
 	template<std::ranges::sized_range R>
 	void fill(const R& range)
@@ -694,6 +706,14 @@ public:
 			recenter();
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		--m_back_gap;
+	}
+	template<typename... ARGS>
+	void add(size_t count, ARGS&&... args)
+	{
+		// This is certainly not as optimized as it could be. The question is,
+		// how useful is resize for a middle location container?
+		while (count--)
+			add_back(std::forward<ARGS>(args)...);
 	}
 	template<std::ranges::sized_range R>
 	void fill(const R& range)
@@ -930,6 +950,12 @@ public:
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
+	template<typename... ARGS>
+	void add(size_t count, ARGS&&... args)
+	{
+		while (count--)
+			add_back(std::forward<ARGS>(args)...);
+	}
 	template<std::ranges::range R>
 	void fill(const R& range)
 	{
@@ -1073,6 +1099,12 @@ public:
 	void add_back(ARGS&&... args)
 	{
 		add_at(data_end(), std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	void add(size_t count, ARGS&&... args)
+	{
+		while (count--)
+			add_front(std::forward<ARGS>(args)...);
 	}
 	template<std::ranges::range R>
 	void fill(const R& range)
@@ -1257,6 +1289,14 @@ public:
 		new(m_data_end) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
+	template<typename... ARGS>
+	void add(size_t count, ARGS&&... args)
+	{
+		// This is certainly not as optimized as it could be. The question is,
+		// how useful is resize for a middle location container?
+		while (count--)
+			add_back(std::forward<ARGS>(args)...);
+	}
 	template<std::ranges::sized_range R>
 	void fill(R range)
 	{
@@ -1379,6 +1419,11 @@ protected:
 	{
 		m_storage.add_back(std::forward<ARGS>(args)...);
 	}
+	template<typename... ARGS>
+	void add(size_t new_size, ARGS&&... args)
+	{
+		m_storage.add(new_size, std::forward<ARGS>(args)...);
+	}
 	void fill(std::initializer_list<value_type> il)
 	{
 		m_storage.fill(il);
@@ -1456,6 +1501,13 @@ protected:
 			m_storage.reset(new storage_type);
 		m_storage->add_back(std::forward<ARGS>(args)...);
 	}
+	template<typename... ARGS>
+	void add(size_t new_size, ARGS&&... args)
+	{
+		if (!m_storage)
+			m_storage.reset(new storage_type);
+		m_storage->add(new_size, std::forward<ARGS>(args)...);
+	}
 	void fill(std::initializer_list<value_type> il)
 	{
 		assert(!m_storage);
@@ -1515,10 +1567,9 @@ protected:
 	void add_front(ARGS&&... args) { m_storage.add_front(std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
 	void add_back(ARGS&&... args) { m_storage.add_back(std::forward<ARGS>(args)...); }
-	void fill(std::initializer_list<value_type> il)
-	{
-		m_storage.fill(il);
-	}
+	template<typename... ARGS>
+	void add(size_t new_size, ARGS&&... args) { m_storage.add(new_size, std::forward<ARGS>(args)...); }
+	void fill(std::initializer_list<value_type> il) { m_storage.fill(il); }
 
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
@@ -1645,6 +1696,14 @@ protected:
 		else
 			get<DYN>(m_storage).add_back(std::forward<ARGS>(args)...);
 	}
+	template<typename... ARGS>
+	void add(size_t new_size, ARGS&&... args)
+	{
+		if (m_storage.index() == STC)
+			get<STC>(m_storage).add(new_size, std::forward<ARGS>(args)...);
+		else
+			get<DYN>(m_storage).add(new_size, std::forward<ARGS>(args)...);
+	}
 	void fill(std::initializer_list<value_type> il)
 	{
 		assert(m_storage.index() == STC);
@@ -1702,6 +1761,7 @@ class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 	using inherited::add_at;
 	using inherited::add_front;
 	using inherited::add_back;
+	using inherited::add;
 	using inherited::fill;
 
 public:
@@ -1841,9 +1901,8 @@ public:
 		else if (new_size > old_size)
 		{
 			if (new_size > capacity())
-				reallocate(new_size, new_size);
-			while (new_size-- > old_size)
-				add_back(std::forward<ARGS>(args)...);
+				reallocate(std::max(new_size, traits.capacity), old_size);
+			add(new_size - old_size, std::forward<ARGS>(args)...);
 		}
 	}
 
