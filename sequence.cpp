@@ -167,13 +167,11 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 
 int main()
 {
-	println("---- test -----------------------------------");
-
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::VARIABLE,
-			.location = sequence_location_lits::BACK,
+			.storage = sequence_storage_lits::BUFFERED,
+			.location = sequence_location_lits::MIDDLE,
 			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 12,
+			.capacity = 4,
 			//.increment = 2,
 	};
 
@@ -220,9 +218,11 @@ int main()
 		show_elems(s2);
 
 		//s2.resize(8, 7);
+		s2.emplace_front(11);
+		s2.emplace_back(5);
 
-		//show_cap(s2);
-		//show_elems(s2);
+		show_cap(s2);
+		show_elems(s2);
 
 //
 ////		s1.swap(s2);

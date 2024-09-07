@@ -819,6 +819,17 @@ public:
 
 protected:
 
+	void reallocate(size_t new_cap, size_t offset, pointer data_begin, pointer data_end)
+	{
+		dynamic_capacity<T, TRAITS> new_capacity(new_cap);
+		if (data_begin != data_end)	// This is redundant. Is it actually an optimization?
+		{
+			std::uninitialized_move(data_begin, data_end, new_capacity.capacity_begin() + offset);
+			destroy_data(data_begin, data_end);
+		}
+		this->swap(new_capacity);
+	}
+
 	template<std::ranges::sized_range R>
 	void fill(const R& range)
 	{
@@ -886,7 +897,7 @@ public:
 	{
 		clear();
 		if (rhs.capacity() > capacity())
-			reallocate(rhs.capacity(), rhs.size(), 0);
+			inherited::reallocate(rhs.capacity(), 0, nullptr, nullptr);
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_data_end = capacity_begin() + rhs.size();
 		return *this;
@@ -910,18 +921,12 @@ public:
 		std::swap(m_data_end, rhs.m_data_end);
 	}
 
-	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
+	void reallocate(size_t new_cap)
 	{
-		assert(new_size <= new_cap);
-		assert(current_size <= new_cap);
+		assert(size() <= new_cap);
 
-		inherited new_capacity(new_cap);
-		if (data_begin() != data_end())	// This is redundant. Is it actually an optimization?
-		{
-			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + TRAITS.front_gap(new_cap, new_size));
-			destroy_data(data_begin(), data_end());
-		}
-		inherited::swap(new_capacity);
+		auto current_size = size();
+		inherited::reallocate(new_cap, 0, data_begin(), data_end());
 		m_data_end = capacity_begin() + current_size;
 	}
 
@@ -1035,7 +1040,7 @@ public:
 	{
 		clear();
 		if (rhs.capacity() > capacity())
-			reallocate(rhs.capacity(), rhs.size(), 0);
+			inherited::reallocate(rhs.capacity(), 0, nullptr, nullptr);
 		auto begin = capacity_end() - rhs.size();
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), begin);
 		m_data_begin = begin;
@@ -1060,18 +1065,12 @@ public:
 		std::swap(m_data_begin, rhs.m_data_begin);
 	}
 
-	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
+	void reallocate(size_t new_cap)
 	{
-		assert(new_size <= new_cap);
-		assert(current_size <= new_cap);
+		assert(size() <= new_cap);
 
-		inherited new_capacity(new_cap);
-		if (data_begin() != data_end())	// This is redundant. Is it actually an optimization?
-		{
-			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + TRAITS.front_gap(new_cap, new_size));
-			destroy_data(data_begin(), data_end());
-		}
-		inherited::swap(new_capacity);
+		auto current_size = size();
+		inherited::reallocate(new_cap, TRAITS.front_gap(new_cap, current_size), data_begin(), data_end());
 		m_data_begin = capacity_end() - current_size;
 	}
 
@@ -1189,7 +1188,7 @@ public:
 	{
 		clear();
 		if (rhs.capacity() > capacity())
-			reallocate(rhs.capacity(), rhs.size(), 0);
+			inherited::reallocate(rhs.capacity(), 0, nullptr, nullptr);
 		auto begin = capacity_begin() + TRAITS.front_gap(capacity(), rhs.size());
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), begin);
 		m_data_begin = begin;
@@ -1216,19 +1215,13 @@ public:
 		std::swap(m_data_end, rhs.m_data_end);
 	}
 
-	void reallocate(size_t new_cap, size_t new_size, size_t current_size)
+	void reallocate(size_t new_cap)
 	{
-		assert(new_size <= new_cap);
-		assert(current_size <= new_cap);
+		assert(size() <= new_cap);
 
-		auto offset = TRAITS.front_gap(new_cap, new_size);
-		inherited new_capacity(new_cap);
-		if (data_begin() != data_end())	// This is redundant. Is it actually an optimization?
-		{
-			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + offset);
-			destroy_data(data_begin(), data_end());
-		}
-		inherited::swap(new_capacity);
+		auto current_size = size();
+		auto offset = TRAITS.front_gap(new_cap, current_size);
+		inherited::reallocate(new_cap, offset, data_begin(), data_end());
 		m_data_begin = capacity_begin() + offset;
 		m_data_end = m_data_begin + current_size;
 	}
@@ -1436,7 +1429,7 @@ protected:
 	auto capacity_begin() const { return m_storage.capacity_begin(); }
 	auto capacity_end() const { return m_storage.capacity_end(); }
 
-	void reallocate(size_t new_capacity, size_t new_size)
+	void reallocate(size_t new_capacity)
 	{
 		throw std::bad_alloc();
 	}
@@ -1523,7 +1516,7 @@ protected:
 	auto capacity_begin() const { return m_storage ? m_storage->capacity_begin() : nullptr; }
 	auto capacity_end() const { return m_storage ? m_storage->capacity_end() : nullptr; }
 
-	void reallocate(size_t new_capacity, size_t new_size)
+	void reallocate(size_t new_capacity)
 	{
 		throw std::bad_alloc();
 	}
@@ -1578,9 +1571,9 @@ protected:
 	auto capacity_begin() const { return m_storage.capacity_begin(); }
 	auto capacity_end() const { return m_storage.capacity_end(); }
 
-	void reallocate(size_t new_capacity, size_t new_size)
+	void reallocate(size_t new_capacity)
 	{
-		m_storage.reallocate(new_capacity, new_size, size());
+		m_storage.reallocate(new_capacity);
 	}
 
 private:
@@ -1725,7 +1718,7 @@ protected:
 	auto capacity_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity_begin() : get<DYN>(m_storage).capacity_begin(); }
 	auto capacity_end() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity_end() : get<DYN>(m_storage).capacity_end(); }
 
-	void reallocate(size_t new_capacity, size_t new_size)
+	void reallocate(size_t new_capacity)
 	{
 		// The new capacity will not fit in the buffer.
 		if (new_capacity > TRAITS.capacity)
@@ -1733,7 +1726,7 @@ protected:
 			if (m_storage.index() == STC)		// We're moving out of the buffer: switch to dynamic storage.
 				m_storage = dynamic_type(new_capacity, get<STC>(m_storage));
 			else								// We're already out of the buffer: adjust the dynamic capacity.		
-				get<DYN>(m_storage).reallocate(new_capacity, new_size, get<DYN>(m_storage).size());
+				get<DYN>(m_storage).reallocate(new_capacity);
 		}
 
 		// The new capacity will fit in the buffer.
@@ -1853,21 +1846,21 @@ public:
 	void reserve(size_t new_capacity)
 	{
 		if (new_capacity > capacity())
-			reallocate(new_capacity, size());
+			reallocate(new_capacity);
 	}
 	void shrink_to_fit()
 	{
 		if (auto current_size = size(); current_size < capacity())
-			reallocate(current_size, current_size);
+			reallocate(current_size);
 	}
 
 	template< class... ARGS >
 	iterator emplace(const_iterator cpos, ARGS&&... args)
 	{
-		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
+		if (auto old_capacity = capacity(); size() == old_capacity)
 		{
 			size_t index = cpos - data_begin();
-			reallocate(traits.grow(old_capacity), current_size);
+			reallocate(traits.grow(old_capacity));
 			cpos = data_begin() + index;
 		}
 		return add_at(const_cast<iterator>(cpos), std::forward<ARGS>(args)...);
@@ -1875,15 +1868,15 @@ public:
 	template<typename... ARGS>
 	void emplace_front(ARGS&&... args)
 	{
-		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
-			reallocate(traits.grow(old_capacity), current_size);
+		if (auto old_capacity = capacity(); size() == old_capacity)
+			reallocate(traits.grow(old_capacity));
 		add_front(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	void emplace_back(ARGS&&... args)
 	{
-		if (auto old_capacity = capacity(), current_size = size(); current_size == old_capacity)
-			reallocate(traits.grow(old_capacity), current_size);
+		if (auto old_capacity = capacity(); size() == old_capacity)
+			reallocate(traits.grow(old_capacity));
 		add_back(std::forward<ARGS>(args)...);
 	}
 
@@ -1901,7 +1894,7 @@ public:
 		else if (new_size > old_size)
 		{
 			if (new_size > capacity())
-				reallocate(std::max(new_size, traits.capacity), old_size);
+				reallocate(std::max(new_size, traits.capacity));
 			add(new_size - old_size, std::forward<ARGS>(args)...);
 		}
 	}
