@@ -1,7 +1,5 @@
 import std;
-#include <cstdlib>
-
-#include "Sequence.h"
+import sequence;
 
 using namespace std;
 
@@ -205,9 +203,8 @@ int main()
 
 		println("s2 ----------------------------------------------");
 
-//		sequence<foo, traits> s2{1,2,3,4};
-		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10};
-//		sequence<foo, traits> s2{9,10,11,12};
+		sequence<foo, traits> s2{1,2,3,4};
+//		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10};
 		//for (int i = 8; i > 0; --i)
 		//	s2.pop_front();
 //
@@ -216,14 +213,17 @@ int main()
 		//show_elems(s1);
 		show_cap(s2);
 		show_elems(s2);
+//		destroy_data(s2.begin()+1, s2.begin()+3);
 
 		//s2.resize(8, 7);
 		//s2.emplace_front(11);
-		s2.emplace_back(11);
+		s2.emplace_back(5);
 
 		show_cap(s2);
 		show_elems(s2);
 
+		println("s2.size = {}", s2.size());
+		println("size(s2) = {}", size(s2));
 //
 ////		s1.swap(s2);
 //		s2.swap(s1);
@@ -233,9 +233,6 @@ int main()
 		//println("S1 ----------------------------------------------");
 		//show_cap(s1);
 		//show_elems(s1);
-		//println("s2 ----------------------------------------------");
-		//show_cap(s2);
-		//show_elems(s2);
 
  	//	s2.shrink_to_fit();
 
@@ -245,11 +242,25 @@ int main()
 		//println();
 
 		//sequence<foo, traits> s3 = move(s2);
+		
+		sequence<foo, traits> s3{9,10,11,12};
+		println("s2 ----------------------------------------------");
+		show_cap(s2);
+		show_elems(s2);
+		println("s3 ----------------------------------------------");
+		show_cap(s3);
+		show_elems(s3);
+		println();
 
-		//println("s3 ----------------------------------------------");
-		//show_cap(s3);
-		//show_elems(s3);
-		//println();
+		s3 = move(s2);
+
+		println("s2 ----------------------------------------------");
+		show_cap(s2);
+		show_elems(s2);
+		println("s3 ----------------------------------------------");
+		show_cap(s3);
+		show_elems(s3);
+		println();
 
 		try {
 //			sequence<foo, traits> s1{1,2,3,4};
@@ -266,6 +277,8 @@ int main()
 	}
 	println("---------------------------------------------");
 
+//	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
+//	fixed_capacity<int, 10> fc;
 //	array<int, 3> a{1,2,3,4};
 }
 
