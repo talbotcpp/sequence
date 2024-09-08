@@ -170,9 +170,9 @@ int main()
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::BUFFERED,
 			.location = sequence_location_lits::MIDDLE,
-			//.growth = sequence_growth_lits::EXPONENTIAL,
-			.capacity = 4,
-			//.increment = 2,
+			.growth = sequence_growth_lits::LINEAR,
+			.capacity = 10,
+			.increment = 10,
 	};
 
 	{
@@ -205,8 +205,8 @@ int main()
 
 		println("s2 ----------------------------------------------");
 
-		sequence<foo, traits> s2{1,2,3,4};
-//		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10,11,12};
+//		sequence<foo, traits> s2{1,2,3,4};
+		sequence<foo, traits> s2{1,2,3,4,5,6,7,8,9,10};
 //		sequence<foo, traits> s2{9,10,11,12};
 		//for (int i = 8; i > 0; --i)
 		//	s2.pop_front();
@@ -218,8 +218,8 @@ int main()
 		show_elems(s2);
 
 		//s2.resize(8, 7);
-		s2.emplace_front(11);
-		s2.emplace_back(5);
+		//s2.emplace_front(11);
+		s2.emplace_back(11);
 
 		show_cap(s2);
 		show_elems(s2);
@@ -265,6 +265,8 @@ int main()
 //		show_cap(s1);
 	}
 	println("---------------------------------------------");
+
+//	array<int, 3> a{1,2,3,4};
 }
 
 	//vector<life> v;

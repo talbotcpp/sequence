@@ -351,12 +351,20 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
 	}
+	fixed_sequence_storage(std::initializer_list<value_type> il)
+	{
+		assert(il.size() <= capacity());
+
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_size = static_cast<size_type>(il.size());
+	}
 	template<sequence_storage SEQ>
 	fixed_sequence_storage(SEQ&& rhs)
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = static_cast<size_type>(rhs.size());
 	}
+
 	~fixed_sequence_storage()
 	{
 		destroy_data(data_begin(), data_end());
@@ -413,15 +421,6 @@ public:
 	{
 		while (count--)
 			add_back(std::forward<ARGS>(args)...);
-	}
-	template<std::ranges::sized_range R>
-	void fill(const R& range)
-	{
-		assert(range.size() <= capacity());
-		assert(size() == 0);
-
-		std::uninitialized_copy(range.begin(), range.end(), capacity_begin());
-		m_size = static_cast<size_type>(range.size());
 	}
 
 	void clear()
@@ -482,6 +481,13 @@ public:
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
 		m_size = rhs.m_size;
+	}
+	fixed_sequence_storage(std::initializer_list<value_type> il)
+	{
+		assert(il.size() <= capacity());
+
+		std::uninitialized_copy(il.begin(), il.end(), capacity_end() - il.size());
+		m_size = static_cast<size_type>(il.size());
 	}
 	template<sequence_storage SEQ>
 	fixed_sequence_storage(SEQ&& rhs)
@@ -546,15 +552,6 @@ public:
 		while (count--)
 			add_front(std::forward<ARGS>(args)...);
 	}
-	template<std::ranges::sized_range R>
-	void fill(const R& range)
-	{
-		assert(range.size() <= capacity());
-		assert(size() == 0);
-
-		std::uninitialized_copy(range.begin(), range.end(), capacity_end() - range.size());
-		m_size = static_cast<size_type>(range.size());
-	}
 
 	void clear()
 	{
@@ -617,6 +614,15 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
 		m_front_gap = rhs.m_front_gap;
 		m_back_gap = rhs.m_back_gap;
+	}
+	fixed_sequence_storage(std::initializer_list<value_type> il)
+	{
+		assert(il.size() <= capacity());
+
+		auto offset = TRAITS.front_gap(il.size());
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin() + offset);
+		m_front_gap = static_cast<size_type>(offset);
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + il.size()));
 	}
 	template<sequence_storage SEQ>
 	fixed_sequence_storage(SEQ&& rhs)
@@ -714,17 +720,6 @@ public:
 		// how useful is resize for a middle location container?
 		while (count--)
 			add_back(std::forward<ARGS>(args)...);
-	}
-	template<std::ranges::sized_range R>
-	void fill(const R& range)
-	{
-		assert(range.size() <= capacity());
-		assert(size() == 0);
-
-		auto offset = TRAITS.front_gap(range.size());
-		std::uninitialized_copy(range.begin(), range.end(), capacity_begin() + offset);
-		m_front_gap = static_cast<size_type>(offset);
-		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + range.size()));
 	}
 
 	void clear()
@@ -830,14 +825,6 @@ protected:
 		this->swap(new_capacity);
 	}
 
-	template<std::ranges::sized_range R>
-	void fill(const R& range)
-	{
-		dynamic_capacity<T, TRAITS> new_capacity(range.size());
-		std::uninitialized_copy(range.begin(), range.end(), new_capacity.capacity_begin());
-		this->swap(new_capacity);
-	}
-
 	void swap(dynamic_capacity& rhs)
 	{
 		std::swap(m_capacity_begin, rhs.m_capacity_begin);
@@ -881,6 +868,11 @@ public:
 	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
+	}
+	dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_data_end = capacity_end();
 	}
 	template<sequence_storage SEQ>
 	dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
@@ -961,12 +953,6 @@ public:
 		while (count--)
 			add_back(std::forward<ARGS>(args)...);
 	}
-	template<std::ranges::range R>
-	void fill(const R& range)
-	{
-		inherited::fill(range);
-		m_data_end = capacity_end();
-	}
 
 	void clear()
 	{
@@ -1024,6 +1010,11 @@ public:
 	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
+	}
+	dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_data_begin = capacity_begin();
 	}
 	template<sequence_storage SEQ>
 	dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
@@ -1105,12 +1096,6 @@ public:
 		while (count--)
 			add_front(std::forward<ARGS>(args)...);
 	}
-	template<std::ranges::range R>
-	void fill(const R& range)
-	{
-		inherited::fill(range);
-		m_data_begin = capacity_begin();
-	}
 
 	void clear()
 	{
@@ -1170,6 +1155,12 @@ public:
 	dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
+	}
+	dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_data_begin = capacity_begin();
+		m_data_end = capacity_end();
 	}
 	template<sequence_storage SEQ>
 	dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
@@ -1290,13 +1281,6 @@ public:
 		while (count--)
 			add_back(std::forward<ARGS>(args)...);
 	}
-	template<std::ranges::sized_range R>
-	void fill(R range)
-	{
-		inherited::fill(range);
-		m_data_begin = capacity_begin();
-		m_data_end = capacity_end();
-	}
 
 	void clear()
 	{
@@ -1370,14 +1354,16 @@ class sequence_implementation
 template<typename T, sequence_traits TRAITS>
 class sequence_implementation<sequence_storage_lits::STATIC, T, TRAITS>
 {
+
+	using value_type = T;
+	using iterator = value_type*;
+	using size_type = typename decltype(TRAITS)::size_type;
 	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
 
 public:
 
-	using value_type = T;
-	using iterator = value_type*;
-	using const_iterator = const value_type*;
-	using size_type = typename decltype(TRAITS)::size_type;
+	sequence_implementation() = default;
+	sequence_implementation(std::initializer_list<value_type> il) : m_storage(il) {}
 
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage.size(); }
@@ -1417,10 +1403,6 @@ protected:
 	{
 		m_storage.add(new_size, std::forward<ARGS>(args)...);
 	}
-	void fill(std::initializer_list<value_type> il)
-	{
-		m_storage.fill(il);
-	}
 
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
@@ -1446,10 +1428,13 @@ class sequence_implementation<sequence_storage_lits::FIXED, T, TRAITS>
 {
 	using value_type = T;
 	using iterator = value_type*;
-	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
 	using size_type = typename decltype(TRAITS)::size_type;
+	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
 
 public:
+
+	sequence_implementation() = default;
+	sequence_implementation(std::initializer_list<value_type> il) : m_storage(new storage_type(il)) {}
 
 	constexpr static size_t capacity() { return TRAITS.capacity; }
 	size_t size() const { return m_storage ? m_storage->size() : 0; }
@@ -1501,13 +1486,6 @@ protected:
 			m_storage.reset(new storage_type);
 		m_storage->add(new_size, std::forward<ARGS>(args)...);
 	}
-	void fill(std::initializer_list<value_type> il)
-	{
-		assert(!m_storage);
-
-		m_storage.reset(new storage_type);
-		m_storage->fill(il);
-	}
 
 	auto data_begin() { return m_storage ? m_storage->data_begin() : nullptr; }
 	auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
@@ -1536,6 +1514,9 @@ class sequence_implementation<sequence_storage_lits::VARIABLE, T, TRAITS>
 
 public:
 
+	sequence_implementation() = default;
+	sequence_implementation(std::initializer_list<value_type> il) : m_storage(il) {}
+
 	size_t capacity() const { return m_storage.capacity(); }
 	size_t size() const { return m_storage.size(); }
 	size_t max_size() const { return std::numeric_limits<size_t>::max(); }
@@ -1562,7 +1543,6 @@ protected:
 	void add_back(ARGS&&... args) { m_storage.add_back(std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
 	void add(size_t new_size, ARGS&&... args) { m_storage.add(new_size, std::forward<ARGS>(args)...); }
-	void fill(std::initializer_list<value_type> il) { m_storage.fill(il); }
 
 	auto data_begin() { return m_storage.data_begin(); }
 	auto data_end() { return m_storage.data_end(); }
@@ -1593,6 +1573,15 @@ class sequence_implementation<sequence_storage_lits::BUFFERED, T, TRAITS>
 	enum { STC, DYN };
 
 public:
+
+	sequence_implementation() = default;
+	sequence_implementation(std::initializer_list<value_type> il)
+	{
+		if (il.size() <= TRAITS.capacity)
+			m_storage.emplace<STC>(il);
+		else
+			m_storage.emplace<DYN>(il);
+	}
 
 	size_t capacity() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
 	size_t size() const { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
@@ -1697,19 +1686,6 @@ protected:
 		else
 			get<DYN>(m_storage).add(new_size, std::forward<ARGS>(args)...);
 	}
-	void fill(std::initializer_list<value_type> il)
-	{
-		assert(m_storage.index() == STC);
-		assert(get<STC>(m_storage).size() == 0);
-
-		if (il.size() <= TRAITS.capacity)
-			get<STC>(m_storage).fill(il);
-		else
-		{
-			m_storage.emplace<DYN>();
-			get<DYN>(m_storage).fill(il);
-		}
-	}
 
 	auto data_begin() { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
 	auto data_end() { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
@@ -1755,7 +1731,6 @@ class sequence : public sequence_implementation<TRAITS.storage, T, TRAITS>
 	using inherited::add_front;
 	using inherited::add_back;
 	using inherited::add;
-	using inherited::fill;
 
 public:
 
@@ -1798,10 +1773,7 @@ public:
 	sequence() = default;
 	sequence(const sequence&) = default;
 	sequence(sequence&&) = default;
-	sequence(std::initializer_list<value_type> il) : sequence{}
-	{
-		fill(il);
-	}
+	sequence(std::initializer_list<value_type> il) : inherited(il) {}
 
 	sequence& operator=(const sequence&) = default;
 	sequence& operator=(sequence&&) = default;
@@ -1853,6 +1825,20 @@ public:
 		if (auto current_size = size(); current_size < capacity())
 			reallocate(current_size);
 	}
+	template<typename... ARGS>
+	void resize(size_t new_size, ARGS&&... args)
+	{
+		auto old_size = size();
+
+		if (new_size < old_size)
+			erase(data_end() - (old_size - new_size), data_end());
+		else if (new_size > old_size)
+		{
+			if (new_size > capacity())
+				reallocate(std::max(new_size, traits.capacity));
+			add(new_size - old_size, std::forward<ARGS>(args)...);
+		}
+	}
 
 	template< class... ARGS >
 	iterator emplace(const_iterator cpos, ARGS&&... args)
@@ -1883,21 +1869,6 @@ public:
 	iterator insert(const_iterator cpos, const_reference e) { return emplace(cpos, e); }
 	void push_front(const_reference e) { emplace_front(e); }
 	void push_back(const_reference e) { emplace_back(e); }
-
-	template<typename... ARGS>
-	void resize(size_t new_size, ARGS&&... args)
-	{
-		auto old_size = size();
-
-		if (new_size < old_size)
-			erase(data_end() - (old_size - new_size), data_end());
-		else if (new_size > old_size)
-		{
-			if (new_size > capacity())
-				reallocate(std::max(new_size, traits.capacity));
-			add(new_size - old_size, std::forward<ARGS>(args)...);
-		}
-	}
 
 private:
 
