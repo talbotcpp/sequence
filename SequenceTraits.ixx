@@ -7,7 +7,7 @@ import std;
 
 export enum class sequence_storage_lits { STATIC, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
 export enum class sequence_location_lits { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
-export enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };		// See sequence_traits::growth.
+export enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };			// See sequence_traits::growth.
 
 // sequence_traits - Structure used to supply the sequence traits. The default values have been chosen
 // to exactly model std::vector so that sequence can be used as a drop-in replacement with no adjustments.
@@ -29,11 +29,12 @@ struct sequence_traits
 	// STATIC	The capacity is embedded in the sequence object (like std::inplace_vector or boost::static_vector).
 	//			The capacity cannot change size or move.
 	//
-	// FIXED	The capacity is dynamically allocated. The capacity cannot change size. Clearing the sequence
-	//			deallocates the capacity. Erasing the sequence does not deallocate the capacity. This is like
-	//			a std::vector which has been reserved and not allowed to reallocate, except that the in-class
-	//			storage is only one pointer. The size(s) are in the dynamic allocation and can be sized.
-	//
+	// FIXED	The capacity is dynamically allocated. The capacity cannot change size or move. Clearing the
+	//			sequence deallocates the capacity. Erasing the sequence does not deallocate the capacity. This
+	//			is like a std::vector which has been reserved and is not allowed to reallocate, except that
+	//			the in-class storage is only one pointer. The size(s) are in the dynamic allocation and are
+	//			represented by the size_type.
+	// 
 	// VARIABLE	The capacity is dynamically allocated (like std::vector). The capacity can change and move.
 	//			Neither clearing nor erasing the sequence deallocates the capacity (like std::vector).
 	//

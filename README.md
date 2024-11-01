@@ -57,7 +57,7 @@ The capacity cannot change size or move.
 #### FIXED
 The capacity is dynamically allocated. The capacity cannot change size. Clearing the sequence
 deallocates the capacity. Erasing the sequence does not deallocate the capacity. This is like
-a `std::vector` which has been reserved and not allowed to reallocate, except that the in-class
+a `std::vector` which has been reserved and is not allowed to reallocate, except that the in-class
 storage is only one pointer. The size(s) are stored in the dynamic allocation and are represented by the `size_type`.
 #### VARIABLE
 The capacity is dynamically allocated (like `std::vector`). The capacity can change and move.
@@ -113,9 +113,11 @@ growth behavior cannot be modeled with the `LINEAR` or `EXPONENTIAL` growth mode
 size_t capacity = 1;
 ```
 This member provides the size of the fixed capacity for `STATIC` and `FIXED` storages.
-For `VARIABLE` storage it is the initial capacity when rallocation first occurs.
+For `VARIABLE` storage it is the initial capacity when allocation first occurs.
 (Newly constructed empty containers have no capacity, and containers constructed from initializer lists
-have a capacity equal to the size of the initializer list.)
+have a capacity equal to the size of the initializer list.) Note that this means that the common pattern
+of constructing a vector and immediately reserving a starting size is not necessary, and that sequence
+can do this without wasting allocations for containers which remain empty. 
 For `BUFFERED` storage it is the size of the small object optimization buffer (SBO).
 This value must be greater than 0.
 
