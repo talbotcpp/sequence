@@ -5,9 +5,9 @@ This container may be thought of as a much more flexible and controllable `std::
 It offers control over where and how the capacity is stored in memory, and how the elements are managed
 within the capacity. It also offers control over the way the capacity grows if growth is desired.
 
-## Disclaimers
+## Disclaimer
 
-This is a prototype—a toy implementation meant to be a proof-of-concept and illustration.
+This is a prototypeâ€”a toy implementation meant to be a proof-of-concept and illustration.
 It is incomplete in many ways, and is not production-ready code. Specifically it is missing a number of important
 features (e.g. allocators), and it lacks some test tooling and a comprehensive test suite.
 The latter implies that it is relatively untested.
