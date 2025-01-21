@@ -277,9 +277,27 @@ int main()
 	}
 	println("---------------------------------------------");
 
+	sequence<int> s5{1,2,3,4,5,6,7};
+	show_cap(s5);
+	show_elems(s5);
+	println("New cap: {}", s5.traits.grow(s5.capacity()));
+	s5.push_back(8);
+	show_cap(s5);
+	show_elems(s5);
+
 //	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 //	fixed_capacity<int, 10> fc;
 //	array<int, 3> a{1,2,3,4};
+
+	//vector<int> v{1,2,3,4,5};
+	//std::println("{}", v.capacity());
+	//show_elems(v);
+	//v.clear();
+	//std::println("{}", v.capacity());
+	//show_elems(v);
+	//v.shrink_to_fit();
+	//std::println("{}", v.capacity());
+	//show_elems(v);
 }
 
 	//vector<life> v;
