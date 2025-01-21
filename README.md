@@ -114,10 +114,10 @@ size_t capacity = 1;
 ```
 This member provides the size of the fixed capacity for `STATIC` and `FIXED` storages.
 For `VARIABLE` storage it is the initial capacity when allocation first occurs.
-(Newly constructed empty containers have no capacity, and containers constructed from initializer lists
-have a capacity equal to the size of the initializer list.) Note that this means that the common pattern
-of constructing a vector and immediately reserving a starting size is not necessary, and that sequence
-can do this without wasting allocations for containers which remain empty. 
+Newly constructed empty containers have no capacity, and containers constructed from initializer lists
+have a capacity equal to the size of the initializer list. Note that this means that the common pattern
+of constructing a vector and immediately reserving a starting size is not necessary. `sequence`
+can do this automatically, without wasting allocations for containers which remain empty. 
 For `BUFFERED` storage it is the size of the small object optimization buffer (SBO).
 This value must be greater than 0.
 

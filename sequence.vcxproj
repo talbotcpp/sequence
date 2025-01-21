@@ -137,11 +137,6 @@
   <ItemGroup>
     <ClCompile Include="Sequence.cpp" />
     <ClCompile Include="Sequence.ixx" />
-    <ClCompile Include="SequenceDynamic.ixx" />
-    <ClCompile Include="SequenceFixed.ixx" />
-    <ClCompile Include="SequenceStorage.ixx" />
-    <ClCompile Include="SequenceTraits.ixx" />
-    <ClCompile Include="SequenceUtilities.ixx" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
