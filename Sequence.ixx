@@ -1755,13 +1755,17 @@ public:
 
 	inline void reserve(size_t new_capacity)
 	{
-		if (new_capacity > capacity())
-			reallocate(new_capacity);
+		if constexpr (traits.storage == sequence_storage_lits::VARIABLE ||
+					  traits.storage == sequence_storage_lits::BUFFERED)
+			if (new_capacity > capacity())
+				reallocate(new_capacity);
 	}
 	inline void shrink_to_fit()
 	{
-		if (auto current_size = size(); current_size < capacity())
-			reallocate(current_size);
+		if constexpr (traits.storage == sequence_storage_lits::VARIABLE ||
+					  traits.storage == sequence_storage_lits::BUFFERED)
+			if (auto current_size = size(); current_size < capacity())
+				reallocate(current_size);
 	}
 	template<typename... ARGS>
 	inline void resize(size_type new_size, ARGS&&... args)

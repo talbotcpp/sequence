@@ -1,2 +1,0 @@
-Decide what reserve should do in all cases, and implement accordingly.
-Decide what shrink_to_fit should do in all cases, and implement accordingly.

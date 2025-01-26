@@ -1,18 +1,17 @@
-# sequence
-A contiguous sequence container with adjustable performance characteristics.
-
-This container may be thought of as a much more flexible and controllable `std::vector`.
-It offers control over where and how the capacity is stored in memory, and how the elements are managed
-within the capacity. It also offers control over the way the capacity grows if growth occurs.
+# Introduction
+This library provides a contiguous sequence container with adjustable performance characteristics.
+It may be thought of as a much more flexible and controllable `std::vector`.
+Features include control over where and how the capacity is stored and managed, how the elements are managed
+within the capacity, and control over the way the capacity grows if growth is required (and permitted).
 
 ## Disclaimers
 
 This is a proof-of-concept implementation meant to illustrate the ideas embodied by sequence.
-It is incomplete in many ways, and is not production-ready code. Specifically it is missing a number of important
-features (e.g. allocators), and it lacks some test tooling and a comprehensive test suite.
-The latter implies that it is pretty much untested.
+It is incomplete in many ways, and is not production-ready code. It is missing a number of important
+features and lacks complete test tooling and a comprehensive test suite.
+This latter implies that it is pretty much untested.
 
-## sequence class
+# sequence class
 
 ```C++
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
@@ -21,9 +20,55 @@ class sequence;
 
 The `sequence` class is parameterized on the element type and an instance of a struct non-type
 template parameter of type `sequence_traits`. Most of the member functions have the same behavoir
-as their counterparts in `std::vector`. Those which differ are specified below.
+as their counterparts in `std::vector`. Those which differ are described below.
 
-### swap
+## traits_type
+```
+using traits_type = decltype(TRAITS);
+```
+
+The concrete sequence_traits type this sequence is instantiated with. 
+
+## traits
+```
+static constexpr traits_type traits = TRAITS;
+```
+
+An instance of the traits_type available as a static member to make user access to its values convenient.
+
+## size_type
+```
+using size_type = typename traits_type::size_type;
+```
+
+The container size type. This is described in detail below under `sequence_traits`.
+
+## reserve
+```C++
+void reserve(size_t new_capacity);
+```
+If the storage mode is `VARIABLE` or `BUFFERED`, and if `new_capacity` is greater than `capacity()`, the capacity will 
+grow to be at least `new_capacity`. Otherwise has no effect.
+
+## shrink_to_fit
+```C++
+void shrink_to_fit();
+```
+
+If the storage mode is `STATIC` or `FIXED`, has no effect.
+
+If the storage mode is `VARIABLE`, and `capacity()` is greater than `size()`, the capacity will 
+shrink to be equal to `size()`, otherwise has no effect.
+
+If the storage mode is `BUFFERED`, calling `shrink_to_fit`:
+- when the capacity is buffered has no effect,
+- otherwise if `size()` is greater than the fixed capacity size, and `capacity()` is greater than `size()`, the capacity will 
+shrink to be equal to `size()`,
+- otherwise if `size()` is less than or equal to the fixed capacity size, the elements will be rebuffered
+and the dynamic capacity will be deallocated,
+- otherwise has no effect.
+
+## swap
 ```C++
 void swap(sequence& other);
 ```
@@ -31,7 +76,15 @@ For `FIXED` and `VARIABLE` storage modes, this member provides O(1) swap. For `B
 it will provide O(1) swap for two unbuffered containers, but will be O(n) if one or both are buffered.
 For `STATIC` storage it provides O(n) swap (as if by `std::swap`).
 
-### is_dynamic
+## resize
+```C++
+template<typename... ARGS>
+inline void resize(size_type new_size, ARGS&&... args)
+```
+If `new_size` < `size()`, erases the last `size() - new_size` elements from the sequence, otherwise appends
+`new_size - size()` elements to the sequence that are emplace-constructed from `args`.
+
+## is_dynamic
 ```C++
 bool is_dynamic();
 ```
@@ -39,7 +92,7 @@ Returns `true` if the capacity is dynamically allocated. This is most often inte
 but it is available for all modes so that generic contexts can make use of it for the other modes as well. This
 member function is either `static constexpr` or `const`, depending on whether the answer can change at runtime.
 
-### max_size
+## max_size
 ```C++
 static constexpr size_t max_size();
 ```
@@ -101,12 +154,6 @@ The capacity can change and move. Clearing the sequence deallocates the capacity
 dynamically allocated. Erasing the sequence does not deallocate the capacity. Reserving a
 capacity less than or equal to the fixed capacity size has no effect. Reserving a capacity
 greater than the fixed capacity size causes the capacity to be dynamically (re)allocated.
-
-Calling `shrink_to_fit` when the capacity is buffered has no effect. Calling it when the capacity is
-dynamically allocated and the size is greater than the fixed capacity size has the expected
-effect (as with `std::vector`). Calling it when the capacity is dynamically allocated and the
-size is less than or equal to the fixed capacity size causes the elements to be rebuffered
-and the dynamic capacity to be deallocated.
 
 ## location
 ```C++
