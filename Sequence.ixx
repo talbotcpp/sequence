@@ -1764,7 +1764,7 @@ public:
 			reallocate(current_size);
 	}
 	template<typename... ARGS>
-	inline void resize(size_t new_size, ARGS&&... args)
+	inline void resize(size_type new_size, ARGS&&... args)
 	{
 		auto old_size = size();
 
@@ -1773,7 +1773,7 @@ public:
 		else if (new_size > old_size)
 		{
 			if (new_size > capacity())
-				reallocate(std::max(new_size, traits.capacity));
+				reallocate(std::max<size_t>(new_size, traits.capacity));
 			add(new_size - old_size, std::forward<ARGS>(args)...);
 		}
 	}

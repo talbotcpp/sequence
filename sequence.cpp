@@ -166,11 +166,11 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 int main()
 {
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::MIDDLE,
+			.storage = sequence_storage_lits::STATIC,
+			.location = sequence_location_lits::FRONT,
 			.growth = sequence_growth_lits::LINEAR,
 			.capacity = 10,
-			.increment = 10,
+			.increment = 1,
 	};
 
 	{
@@ -217,13 +217,18 @@ int main()
 
 		//s2.resize(8, 7);
 		//s2.emplace_front(11);
-		s2.emplace_back(5);
+		s2.pop_back();
 
 		show_cap(s2);
 		show_elems(s2);
 
-		println("s2.size = {}", s2.size());
-		println("size(s2) = {}", size(s2));
+		s2.pop_front();
+
+		show_cap(s2);
+		show_elems(s2);
+
+//		println("s2.size = {}", s2.size());
+//		println("size(s2) = {}", size(s2));
 //
 ////		s1.swap(s2);
 //		s2.swap(s1);
@@ -242,7 +247,7 @@ int main()
 		//println();
 
 		//sequence<foo, traits> s3 = move(s2);
-		
+		/*
 		sequence<foo, traits> s3{9,10,11,12};
 		println("s2 ----------------------------------------------");
 		show_cap(s2);
@@ -261,7 +266,7 @@ int main()
 		show_cap(s3);
 		show_elems(s3);
 		println();
-
+		*/
 		try {
 //			sequence<foo, traits> s1{1,2,3,4};
 		}
@@ -277,6 +282,26 @@ int main()
 	}
 	println("---------------------------------------------");
 
+	sequence<int, traits> s5{1,2,3,4,5,6,7};
+	show_cap(s5);
+	show_elems(s5);
+	s5.push_back(8);
+	s5.push_back(9);
+	s5.push_back(10);
+	show_cap(s5);
+	show_elems(s5);
+
+	try {
+		s5.resize(255);
+	}
+    catch(const std::bad_alloc& ex)
+    {
+		println("{}", ex.what());
+    }
+
+
+		/*
+
 	sequence<int> s5{1,2,3,4,5,6,7};
 	show_cap(s5);
 	show_elems(s5);
@@ -284,6 +309,7 @@ int main()
 	s5.push_back(8);
 	show_cap(s5);
 	show_elems(s5);
+		*/
 
 //	println("sizeof(impl) = {}", sizeof(fixed_sequence_storage<traits.location, foo, traits>));
 //	fixed_capacity<int, 10> fc;

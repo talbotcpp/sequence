@@ -3,24 +3,49 @@ A contiguous sequence container with adjustable performance characteristics.
 
 This container may be thought of as a much more flexible and controllable `std::vector`.
 It offers control over where and how the capacity is stored in memory, and how the elements are managed
-within the capacity. It also offers control over the way the capacity grows if growth is desired.
+within the capacity. It also offers control over the way the capacity grows if growth occurs.
 
 ## Disclaimers
 
-This is a prototype—a toy implementation meant to be a proof-of-concept and illustration.
+This is a proof-of-concept implementation meant to illustrate the ideas embodied by sequence.
 It is incomplete in many ways, and is not production-ready code. Specifically it is missing a number of important
 features (e.g. allocators), and it lacks some test tooling and a comprehensive test suite.
 The latter implies that it is pretty much untested.
 
 ## sequence class
 
-The sequence class is parameterized on the element type and an instance of a struct non-type
-template parameter of type `sequence_traits`.
-
 ```C++
 template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
 class sequence;
 ```
+
+The `sequence` class is parameterized on the element type and an instance of a struct non-type
+template parameter of type `sequence_traits`. Most of the member functions have the same behavoir
+as their counterparts in `std::vector`. Those which differ are specified below.
+
+### swap
+```C++
+void swap(sequence& other);
+```
+For `FIXED` and `VARIABLE` storage modes, this member provides O(1) swap. For `BUFFERED` storage,
+it will provide O(1) swap for two unbuffered containers, but will be O(n) if one or both are buffered.
+For `STATIC` storage it provides O(n) swap (as if by `std::swap`).
+
+### is_dynamic
+```C++
+bool is_dynamic();
+```
+Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
+but it is available for all modes so that generic contexts can make use of it for the other modes as well. This
+member function is either `static constexpr` or `const`, depending on whether the answer can change at runtime.
+
+### max_size
+```C++
+static constexpr size_t max_size();
+```
+Returns the largest theoretically supported size. The value is dependent on `size_type` only; it does not
+take physical limitations into account.
+
 # sequence_traits structure
 
 The adjustable characteristics are controlled by the `sequence_traits` structure. The default version gives
@@ -163,32 +188,6 @@ size_t grow(size_t cap) const;
 This member returns a new (larger) capacity given the current capacity, calculated based on the `sequence_traits`
 members which control capacity. It is used internally and is available publicly so that client code
 can determine exactly how much memory (in terms of elements, not including allocation overhead) will be required if a sequence needs to reallocate.
-
-# sequence class
-
-## swap
-```C++
-void swap(sequence& other);
-```
-For `FIXED` and `VARIABLE` storage modes, this member provides O(1) swap. For `BUFFERED` storage,
-it will provide O(1) swap for two unbuffered containers, but will be O(n) if one or both are buffered.
-For `STATIC` storage it provides O(n) swap (as if by `std::swap`).
-
-## is_dynamic
-```C++
-bool is_dynamic();
-```
-Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
-but it is available for all modes so that generic contexts can make use of it for the other modes as well. This
-member function is either `static constexpr` or `const`, depending on whether the answer can change at runtime.
-
-## max_size
-```C++
-static constexpr size_t max_size();
-```
-Returns the largest theoretically supported size. The value is dependent on the size type only; it does not
-take physical limitations into account.
-
 
 # Open Questions
 
