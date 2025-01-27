@@ -144,7 +144,8 @@ template<typename SEQ>
 void show_elems(const SEQ& seq)
 {
 	std::print("{}>\t", seq.size());
-	for (auto&& e : seq)
+	if (seq.empty()) std::print("EMPTY");
+	else for (auto&& e : seq)
 		std::print("{}\t", int(e));
 	std::println();
 }
@@ -155,8 +156,20 @@ template<typename SEQ>
 void show_cap(const SEQ& seq)
 {
 	std::print("{}{}\t", seq.capacity(), seq.is_dynamic() ? 'D' : 'S');
-	for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
-		std::print("{}\t", int(*p));
+	if (seq.capacity_begin())
+		for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
+			std::print("{}\t", int(*p));
+	else std::print("NULL");
+	std::println();
+}
+template<typename T>
+void show_cap(const std::vector<T>& seq)
+{
+	std::print("{}{}\t", seq.capacity(), 'D');
+	if (seq.data())
+		for (auto p = seq.data(); p != seq.data() + seq.capacity(); ++p)
+			std::print("{}\t", int(*p));
+	else std::print("NULL");
 	std::println();
 }
 
@@ -165,12 +178,59 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 
 int main()
 {
-	sequence<int, {.storage = sequence_storage_lits::STATIC, .capacity = 10}>
-		seq = {1,2,3,4,5,6};
-	
-	for (auto n : seq)
-		std::print("{}\t", n);
-	std::println();
+	sequence<int, {.storage = sequence_storage_lits::FIXED, .capacity = 8}>
+	s{1,2,3,4,5,6,7,8};
+
+	show_cap(s);
+	show_elems(s);
+
+	std::println("---------------------- clear ----------------------");
+	s.clear();
+
+	show_cap(s);
+	show_elems(s);
+
+	std::println("---------------------- free -----------------------");
+	s.free();
+
+	show_cap(s);
+	show_elems(s);
+
+	std::println("--------------------- reserve ----------------------");
+	s.reserve(6);
+
+	show_cap(s);
+	show_elems(s);
+
+	std::println("------------------ shrink_to_fit -------------------");
+	s.shrink_to_fit();
+
+	show_cap(s);
+	show_elems(s);
+/*
+	std::vector<int> v{1,2,3,4};
+
+	show_cap(v);
+	show_elems(v);
+
+	std::println("---------------------- clear ----------------------");
+	v.clear();
+
+	show_cap(v);
+	show_elems(v);
+
+	std::println("--------------------- reserve ----------------------");
+	v.reserve(6);
+
+	show_cap(v);
+	show_elems(v);
+
+	std::println("------------------ shrink_to_fit -------------------");
+	v.shrink_to_fit();
+
+	show_cap(v);
+	show_elems(v);
+*/
 }
 
 #ifdef NONONONO

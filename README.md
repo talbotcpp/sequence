@@ -42,50 +42,106 @@ template parameter of type `sequence_traits`. Most of the API has the same behav
 as for `std::vector`. The ways in which it differs are detailed below.
 
 ## traits_type
-```
+```C++
 using traits_type = decltype(TRAITS);
 ```
 
 The concrete sequence_traits type this sequence is instantiated with. 
 
 ## traits
-```
+```C++
 static constexpr traits_type traits = TRAITS;
 ```
 
 An instance of the traits_type available as a static member to make user access to its values convenient.
 
 ## size_type
-```
+```C++
 using size_type = typename traits_type::size_type;
 ```
 
 The container size type. This is described in detail below under `sequence_traits`.
 
+## max_size
+```C++
+static constexpr size_t max_size();
+```
+Returns the largest theoretically supported size. The value is dependent on `size_type` only; it does not
+take physical limitations into account.
+
+## capacity
+```C++
+size_t capacity() const;
+```
+This member function returns the current size of the capacity. It has different behavior for each storage mode:
+
+#### STATIC & FIXED
+
+Returns the fixed capacity size as defined by the `capacity` member of the `sequence_traits` template parameter.
+
+#### VARIABLE
+
+Returns the current size of the dynamically allocated capacity.
+
+#### BUFFERED
+
+Returns the fixed capacity size if the capacity is buffered, otherwise
+it returns the current size of the dynamically allocated capacity. *(Note: this implies that it will never
+return a size smaller than the fixed capacity size.)*
+
+## is_dynamic
+```C++
+bool is_dynamic();
+```
+Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
+but it is available for all modes so that generic contexts can make use of it for the other modes as well. This
+member function is either `static constexpr` or `const`, depending on whether the answer can change at runtime.
+
 ## reserve
 ```C++
 void reserve(size_t new_capacity);
 ```
-If the storage mode is `VARIABLE` or `BUFFERED`, and if `new_capacity` is greater than `capacity()`, the capacity will 
-grow to be at least `new_capacity`. Otherwise has no effect.
+This member function attempts to increase the capacity to be equal to its argument. If `capacity()` is
+greater than or equal to `new_capacity`, it has no effect. Otherwise, it has different behavior for each storage mode:
+
+#### STATIC & FIXED
+
+Has no effect.
+
+#### VARIABLE
+
+The capacity will be reallocated so its size is equal to `new_capacity`.
+
+#### BUFFERED
+
+If `new_capacity` is less than or equal to the fixed capacity size, it has no effect.
+Otherwise, the capacity will be reallocated so its size is equal to `new_capacity`.
 
 ## shrink_to_fit
 ```C++
 void shrink_to_fit();
 ```
+This member function attempts to reduce the capacity to be equal to the size. If `capacity()` is
+already equal to `size()`, it has no effect. Otherwise, it has different behavior for each storage mode:
 
-If the storage mode is `STATIC` or `FIXED`, has no effect.
+#### STATIC
 
-If the storage mode is `VARIABLE`, and `capacity()` is greater than `size()`, the capacity will 
-shrink to be equal to `size()`, otherwise has no effect.
+Has no effect.
 
-If the storage mode is `BUFFERED`, calling `shrink_to_fit`:
-- when the capacity is buffered has no effect,
-- otherwise if `size()` is greater than the fixed capacity size, and `capacity()` is greater than `size()`, the capacity will 
-shrink to be equal to `size()`,
-- otherwise if `size()` is less than or equal to the fixed capacity size, the elements will be rebuffered
-and the dynamic capacity will be deallocated,
-- otherwise has no effect.
+#### FIXED
+
+If `empty() == true`, equivalent to `free()`, otherwise has no effect.
+
+#### VARIABLE
+
+If `empty() == true`, equivalent to `free()`, otherwise the capacity will be reallocated so its size is equal to `size()`.
+
+#### BUFFERED
+
+If the capacity is buffered, it has no effect.
+Otherwise, if `size()` is less than or equal to the fixed capacity size (the buffer size), the elements will be rebuffered
+and the dynamic capacity will be deallocated.
+Otherwise, the capacity will be reallocated so its size is equal to `size()`.
 
 ## swap
 ```C++
@@ -103,20 +159,22 @@ inline void resize(size_type new_size, ARGS&&... args)
 If `new_size` < `size()`, erases the last `size() - new_size` elements from the sequence, otherwise appends
 `new_size - size()` elements to the sequence that are emplace-constructed from `args`.
 
-## is_dynamic
+## clear
 ```C++
-bool is_dynamic();
+void clear();
 ```
-Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
-but it is available for all modes so that generic contexts can make use of it for the other modes as well. This
-member function is either `static constexpr` or `const`, depending on whether the answer can change at runtime.
+This member function erases (deletes) all of the elements in the container. 
+It does not cause reallocation, deallocation or buffering. `seq.clear()` is equivalent to:
+```C++
+seq.erase(seq.begin(), seq.end());
+```
 
-## max_size
+## free
 ```C++
-static constexpr size_t max_size();
+void free();
 ```
-Returns the largest theoretically supported size. The value is dependent on `size_type` only; it does not
-take physical limitations into account.
+This member function erases (deletes) all of the elements in the container and deallocates
+any dynamic storage, placing the container in a default-constructed state.
 
 ## Exceptions
 
@@ -126,16 +184,16 @@ throws `std::out_of_range`.
 
 # sequence_traits structure
 
-The adjustable characteristics are controlled by the `sequence_traits` structure. The default version gives
-behavior (more or less) identical to `std::vector` so that sequence can be used as a drop-in replacement for, or
-an implementation of, vector with no adjustments. The template is parameterized on the size type (see below).
-
 ```C++
 template<std::unsigned_integral SIZE = size_t>
 struct sequence_traits;
 ```
+The adjustable characteristics are controlled by the `sequence_traits` structure. The default version gives
+behavior (more or less) identical to `std::vector` so that sequence can be used as a drop-in replacement for, or
+an implementation of, vector with no adjustments. The template is parameterized on the size type (see below).
+
 ## size_type
-```
+```C++
 using size_type = SIZE;
 ```
 
@@ -221,7 +279,7 @@ growth behavior cannot be modeled with the `LINEAR` or `EXPONENTIAL` growth mode
 ```C++
 size_t capacity = 1;
 ```
-This member specifies the size of the fixed capacity or inital capacity. It has a different behavior for each storage mode:
+This member specifies the size of the fixed capacity or inital capacity. It has different behavior for each storage mode:
 
 | Storage | Meaning |
 | --- | --- |
