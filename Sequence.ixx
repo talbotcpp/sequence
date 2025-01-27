@@ -1506,9 +1506,10 @@ class sequence_storage<sequence_storage_lits::BUFFERED, T, TRAITS>
 	using value_type = T;
 	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
+
+	enum { STC, DYN };
 	using fixed_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;		// STC
 	using dynamic_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;	// DYN
-	enum { STC, DYN };
 
 public:
 
@@ -1522,9 +1523,9 @@ public:
 	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
-	inline size_t capacity() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity() : get<DYN>(m_storage).capacity(); }
+	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
 	inline bool is_dynamic() const { return m_storage.index() == DYN; }
-	inline size_t size() const { return m_storage.index() == STC ? get<STC>(m_storage).size() : get<DYN>(m_storage).size(); }
+	inline size_t size() const { return execute([](auto&& storage){ return storage.size(); }); }
 
 	inline void clear()
 	{
@@ -1533,34 +1534,10 @@ public:
 		else
 			m_storage.emplace<STC>();
 	}
-	inline void erase(value_type* begin, value_type* end)
-	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).erase(begin, end);
-		else
-			get<DYN>(m_storage).erase(begin, end);
-	}
-	inline void erase(value_type* element)
-	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).erase(element);
-		else
-			get<DYN>(m_storage).erase(element);
-	}
-	inline void pop_front()
-	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).pop_front();
-		else
-			get<DYN>(m_storage).pop_front();
-	}
-	inline void pop_back()
-	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).pop_back();
-		else
-			get<DYN>(m_storage).pop_back();
-	}
+	inline void erase(value_type* begin, value_type* end) { execute([=](auto&& storage){ storage.erase(begin, end); }); }
+	inline void erase(value_type* element) { execute([=](auto&& storage){ storage.erase(element); }); }
+	inline void pop_front() { execute([](auto&& storage){ storage.pop_front(); }); }
+	inline void pop_back() { execute([](auto&& storage){ storage.pop_back(); }); }
 
 	inline void swap(sequence_storage& other)
 	{
@@ -1595,42 +1572,30 @@ protected:
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
 	{
-		if (m_storage.index() == STC)
-			return get<STC>(m_storage).add_at(pos, std::forward<ARGS>(args)...);
-		else
-			return get<DYN>(m_storage).add_at(pos, std::forward<ARGS>(args)...);
+		return execute([=, &...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add_at(pos, std::forward<ARGS>(args)...); });
 	}
 	template<typename... ARGS>
 	inline void add_front(ARGS&&... args)
 	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).add_front(std::forward<ARGS>(args)...);
-		else
-			get<DYN>(m_storage).add_front(std::forward<ARGS>(args)...);
+		return execute([&...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add_front(std::forward<ARGS>(args)...); });
 	}
 	template<typename... ARGS>
 	inline void add_back(ARGS&&... args)
 	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).add_back(std::forward<ARGS>(args)...);
-		else
-			get<DYN>(m_storage).add_back(std::forward<ARGS>(args)...);
+		return execute([&...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add_back(std::forward<ARGS>(args)...); });
 	}
 	template<typename... ARGS>
 	inline void add(size_t new_size, ARGS&&... args)
 	{
-		if (m_storage.index() == STC)
-			get<STC>(m_storage).add(new_size, std::forward<ARGS>(args)...);
-		else
-			get<DYN>(m_storage).add(new_size, std::forward<ARGS>(args)...);
+		return execute([=, &...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add(new_size, std::forward<ARGS>(args)...); });
 	}
 
-	inline auto data_begin() { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
-	inline auto data_end() { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
-	inline auto data_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).data_begin() : get<DYN>(m_storage).data_begin(); }
-	inline auto data_end() const { return m_storage.index() == STC ? get<STC>(m_storage).data_end() : get<DYN>(m_storage).data_end(); }
-	inline auto capacity_begin() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity_begin() : get<DYN>(m_storage).capacity_begin(); }
-	inline auto capacity_end() const { return m_storage.index() == STC ? get<STC>(m_storage).capacity_end() : get<DYN>(m_storage).capacity_end(); }
+	inline auto data_begin()			{ return execute([](auto&& storage){ return storage.data_begin(); }); }
+	inline auto data_begin() const		{ return execute([](auto&& storage){ return storage.data_begin(); }); }
+	inline auto data_end()				{ return execute([](auto&& storage){ return storage.data_end(); }); }
+	inline auto data_end() const		{ return execute([](auto&& storage){ return storage.data_end(); }); }
+	inline auto capacity_begin() const	{ return execute([](auto&& storage){ return storage.capacity_begin(); }); }
+	inline auto capacity_end() const	{ return execute([](auto&& storage){ return storage.capacity_end(); }); }
 
 	inline void reallocate(size_t new_capacity)
 	{
@@ -1652,6 +1617,14 @@ protected:
 private:
 
 	std::variant<fixed_type, dynamic_type> m_storage;
+
+	template<typename FUNC>
+	inline auto execute(FUNC f)
+	{ return m_storage.index() == STC ? f(get<STC>(m_storage)) : f(get<DYN>(m_storage)); }
+	template<typename FUNC>
+	inline auto execute(FUNC f) const
+	{ return m_storage.index() == STC ? f(get<STC>(m_storage)) : f(get<DYN>(m_storage)); }
+
 };
 
 

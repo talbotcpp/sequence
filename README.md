@@ -19,8 +19,8 @@ class sequence;
 ```
 
 The `sequence` class is parameterized on the element type and an instance of a struct non-type
-template parameter of type `sequence_traits`. Most of the member functions have the same behavoir
-as their counterparts in `std::vector`. Those which differ are described below.
+template parameter of type `sequence_traits`. Most of the API has the same behavior
+as for `std::vector`. The ways in which it differs are detailed below.
 
 ## traits_type
 ```
@@ -98,6 +98,12 @@ static constexpr size_t max_size();
 ```
 Returns the largest theoretically supported size. The value is dependent on `size_type` only; it does not
 take physical limitations into account.
+
+## Exceptions
+
+Attempting to exceed a fixed capacity throws `std::bad_alloc`.
+Attempting to access an element with `at(index)` where `index` is greater than or equal to `size()`
+throws `std::out_of_range`.
 
 # sequence_traits structure
 

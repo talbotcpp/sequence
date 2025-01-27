@@ -166,7 +166,7 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 int main()
 {
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::FIXED,
+			.storage = sequence_storage_lits::BUFFERED,
 			.location = sequence_location_lits::FRONT,
 			.growth = sequence_growth_lits::LINEAR,
 			.capacity = 10,
@@ -285,24 +285,30 @@ int main()
 	sequence<int, traits> s5{1,2,3,4,5};
 	show_cap(s5);
 	show_elems(s5);
-	//s5.push_back(8);
+	s5.push_back(6);
 	//s5.push_back(9);
 	//s5.push_back(10);
 	//show_cap(s5);
 	//show_elems(s5);
 
-	try {
-		s5.resize(10);
-		s5.push_back(11);
-	}
-    catch(const std::bad_alloc& ex)
-    {
-		println("{}", ex.what());
-    }
+	//try {
+	//	s5.resize(10);
+	//	s5.push_back(11);
+	//}
+ //   catch(const std::bad_alloc& ex)
+ //   {
+	//	println("{}", ex.what());
+ //   }
+	show_cap(s5);
+	show_elems(s5);
+	s5.insert(s5.begin()+1, 42);
 	show_cap(s5);
 	show_elems(s5);
 
+	println("first = {}", *s5.data());
 
+	//const sequence<int, traits> s6{42, 86, 666};
+	//println("first = {}", *s6.data());
 		/*
 
 	sequence<int> s5{1,2,3,4,5,6,7};
