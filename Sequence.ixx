@@ -107,7 +107,7 @@ inline T* front_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
 template<typename T>
 inline void destroy_data(T* data_begin, T* data_end)
 {
-	for (auto&& element : span<T>(data_begin, data_end))
+	for (auto&& element : std::span<T>(data_begin, data_end))
 		element.~T();
 }
 

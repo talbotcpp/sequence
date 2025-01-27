@@ -1,7 +1,7 @@
 import std;
 import sequence;
 
-using namespace std;
+//using namespace std;
 
 // show - Debugging display for sequence traits.
 
@@ -160,11 +160,20 @@ void show_cap(const SEQ& seq)
 	std::println();
 }
 
-template<typename T, long long CAP, unsigned_integral SIZE = size_t> requires ( CAP > 0 )
+template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
 using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::STATIC, .capacity = CAP }>;
 
 int main()
 {
+	sequence<int, {.storage = sequence_storage_lits::STATIC, .capacity = 10}>
+		seq = {1,2,3,4,5,6};
+	
+	for (auto n : seq)
+		std::print("{}\t", n);
+	std::println();
+}
+
+#ifdef NONONONO
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::BUFFERED,
 			.location = sequence_location_lits::FRONT,
@@ -282,10 +291,11 @@ int main()
 	}
 	println("---------------------------------------------");
 
-	sequence<int, traits> s5{1,2,3,4,5};
-	show_cap(s5);
-	show_elems(s5);
-	s5.push_back(6);
+
+	//sequence<int, traits> s5{1,2,3,4,5};
+	//show_cap(s5);
+	//show_elems(s5);
+	//s5.push_back(6);
 	//s5.push_back(9);
 	//s5.push_back(10);
 	//show_cap(s5);
@@ -299,13 +309,13 @@ int main()
  //   {
 	//	println("{}", ex.what());
  //   }
-	show_cap(s5);
-	show_elems(s5);
-	s5.insert(s5.begin()+1, 42);
-	show_cap(s5);
-	show_elems(s5);
+	//show_cap(s5);
+	//show_elems(s5);
+	//s5.insert(s5.begin()+1, 42);
+	//show_cap(s5);
+	//show_elems(s5);
 
-	println("first = {}", *s5.data());
+	//println("first = {}", *s5.data());
 
 	//const sequence<int, traits> s6{42, 86, 666};
 	//println("first = {}", *s6.data());
@@ -690,3 +700,5 @@ struct thing<false> : base2 {
 	show(s4);
 	println("--------------------------------");
 */
+
+#endif

@@ -4,12 +4,31 @@ It may be thought of as a much more flexible and controllable `std::vector`.
 Features include control over where and how the capacity is stored and managed, how the elements are managed
 within the capacity, and control over the way the capacity grows if growth is required (and permitted).
 
+The library is provided as a single module file "Sequence.ixx" which exports a module named "sequence".
+
 ## Disclaimers
 
 This is a proof-of-concept implementation meant to illustrate the ideas embodied by sequence.
 It is incomplete in many ways, and is not production-ready code. It is missing a number of important
 features and lacks complete test tooling and a comprehensive test suite.
 This latter implies that it is pretty much untested.
+
+## Example
+
+```C++
+import std;
+import sequence;
+
+int main()
+{
+    sequence<int, {.storage = sequence_storage_lits::STATIC, .capacity = 10}>
+    seq = {1,2,3,4,5,6};
+    
+    for (auto n : seq)
+        std::print("{}\t", n);
+    std::println();
+}
+```
 
 # sequence class
 
