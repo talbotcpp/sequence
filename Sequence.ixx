@@ -48,6 +48,9 @@ struct sequence_traits
 		}
 	};
 
+	// 'is_variable' returns true iff the capacity can change size
+	// (i.e. storage is VARIABLE or BUFFERED).
+
 	constexpr bool is_variable() const { return storage >= sequence_storage_lits::VARIABLE; }
 
 	// 'front_gap' returns the location of the start of the data given a capacity and size.
@@ -1375,7 +1378,8 @@ protected:
 
 	inline void reallocate(size_t new_capacity)
 	{
-		throw std::bad_alloc();
+		if (new_capacity > capacity())
+			throw std::bad_alloc();
 	}
 
 private:
@@ -1459,7 +1463,10 @@ protected:
 
 	inline void reallocate(size_t new_capacity)
 	{
-		throw std::bad_alloc();
+		if (new_capacity > capacity())
+			throw std::bad_alloc();
+		if (!m_storage)
+			m_storage.reset(new storage_type);
 	}
 
 private:
@@ -1519,7 +1526,8 @@ protected:
 
 	inline void reallocate(size_t new_capacity)
 	{
-		m_storage.reallocate(new_capacity);
+		if (new_capacity > capacity())
+			m_storage.reallocate(new_capacity);
 	}
 
 private:
@@ -1782,17 +1790,15 @@ public:
 
 	inline void reserve(size_t new_capacity)
 	{
-		if constexpr (traits.is_variable())
-			if (new_capacity > capacity())
-				reallocate(new_capacity);
+		if (!traits.is_variable() || new_capacity > capacity())
+			reallocate(new_capacity);
 	}
 	inline void shrink_to_fit()
 	{
-		if constexpr (traits.is_variable())
-			if (auto current_size = size(); current_size == 0)
-				free();
-			else if (current_size < capacity())
-				reallocate(current_size);
+		if (auto current_size = size(); current_size == 0)
+			free();
+		else if (traits.is_variable() && current_size < capacity())
+			reallocate(current_size);
 	}
 	template<typename... ARGS>
 	inline void resize(size_type new_size, ARGS&&... args)

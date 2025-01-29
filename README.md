@@ -104,18 +104,24 @@ void reserve(size_t new_capacity);
 This member function attempts to increase the capacity to be equal to its argument. If `capacity()` is
 greater than or equal to `new_capacity`, it has no effect. Otherwise, it has different behavior for each storage mode:
 
-#### STATIC & FIXED
+#### STATIC
 
-Has no effect.
+Throws `std::bad_alloc` if `new_capacity > capacity()`. Otherwise has no effect.
+
+#### FIXED
+
+Throws `std::bad_alloc` if `new_capacity > capacity()`. Otherwise if
+the container in a default-constructed state, pre-allocates the fixed capacity size.
+Otherwise has no effect.
 
 #### VARIABLE
 
-The capacity will be reallocated so its size is equal to `new_capacity`.
+Reallocates the capacity so its size is equal to `new_capacity`.
 
 #### BUFFERED
 
-If `new_capacity` is less than or equal to the fixed capacity size, it has no effect.
-Otherwise, the capacity will be reallocated so its size is equal to `new_capacity`.
+If `new_capacity` is less than or equal to the fixed capacity size, has no effect.
+Otherwise reallocates the capacity so its size is equal to `new_capacity`.
 
 ## shrink_to_fit
 ```C++
@@ -134,14 +140,14 @@ If `empty() == true`, equivalent to `free()`, otherwise has no effect.
 
 #### VARIABLE
 
-If `empty() == true`, equivalent to `free()`, otherwise the capacity will be reallocated so its size is equal to `size()`.
+If `empty() == true`, equivalent to `free()`. Otherwise reallocates the capacity so its size is equal to `size()`.
 
 #### BUFFERED
 
-If the capacity is buffered, it has no effect.
-Otherwise, if `size()` is less than or equal to the fixed capacity size (the buffer size), the elements will be rebuffered
-and the dynamic capacity will be deallocated.
-Otherwise, the capacity will be reallocated so its size is equal to `size()`.
+If the capacity is buffered, has no effect.
+Otherwise, if `size()` is less than or equal to the fixed capacity size (the buffer size), rebuffers the elements
+and deallocates the dynamic capacity.
+Otherwise reallocates the capacity so its size is equal to `size()`.
 
 ## swap
 ```C++

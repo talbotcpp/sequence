@@ -178,7 +178,7 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 
 int main()
 {
-	sequence<int, {.storage = sequence_storage_lits::FIXED, .capacity = 8}>
+	sequence<int, {.storage = sequence_storage_lits::BUFFERED, .capacity = 5}>
 	s{1,2,3,4,5,6,7,8};
 
 	show_cap(s);
