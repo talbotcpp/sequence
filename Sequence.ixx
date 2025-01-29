@@ -332,6 +332,7 @@ public:
 	inline const value_type* data_begin() const { return capacity_begin(); }
 	inline const value_type* data_end() const { return capacity_begin() + m_size; }
 	inline size_t size() const { return m_size; }
+	inline bool empty() const { return m_size == 0; }
 
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
@@ -367,9 +368,11 @@ public:
 
 	inline void clear()
 	{
-		auto end = data_end();
-		m_size = 0;
-		destroy_data(data_begin(), end);
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			m_size = 0;
+		}
 	}
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
@@ -462,6 +465,7 @@ public:
 	inline const value_type* data_begin() const { return capacity_end() - m_size; }
 	inline const value_type* data_end() const { return capacity_end(); }
 	inline size_t size() const { return m_size; }
+	inline bool empty() const { return m_size == 0; }
 
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
@@ -497,9 +501,11 @@ public:
 
 	inline void clear()
 	{
-		auto begin = data_begin();
-		m_size = 0;
-		destroy_data(begin, data_end());
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			m_size = 0;
+		}
 	}
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
@@ -602,6 +608,7 @@ public:
 	inline const value_type* data_begin() const { return capacity_begin() + m_front_gap; }
 	inline const value_type* data_end() const { return capacity_end() - m_back_gap; }
 	inline size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
+	inline bool empty() const { return m_front_gap + m_back_gap == capacity(); }
 
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
@@ -666,11 +673,12 @@ public:
 
 	inline void clear()
 	{
-		auto begin = data_begin();
-		auto end = data_end();
-		m_front_gap = static_cast<size_type>(TRAITS.front_gap());
-		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
-		destroy_data(begin, end);
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			m_front_gap = static_cast<size_type>(TRAITS.front_gap());
+			m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
+		}
 	}
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
@@ -851,6 +859,7 @@ public:
 	inline const value_type* data_begin() const { return capacity_begin(); }
 	inline const value_type* data_end() const { return m_data_end; }
 	inline size_t size() const { return data_end() - data_begin(); }
+	inline bool empty() const { return m_data_end == capacity_begin(); }
 
 	inline void swap(dynamic_sequence_storage& rhs)
 	{
@@ -923,13 +932,16 @@ public:
 	}
 	inline void clear()
 	{
-		auto end = data_end();
-		m_data_end = capacity_begin();
-		destroy_data(data_begin(), end);
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			m_data_end = capacity_begin();
+		}
 	}
 	inline void free()
 	{
-		destroy_data(data_begin(), data_end());
+		if (!empty())
+			destroy_data(data_begin(), data_end());
 		inherited::free();
 		m_data_end = nullptr;
 	}
@@ -1000,6 +1012,7 @@ public:
 	inline const value_type* data_begin() const { return m_data_begin; }
 	inline const value_type* data_end() const { return capacity_end(); }
 	inline size_t size() const { return data_end() - data_begin(); }
+	inline bool empty() const { return m_data_begin == capacity_end(); }
 
 	inline void swap(dynamic_sequence_storage& rhs)
 	{
@@ -1073,13 +1086,16 @@ public:
 	}
 	inline void clear()
 	{
-		auto begin = data_begin();
-		m_data_begin = capacity_end();
-		destroy_data(begin, data_end());
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			m_data_begin = capacity_end();
+		}
 	}
 	inline void free()
 	{
-		destroy_data(data_begin(), data_end());
+		if (!empty())
+			destroy_data(data_begin(), data_end());
 		inherited::free();
 		m_data_begin = nullptr;
 	}
@@ -1155,6 +1171,7 @@ public:
 	inline const value_type* data_begin() const { return m_data_begin; }
 	inline const value_type* data_end() const { return m_data_end; }
 	inline size_t size() const { return m_data_end - m_data_begin; }
+	inline bool empty() const { return m_data_end == m_data_begin; }
 
 	inline void swap(dynamic_sequence_storage& rhs)
 	{
@@ -1273,15 +1290,17 @@ public:
 	}
 	inline void clear()
 	{
-		auto begin = data_begin();
-		auto end = data_end();
-		m_data_begin = capacity_begin() + TRAITS.front_gap(capacity(), 0);
-		m_data_end = m_data_begin;
-		destroy_data(begin, end);
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			m_data_begin = capacity_begin() + TRAITS.front_gap(capacity(), 0);
+			m_data_end = m_data_begin;
+		}
 	}
 	inline void free()
 	{
-		destroy_data(data_begin(), data_end());
+		if (!empty())
+			destroy_data(data_begin(), data_end());
 		inherited::free();
 		m_data_begin = nullptr;
 		m_data_end = nullptr;
@@ -1333,6 +1352,7 @@ public:
 	static constexpr size_t capacity() { return TRAITS.capacity; }
 	static constexpr bool is_dynamic() { return false; }
 	inline size_t size() const { return m_storage.size(); }
+	inline bool empty() const { return m_storage.empty(); }
 
 	inline void pop_front() { m_storage.pop_front(); }
 	inline void pop_back() { m_storage.pop_back(); }
@@ -1403,18 +1423,19 @@ public:
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(new storage_type(il)) {}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
-	static constexpr size_t capacity() { return TRAITS.capacity; }
+	inline size_t capacity() const { return m_storage ? TRAITS.capacity : 0; }
 	static constexpr bool is_dynamic() { return true; }
 	inline size_t size() const { return m_storage ? m_storage->size() : 0; }
+	inline bool empty() const { return m_storage ? m_storage->empty() : true; }
 
 	inline void pop_front() { m_storage->pop_front(); }
 	inline void pop_back() { m_storage->pop_back(); }
 	inline void erase(value_type* begin, value_type* end) { m_storage->erase(begin, end); }
 	inline void erase(value_type* element) { m_storage->erase(element); }
-	inline void clear() { m_storage->clear(); }
+	inline void clear() { if (m_storage) m_storage->clear(); }
 	inline void free()
 	{
-		m_storage->clear();
+		clear();
 		m_storage.reset();
 	}
 
@@ -1463,7 +1484,7 @@ protected:
 
 	inline void reallocate(size_t new_capacity)
 	{
-		if (new_capacity > capacity())
+		if (new_capacity > TRAITS.capacity)
 			throw std::bad_alloc();
 		if (!m_storage)
 			m_storage.reset(new storage_type);
@@ -1493,6 +1514,7 @@ public:
 	inline size_t capacity() const { return m_storage.capacity(); }
 	static constexpr bool is_dynamic() { return true; }
 	inline size_t size() const { return m_storage.size(); }
+	inline bool empty() const { return m_storage.empty(); }
 
 	inline void pop_front() { m_storage.pop_front(); }
 	inline void pop_back() { m_storage.pop_back(); }
@@ -1563,6 +1585,7 @@ public:
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
 	inline bool is_dynamic() const { return m_storage.index() == DYN; }
 	inline size_t size() const { return execute([](auto&& storage){ return storage.size(); }); }
+	inline bool empty() const { return execute([](auto&& storage){ return storage.empty(); }); }
 
 	inline void pop_front() { execute([](auto&& storage){ storage.pop_front(); }); }
 	inline void pop_back() { execute([](auto&& storage){ storage.pop_back(); }); }
@@ -1692,6 +1715,7 @@ public:
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 	using inherited::size;
+	using inherited::empty;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -1736,7 +1760,7 @@ public:
 
 	inline sequence& operator=(const sequence&) = default;
 	inline sequence& operator=(sequence&&) = default;
-	inline sequence& operator=(std::initializer_list<value_type> il) { assign(il); }
+	inline sequence& operator=(std::initializer_list<value_type> il) { assign(il); return *this; }
 
 	template<typename... ARGS>
 	inline void assign(size_type n, ARGS&&... args)
@@ -1747,8 +1771,16 @@ public:
 				reallocate(std::max<size_t>(n, traits.capacity));
 		add(n, std::forward<ARGS>(args)...);
 	}
+
+	// This is not sufficient. It is pessimized for BACK and MIDDLE sequences.
 	template<typename IT>
-	inline void assign(IT first, IT last) { inherited::assign(first, last); }
+	inline void assign(IT first, IT last)
+	{
+		clear();
+		for (; first != last; ++first)
+			emplace_back(*first);
+	}
+
 	inline void assign(std::initializer_list<value_type> il) { assign(il.begin(), il.end()); }
 
 	inline iterator					begin() { return data_begin(); }
@@ -1785,8 +1817,6 @@ public:
 	}
 	inline value_type& operator[](size_t index) & { return *(data_begin() + index); }
 	inline const value_type& operator[](size_t index) const && { return *(data_begin() + index); }
-
-	inline bool empty() const { return size() == 0; }
 
 	inline void reserve(size_t new_capacity)
 	{

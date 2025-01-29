@@ -75,28 +75,34 @@ size_t capacity() const;
 ```
 This member function returns the current size of the capacity. It has different behavior for each storage mode:
 
-#### STATIC & FIXED
+#### STATIC
 
 Returns the fixed capacity size as defined by the `capacity` member of the `sequence_traits` template parameter.
 
+#### FIXED
+
+Returns the fixed capacity size as defined by the `capacity` member of the `sequence_traits` template parameter,
+or zero if there is no capacity.
+
 #### VARIABLE
 
-Returns the current size of the dynamically allocated capacity.
+Returns the current size of the dynamically allocated capacity, or zero if there is no capacity.
 
 #### BUFFERED
 
 Returns the fixed capacity size if the capacity is buffered, otherwise
-it returns the current size of the dynamically allocated capacity. *(Note: this implies that it will never
-return a size smaller than the fixed capacity size.)*
+it returns the current size of the dynamically allocated capacity. *Note: this implies that it will never
+return a size smaller than the fixed capacity size.*
 
 ## is_dynamic
 ```C++
-bool is_dynamic();
+bool is_dynamic() const;
 ```
-Returns `true` if the capacity is dynamically allocated. This is most often interesting for `BUFFERED` storage,
-but it is available for all modes so that generic contexts can make use of it for the other modes as well. This
-member function is either `static constexpr` or `const`, depending on whether the answer can change at runtime.
-
+Returns `true` if the capacity is dynamically allocated. For `BUFFERED` storage sequences this can change at
+runtime and answers the question, "Is the capacity on the heap (vs. buffered in the sequence object)?"
+For all other storage modes, the value is determined at compile time and the function is `static constexpr`.
+*Note: this function cannot be used to determine if the sequence is in a default-constructed state (i.e. has no capacity).
+Use `capacity` to answer this question.*
 ## reserve
 ```C++
 void reserve(size_t new_capacity);
@@ -111,7 +117,7 @@ Throws `std::bad_alloc` if `new_capacity > capacity()`. Otherwise has no effect.
 #### FIXED
 
 Throws `std::bad_alloc` if `new_capacity > capacity()`. Otherwise if
-the container in a default-constructed state, pre-allocates the fixed capacity size.
+the sequence has no capacity, pre-allocates the fixed capacity size.
 Otherwise has no effect.
 
 #### VARIABLE
@@ -180,7 +186,9 @@ seq.erase(seq.begin(), seq.end());
 void free();
 ```
 This member function erases (deletes) all of the elements in the container and deallocates
-any dynamic storage, placing the container in a default-constructed state.
+any dynamic storage, placing the container in a default-constructed state. After a free,
+`FIXED` and `VARIABLE` storage sequences have no capacity. *Note: `STATIC` and `BUFFERED` storage sequences always have
+a capacity that is at least the fixed capacity size.*
 
 ## Exceptions
 
