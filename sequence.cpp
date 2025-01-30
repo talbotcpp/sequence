@@ -178,17 +178,26 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 
 int main()
 {
-	sequence<int, {.storage = sequence_storage_lits::FIXED, .capacity = 8}> s;
-
+	sequence<int, {.storage = sequence_storage_lits::FIXED, .location = sequence_location_lits::FRONT, .capacity = 12}> s,t;
 	show_cap(s);
 	show_elems(s);
 
 	std::println("---------------------- fill ----------------------");
-	s = {1,2,3,4,5,6,7,8};
-
+	s = {1,2,3,4,5,6,7,8,9,10};
 	show_cap(s);
 	show_elems(s);
 
+	std::println("---------------------- t ----------------------");
+
+	t = {1,2,3,4,5};
+	show_cap(t);
+	show_elems(t);
+	std::println();
+	t = std::move(s);
+	show_cap(t);
+	show_elems(t);
+
+/*
 	std::println("---------------------- clear ----------------------");
 	s.clear();
 
@@ -213,7 +222,6 @@ int main()
 	show_cap(s);
 	show_elems(s);
 
-/*
 	std::vector<int> v{1,2,3,4};
 
 	show_cap(v);

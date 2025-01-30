@@ -764,20 +764,21 @@ public:
 
 protected:
 
-	inline void reallocate(size_t new_cap, size_t offset, pointer data_begin, pointer data_end)
-	{
-		assert(new_cap);
+	//inline void reallocate(size_t new_cap, size_t offset, pointer data_begin, pointer data_end)
+	//{
+	//	assert(new_cap);
 
-		dynamic_capacity<T, TRAITS> new_capacity(new_cap);
-		std::uninitialized_move(data_begin, data_end, new_capacity.capacity_begin() + offset);
-		destroy_data(data_begin, data_end);
-		this->swap(new_capacity);
-	}
+	//	dynamic_capacity<T, TRAITS> new_capacity(new_cap);
+	//	std::uninitialized_move(data_begin, data_end, new_capacity.capacity_begin() + offset);
+	//	destroy_data(data_begin, data_end);
+	//	this->swap(new_capacity);
+	//}
 	inline void swap(dynamic_capacity& rhs)
 	{
 		std::swap(m_capacity_begin, rhs.m_capacity_begin);
 		std::swap(m_capacity_end, rhs.m_capacity_end);
 	}
+	inline void swap(dynamic_capacity&& rhs) { swap(rhs); }
 	inline void free()
 	{
 		m_capacity_begin.reset();
@@ -805,6 +806,7 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 	using value_type = T;
 	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
+	//using inherited::swap;
 
 public:
 
@@ -842,7 +844,7 @@ public:
 	{
 		clear();
 		if (rhs.size() > capacity())
-			inherited::reallocate(rhs.size(), 0, nullptr, nullptr);
+			inherited::swap(inherited(rhs.size()));
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_data_end = capacity_begin() + rhs.size();
 		return *this;
@@ -872,7 +874,12 @@ public:
 		assert(size() <= new_cap);
 
 		auto current_size = size();
-		inherited::reallocate(new_cap, 0, data_begin(), data_end());
+
+		inherited new_capacity(new_cap);
+		std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin());
+		destroy_data(data_begin(), data_end());
+		inherited::swap(new_capacity);
+
 		m_data_end = capacity_begin() + current_size;
 	}
 
@@ -993,8 +1000,8 @@ public:
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
 	{
 		clear();
-		if (rhs.capacity() > capacity())
-			inherited::reallocate(rhs.capacity(), 0, nullptr, nullptr);
+		if (rhs.size() > capacity())
+			inherited::swap(inherited(rhs.size()));
 		auto begin = capacity_end() - rhs.size();
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), begin);
 		m_data_begin = begin;
@@ -1025,7 +1032,12 @@ public:
 		assert(size() <= new_cap);
 
 		auto current_size = size();
-		inherited::reallocate(new_cap, TRAITS.front_gap(new_cap, current_size), data_begin(), data_end());
+
+		inherited new_capacity(new_cap);
+		std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_end() - current_size);
+		destroy_data(data_begin(), data_end());
+		inherited::swap(new_capacity);
+
 		m_data_begin = capacity_end() - current_size;
 	}
 
@@ -1151,8 +1163,8 @@ public:
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
 	{
 		clear();
-		if (rhs.capacity() > capacity())
-			inherited::reallocate(rhs.capacity(), 0, nullptr, nullptr);
+		if (rhs.size() > capacity())
+			inherited::swap(inherited(rhs.size()));
 		auto begin = capacity_begin() + TRAITS.front_gap(capacity(), rhs.size());
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), begin);
 		m_data_begin = begin;
@@ -1186,7 +1198,12 @@ public:
 
 		auto current_size = size();
 		auto offset = TRAITS.front_gap(new_cap, current_size);
-		inherited::reallocate(new_cap, offset, data_begin(), data_end());
+
+		inherited new_capacity(new_cap);
+		std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin() + offset);
+		destroy_data(data_begin(), data_end());
+		inherited::swap(new_capacity);
+
 		m_data_begin = capacity_begin() + offset;
 		m_data_end = m_data_begin + current_size;
 	}
@@ -1422,6 +1439,9 @@ public:
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(new storage_type(il)) {}
 
+	//inline sequence_storage& operator=(const sequence_storage&) = default;
+	//inline sequence_storage& operator=(sequence_storage&&) = default;
+
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return m_storage ? TRAITS.capacity : 0; }
 	static constexpr bool is_dynamic() { return true; }
@@ -1507,8 +1527,6 @@ public:
 
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
-
-///	inline sequence& operator=(std::initializer_list<value_type> il) { return m_storage(il); }
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_t>::max(); }
 	inline size_t capacity() const { return m_storage.capacity(); }
