@@ -1439,8 +1439,35 @@ public:
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(new storage_type(il)) {}
 
-	//inline sequence_storage& operator=(const sequence_storage&) = default;
-	//inline sequence_storage& operator=(sequence_storage&&) = default;
+	inline sequence_storage(const sequence_storage& rhs)
+	{
+		if (rhs.m_storage)
+		{
+			m_storage.reset(new storage_type);
+			*m_storage = *rhs.m_storage;
+		}
+	}
+	inline sequence_storage(sequence_storage&& rhs) :
+		m_storage(std::move(rhs.m_storage))
+	{
+	}
+
+	inline sequence_storage& operator=(const sequence_storage& rhs)
+	{
+		if (rhs.m_storage)
+		{
+			if (!m_storage)
+				m_storage.reset(new storage_type);
+			*m_storage = *rhs.m_storage;
+		}
+		else free();
+		return *this;
+	}
+	inline sequence_storage& operator=(sequence_storage&& rhs)
+	{
+		m_storage = std::move(rhs.m_storage);
+		return *this;
+	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return m_storage ? TRAITS.capacity : 0; }

@@ -1,1 +1,1 @@
-Make reserve work for FIXED.
+Figure out how to use initializer list correctly. Should it be taken by reference? Can you gut it?
