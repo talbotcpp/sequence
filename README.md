@@ -69,6 +69,51 @@ static constexpr size_t max_size();
 Returns the largest theoretically supported size. The value is dependent on `size_type` only; it does not
 take physical limitations into account.
 
+## Copy Assignment
+```C++
+sequence& operator=(const sequence&);
+```
+Copy assigment is linear in the old + new elements, and the resulting sequence
+will always retain a dynamic allocation if there was one. *Note: this includes the case where the RHS
+has no capacity (is in a freed state).*
+(This is the same behavior as `std::vector`.)
+
+## Move Assignment
+```C++
+sequence& operator=(sequence&&);
+```
+After move assigment the resulting sequence
+will always retain a dynamic allocation if there was one. *Note: this includes the case where the RHS
+has no capacity (is in a freed state).*
+(This is the same behavior as `std::vector`.)
+
+For `STATIC` storage mode, move assignment is linear in the old + new elements.
+
+For `FIXED` and `VARIABLE` storage modes,
+move assignment is linear in the old elements (the move of the new elements will be constant).
+(This is the same behavior as `std::vector`.)
+
+For `BUFFERED` storage, the complexity will depend on whether the elements are buffered or dynamically allocated:
+
+#### LHS & RHS Elements Buffered
+
+Linear in the old + new elements, and the resulting
+sequence will be buffered.
+
+#### LHS Elements Buffered, RHS Elements Dynamically Allocated
+
+Move assignment will be linear in the old elements (the move of the new elements will be constant),
+and the resulting sequence will be dynamic.
+
+#### LHS Elements Dynamically Allocated, RHS Elements Buffered
+
+Linear in the old + new elements, and the resulting
+sequence will be dynamic.
+
+#### LHS & RHS Elements Dynamically Allocated
+
+Move assignment will be linear in the old elements (the move of the new elements will be constant).
+
 ## capacity
 ```C++
 size_t capacity() const;

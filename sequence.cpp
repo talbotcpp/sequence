@@ -1,7 +1,10 @@
-import std;
 import sequence;
 
+import std;
 //using namespace std;
+//import <print>;
+//#include <print>
+//#include <vector>
 
 // show - Debugging display for sequence traits.
 
@@ -178,7 +181,9 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 
 int main()
 {
-	using styp = sequence<int, {.storage = sequence_storage_lits::FIXED, .location = sequence_location_lits::FRONT, .capacity = 8}>;
+	using styp = sequence<int, {.storage = sequence_storage_lits::VARIABLE,
+								.location = sequence_location_lits::FRONT,
+								.capacity = 8	}>;
 	//styp s;
 	//show_cap(s);
 	//show_elems(s);
@@ -190,8 +195,8 @@ int main()
 
 	std::println("---------------------- t ----------------------");
 
-	styp t = s;
-//	styp t = std::move(s);
+//	styp t = s;
+	styp t = std::move(s);
 
 	show_cap(t);
 	show_elems(t);
@@ -229,26 +234,25 @@ int main()
 	show_cap(s);
 	show_elems(s);
 
-	std::vector<int> v{1,2,3,4};
 
+	std::println("---------------------- v ----------------------");
+	std::vector<life> v{1,2,3,4};
 	show_cap(v);
 	show_elems(v);
 
-	std::println("---------------------- clear ----------------------");
-	v.clear();
+	std::println("---------------------- w ----------------------");
+	std::vector<life> w{5,6,7};
+	show_cap(w);
+	show_elems(w);
 
-	show_cap(v);
-	show_elems(v);
+	std::println("--------------------- v=w ---------------------");
+	v = std::move(w);
+//	styp t = std::move(s);
 
-	std::println("--------------------- reserve ----------------------");
-	v.reserve(6);
+	show_cap(w);
+	show_elems(w);
 
-	show_cap(v);
-	show_elems(v);
-
-	std::println("------------------ shrink_to_fit -------------------");
-	v.shrink_to_fit();
-
+	std::println("---------------------- v ----------------------");
 	show_cap(v);
 	show_elems(v);
 */

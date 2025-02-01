@@ -7,8 +7,18 @@
 
 export module sequence;
 
-import std;
+//import std;
 import <assert.h>;
+import <concepts>;
+import <utility>;
+import <span>;
+import <memory>;
+import <variant>;
+import <stdexcept>;
+import <format>;
+
+// ==============================================================================================================
+// Traits - Control structure template parameter.
 
 // sequence_lits - Literals used to specify the values of various sequence traits.
 // These are hoisted out of the class template to avoid template dependencies.
@@ -208,23 +218,6 @@ inline std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T*
 }
 
 // ==============================================================================================================
-// Concepts - Not publically available.
-
-namespace {
-
-template<typename T>
-concept sequence_storage_implementation = requires(T& t)
-{
-    t.capacity_begin();
-    t.capacity_end();
-    t.data_begin();
-    t.data_end();
-    t.size();
-};
-
-}
-
-// ==============================================================================================================
 // Fixed capacity storage classes.
 
 // fixed_capacity - This is the base class for fixed_sequence_storage instantiations. It handles the capacity.
@@ -283,6 +276,14 @@ public:
 	using inherited::capacity_end;
 
 	inline fixed_sequence_storage() = default;
+	inline fixed_sequence_storage(std::initializer_list<value_type> il)
+	{
+		assert(il.size() <= capacity());
+
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_size = static_cast<size_type>(il.size());
+	}
+
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
@@ -292,24 +293,6 @@ public:
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
-	}
-	inline fixed_sequence_storage(std::initializer_list<value_type> il)
-	{
-		assert(il.size() <= capacity());
-
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
-		m_size = static_cast<size_type>(il.size());
-	}
-	template<sequence_storage_implementation SEQ>
-	inline fixed_sequence_storage(SEQ&& rhs)
-	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_size = static_cast<size_type>(rhs.size());
-	}
-
-	inline ~fixed_sequence_storage()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
@@ -325,6 +308,11 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
 		return *this;
+	}
+
+	inline ~fixed_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
 	}
 
 	inline value_type* data_begin() { return capacity_begin(); }
@@ -417,6 +405,14 @@ public:
 	using inherited::capacity_end;
 
 	inline fixed_sequence_storage() = default;
+	inline fixed_sequence_storage(std::initializer_list<value_type> il)
+	{
+		assert(il.size() <= capacity());
+
+		std::uninitialized_copy(il.begin(), il.end(), capacity_end() - il.size());
+		m_size = static_cast<size_type>(il.size());
+	}
+
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
@@ -426,23 +422,6 @@ public:
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
 		m_size = rhs.m_size;
-	}
-	inline fixed_sequence_storage(std::initializer_list<value_type> il)
-	{
-		assert(il.size() <= capacity());
-
-		std::uninitialized_copy(il.begin(), il.end(), capacity_end() - il.size());
-		m_size = static_cast<size_type>(il.size());
-	}
-	template<sequence_storage_implementation SEQ>
-	inline fixed_sequence_storage(SEQ&& rhs)
-	{
-		m_size = static_cast<size_type>(rhs.size());
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - m_size);
-	}
-	inline ~fixed_sequence_storage()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
@@ -458,6 +437,11 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_end() - rhs.m_size);
 		m_size = rhs.m_size;
 		return *this;
+	}
+
+	inline ~fixed_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
 	}
 
 	inline value_type* data_begin() { return capacity_end() - m_size; }
@@ -551,6 +535,16 @@ public:
 	using inherited::capacity_end;
 
 	inline fixed_sequence_storage() = default;
+	inline fixed_sequence_storage(std::initializer_list<value_type> il)
+	{
+		assert(il.size() <= capacity());
+
+		auto offset = TRAITS.front_gap(il.size());
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin() + offset);
+		m_front_gap = static_cast<size_type>(offset);
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + il.size()));
+	}
+
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
@@ -562,28 +556,6 @@ public:
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + rhs.m_front_gap);
 		m_front_gap = rhs.m_front_gap;
 		m_back_gap = rhs.m_back_gap;
-	}
-	inline fixed_sequence_storage(std::initializer_list<value_type> il)
-	{
-		assert(il.size() <= capacity());
-
-		auto offset = TRAITS.front_gap(il.size());
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin() + offset);
-		m_front_gap = static_cast<size_type>(offset);
-		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + il.size()));
-	}
-	template<sequence_storage_implementation SEQ>
-	inline fixed_sequence_storage(SEQ&& rhs)
-	{
-		auto size = rhs.size();
-		auto offset = TRAITS.front_gap(size);
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin() + offset);
-		m_front_gap = static_cast<size_type>(offset);
-		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + size));
-	}
-	inline ~fixed_sequence_storage()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
@@ -601,6 +573,11 @@ public:
 		m_front_gap = rhs.m_front_gap;
 		m_back_gap = rhs.m_back_gap;
 		return *this;
+	}
+
+	inline ~fixed_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
 	}
 
 	inline value_type* data_begin() { return capacity_begin() + m_front_gap; }
@@ -690,7 +667,7 @@ public:
 			front_erase(data_begin(), data_end(), erase_begin, erase_end,
 						[this](size_t count){ m_front_gap += static_cast<size_type>(count); });
 	}
-	void erase(value_type* element)
+	inline void erase(value_type* element)
 	{
 		// If we are erasing nearer the back or dead center, erase at the back. Otherwise erase at the front.
 		if (element - data_begin() >= data_end() - element)
@@ -764,15 +741,6 @@ public:
 
 protected:
 
-	//inline void reallocate(size_t new_cap, size_t offset, pointer data_begin, pointer data_end)
-	//{
-	//	assert(new_cap);
-
-	//	dynamic_capacity<T, TRAITS> new_capacity(new_cap);
-	//	std::uninitialized_move(data_begin, data_end, new_capacity.capacity_begin() + offset);
-	//	destroy_data(data_begin, data_end);
-	//	this->swap(new_capacity);
-	//}
 	inline void swap(dynamic_capacity& rhs)
 	{
 		std::swap(m_capacity_begin, rhs.m_capacity_begin);
@@ -806,7 +774,6 @@ class dynamic_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : publi
 	using value_type = T;
 	using iterator = value_type*;
 	using inherited = dynamic_capacity<T, TRAITS>;
-	//using inherited::swap;
 
 public:
 
@@ -815,6 +782,12 @@ public:
 	using inherited::capacity_end;
 
 	inline dynamic_sequence_storage() = default;
+	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_data_end = capacity_end();
+	}
+
 	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
@@ -823,21 +796,6 @@ public:
 	inline dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
-	}
-	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
-	{
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
-		m_data_end = capacity_end();
-	}
-	template<sequence_storage_implementation SEQ>
-	inline dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
-	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_end = capacity_begin() + rhs.size();
-	}
-	inline ~dynamic_sequence_storage()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
@@ -854,6 +812,11 @@ public:
 		clear();
 		swap(rhs);
 		return *this;
+	}
+
+	inline ~dynamic_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
 	}
 
 	inline value_type* data_begin() { return capacity_begin(); }
@@ -972,6 +935,12 @@ public:
 	using inherited::capacity_end;
 
 	inline dynamic_sequence_storage() = default;
+	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_data_begin = capacity_begin();
+	}
+
 	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
 		m_data_begin = capacity_begin();
@@ -980,21 +949,6 @@ public:
 	inline dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
-	}
-	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
-	{
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
-		m_data_begin = capacity_begin();
-	}
-	template<sequence_storage_implementation SEQ>
-	inline dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
-	{
-		m_data_begin = capacity_end() - rhs.size();
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), m_data_begin);
-	}
-	inline ~dynamic_sequence_storage()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
@@ -1012,6 +966,11 @@ public:
 		clear();
 		swap(rhs);
 		return *this;
+	}
+
+	inline ~dynamic_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
 	}
 
 	inline value_type* data_begin() { return m_data_begin; }
@@ -1131,6 +1090,13 @@ public:
 	using inherited::capacity_end;
 
 	inline dynamic_sequence_storage() = default;
+	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
+		m_data_begin = capacity_begin();
+		m_data_end = capacity_end();
+	}
+
 	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
 		m_data_begin = capacity_begin();
@@ -1140,24 +1106,6 @@ public:
 	inline dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
-	}
-	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
-	{
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
-		m_data_begin = capacity_begin();
-		m_data_end = capacity_end();
-	}
-	template<sequence_storage_implementation SEQ>
-	inline dynamic_sequence_storage(size_t cap, SEQ&& rhs) :  inherited(cap)
-	{
-		auto size = rhs.size();
-		m_data_begin = capacity_begin() + TRAITS.front_gap(capacity(), size);
-		m_data_end = m_data_begin + size;
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), m_data_begin);
-	}
-	inline ~dynamic_sequence_storage()
-	{
-		destroy_data(data_begin(), data_end());
 	}
 
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
@@ -1176,6 +1124,11 @@ public:
 		clear();
 		swap(rhs);
 		return *this;
+	}
+
+	inline ~dynamic_sequence_storage()
+	{
+		destroy_data(data_begin(), data_end());
 	}
 
 	inline value_type* data_begin() { return m_data_begin; }
@@ -1460,7 +1413,7 @@ public:
 				m_storage.reset(new storage_type);
 			*m_storage = *rhs.m_storage;
 		}
-		else free();
+		else clear();
 		return *this;
 	}
 	inline sequence_storage& operator=(sequence_storage&& rhs)
