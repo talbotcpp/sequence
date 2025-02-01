@@ -181,40 +181,45 @@ using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_sto
 
 int main()
 {
-	using styp = sequence<int, {.storage = sequence_storage_lits::VARIABLE,
+	using styp = sequence<int, {.storage = sequence_storage_lits::STATIC,
 								.location = sequence_location_lits::FRONT,
 								.capacity = 8	}>;
 	//styp s;
 	//show_cap(s);
 	//show_elems(s);
+/*
 
-	std::println("---------------------- s ----------------------");
+	std::println("{:-^50}","s");
+//	styp s = {1,2,3,4,5};
 	styp s = {1,2,3,4,5,6,7,8};
+//	s.erase(s.begin()+3, s.end());
 	show_cap(s);
 	show_elems(s);
 
-	std::println("---------------------- t ----------------------");
-
-//	styp t = s;
-	styp t = std::move(s);
+	std::println("{:-^50}","t");
+//	styp t = {1,2,3,4,5,6,7,8};
+	styp t = {11,22,33,44,55};
 
 	show_cap(t);
 	show_elems(t);
-//	std::println("--------------------- t=s ---------------------");
+	std::println("{:-^50}","s=t");
+	s = t;
 //	t = s;
 //	t = std::move(s);
-//	show_cap(t);
-//	show_elems(t);
+	show_cap(t);
+	show_elems(t);
 
-	std::println("---------------------- s ----------------------");
+	std::println("{:-^50}","s");
 	show_cap(s);
 	show_elems(s);
-/*
-	std::println("---------------------- clear ----------------------");
-	s.clear();
 
-	show_cap(s);
-	show_elems(s);
+	//std::println("---------------------- stf ----------------------");
+	//s.shrink_to_fit();
+	//std::println("---------------------- reserve ----------------------");
+	//s.reserve(8);
+
+	//show_cap(s);
+	//show_elems(s);
 
 	std::println("---------------------- free -----------------------");
 	s.free();
@@ -234,28 +239,33 @@ int main()
 	show_cap(s);
 	show_elems(s);
 
-
-	std::println("---------------------- v ----------------------");
-	std::vector<life> v{1,2,3,4};
-	show_cap(v);
-	show_elems(v);
-
-	std::println("---------------------- w ----------------------");
-	std::vector<life> w{5,6,7};
-	show_cap(w);
-	show_elems(w);
-
-	std::println("--------------------- v=w ---------------------");
-	v = std::move(w);
-//	styp t = std::move(s);
-
-	show_cap(w);
-	show_elems(w);
-
-	std::println("---------------------- v ----------------------");
-	show_cap(v);
-	show_elems(v);
 */
+
+	using typ = sequence<life, {.storage = sequence_storage_lits::VARIABLE,
+								.location = sequence_location_lits::FRONT,
+								.capacity = 1	}>;
+	//using typ = std::vector<life>;
+
+	std::println("{:-^50}","v");
+	typ v{1,2,3,4,5};
+	show_cap(v);
+	show_elems(v);
+
+	std::println("{:-^50}","w");
+	typ w{5,6,7};
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","v=w");
+	v = w;
+//	v = std::move(w);
+
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","v");
+	show_cap(v);
+	show_elems(v);
 }
 
 #ifdef NONONONO

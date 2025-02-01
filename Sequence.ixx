@@ -250,8 +250,15 @@ private:
 };
 
 
+// Forward declaration so that the sequence storage type can refer to each other.
+
+template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
+class dynamic_sequence_storage;
+
+
+// ==============================================================================================================
 // fixed_sequence_storage - This class provides the 3 different element management strategies
-// for fixed capacity sequences (local or dynamically allocated).
+// for fixed capacity sequences (static or dynamically allocated).
 
 template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
 class fixed_sequence_storage
@@ -283,6 +290,7 @@ public:
 		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
 		m_size = static_cast<size_type>(il.size());
 	}
+	fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&&);
 
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
@@ -787,6 +795,11 @@ public:
 		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
 		m_data_end = capacity_end();
 	}
+	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<TRAITS.location, T, TRAITS>&& rhs) :  inherited(cap)
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		m_data_end = capacity_begin() + rhs.size();
+	}
 
 	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
 	{
@@ -809,7 +822,6 @@ public:
 	}
 	inline dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
 	{
-		clear();
 		swap(rhs);
 		return *this;
 	}
@@ -1294,6 +1306,17 @@ private:
 
 
 // ==============================================================================================================
+// fixed_sequence_storage - This class provides the 3 different element management strategies
+
+template<typename T, sequence_traits TRAITS>
+inline fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&& rhs)
+{
+	std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+	m_size = rhs.size();
+}
+
+
+// ==============================================================================================================
 // sequence_storage - Base class for sequence which provides the 4 different memory allocation strategies.
 
 template<sequence_storage_lits STO, typename T, sequence_traits TRAITS>
@@ -1579,6 +1602,37 @@ public:
 			m_storage.emplace<DYN>(il);
 	}
 
+	//inline sequence_storage(const sequence_storage& rhs)
+	//{
+	//	if (rhs.m_storage)
+	//	{
+	//		m_storage.reset(new storage_type);
+	//		*m_storage = *rhs.m_storage;
+	//	}
+	//}
+	//inline sequence_storage(sequence_storage&& rhs) :
+	//	m_storage(std::move(rhs.m_storage))
+	//{
+	//}
+
+	//inline sequence_storage& operator=(const sequence_storage& rhs)
+	//{
+	//	if (rhs.m_storage.index() == STC)
+	//	if (rhs.m_storage)
+	//	{
+	//		if (!m_storage)
+	//			m_storage.reset(new storage_type);
+	//		*m_storage = *rhs.m_storage;
+	//	}
+	//	else clear();
+	//	return *this;
+	//}
+	//inline sequence_storage& operator=(sequence_storage&& rhs)
+	//{
+	//	m_storage = std::move(rhs.m_storage);
+	//	return *this;
+	//}
+
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
 	inline bool is_dynamic() const { return m_storage.index() == DYN; }
@@ -1662,7 +1716,7 @@ protected:
 		if (new_capacity > TRAITS.capacity)
 		{
 			if (m_storage.index() == STC)		// We're moving out of the buffer: switch to dynamic storage.
-				m_storage = dynamic_type(new_capacity, get<STC>(m_storage));
+				m_storage = dynamic_type(new_capacity, std::move(get<STC>(m_storage)));
 			else								// We're already out of the buffer: adjust the dynamic capacity.		
 				get<DYN>(m_storage).reallocate(new_capacity);
 		}

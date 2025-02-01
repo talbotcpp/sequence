@@ -74,7 +74,8 @@ take physical limitations into account.
 sequence& operator=(const sequence&);
 ```
 Copy assigment is linear in the old + new elements, and the resulting sequence
-will always retain a dynamic allocation if there was one. *Note: this includes the case where the RHS
+will have a dynamic allocation if the LHS had one to begin with.
+*Note: this includes the case where the RHS
 has no capacity (is in a freed state).*
 (This is the same behavior as `std::vector`.)
 
