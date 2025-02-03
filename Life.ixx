@@ -6,6 +6,9 @@ export module life;
 
 import <print>;
 
+
+#define NOEX noexcept
+
 export struct life
 {
 	life() : birth(++count) { std::println("  life() {}/{}", i, birth); }
@@ -14,7 +17,7 @@ export struct life
 	{
 		std::println("  life(const life&) {}/{}", i, birth);
 	}
-	life(life&& l) /*noexcept*/ : i(l.i), birth(++count)
+	life(life&& l) NOEX : i(l.i), birth(++count)
 	{
 		std::println("  life(life&&) {}/{}", i, birth);
 		l.i = 666;

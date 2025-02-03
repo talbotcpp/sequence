@@ -215,6 +215,18 @@ inline std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T*
 	return {fg, bg};
 }
 
+// This provides the needed additional uninitialized memory function to handle moving of types.
+
+template<typename InpIt, typename FwdIt>
+auto uninitialized_move_if_noexcept(InpIt src, InpIt end, FwdIt dst)
+{
+	using value_type = std::iterator_traits<InpIt>::value_type;
+	if constexpr (!std::is_nothrow_move_constructible_v<value_type> && std::is_copy_constructible_v<value_type>)
+		return std::uninitialized_copy(src, end, dst);
+	else
+		return std::uninitialized_move(src, end, dst);
+}
+
 }
 
 // ==============================================================================================================
@@ -299,22 +311,36 @@ public:
 	}
 	inline fixed_sequence_storage(fixed_sequence_storage&& rhs)
 	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		uninitialized_move_if_noexcept(rhs.data_begin(), rhs.data_end(), capacity_begin());
 		m_size = rhs.m_size;
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
 	{
-		clear();
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		auto dst = data_begin();
+		auto src = rhs.data_begin();
+
+		while (src != rhs.data_end() && dst != data_end())
+			*dst++ = *src++;
+		destroy_data(dst, data_end());
+
+		std::uninitialized_copy(src, rhs.data_end(), dst);
 		m_size = rhs.m_size;
+
 		return *this;
 	}
 	inline fixed_sequence_storage& operator=(fixed_sequence_storage&& rhs)
 	{
-		clear();
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+		auto dst = data_begin();
+		auto src = rhs.data_begin();
+
+		while (src != rhs.data_end() && dst != data_end())
+			*dst++ = std::move_if_noexcept(*src++);
+		destroy_data(dst, data_end());
+
+		uninitialized_move_if_noexcept(src, rhs.data_end(), dst);
 		m_size = rhs.m_size;
+
 		return *this;
 	}
 
@@ -796,7 +822,7 @@ public:
 	{}
 	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<TRAITS.location, T, TRAITS>&& rhs) :
 		inherited(cap),
-		m_data_end(std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin()))
+		m_data_end(uninitialized_move_if_noexcept(rhs.data_begin(), rhs.data_end(), capacity_begin()))
 	{}
 
 	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) :
@@ -853,22 +879,17 @@ public:
 		std::swap(m_data_end, rhs.m_data_end);
 	}
 
-	inline void reallocate(size_t new_cap)
+	inline void reallocate(size_t new_cap_size)
 	{
-		assert(size() <= new_cap);
+		assert(size() <= new_cap_size);
 
-		auto current_size = size();
+		auto old_begin = data_begin();
+		auto old_end = data_end();
 
-		inherited new_capacity(new_cap);
-		if constexpr (!std::is_nothrow_move_constructible_v<value_type> && std::is_copy_constructible_v<value_type>)
-			std::uninitialized_copy(data_begin(), data_end(), new_capacity.capacity_begin());
-		else
-			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin());
-
-		destroy_data(data_begin(), data_end());
+		inherited new_capacity(new_cap_size);
+		m_data_end = uninitialized_move_if_noexcept(old_begin, old_end, new_capacity.capacity_begin());
+		destroy_data(old_begin, old_end);
 		inherited::swap(new_capacity);
-
-		m_data_end = capacity_begin() + current_size;
 	}
 
 	template<typename... ARGS>
@@ -1319,12 +1340,12 @@ private:
 
 
 // ==============================================================================================================
-// fixed_sequence_storage - This class provides the 3 different element management strategies
+// fixed_sequence_storage - These member functions have to be here so they can see dynamic_sequence_storage.
 
 template<typename T, sequence_traits TRAITS>
 inline fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&& rhs)
 {
-	std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
+	uninitialized_move_if_noexcept(rhs.data_begin(), rhs.data_end(), capacity_begin());
 	m_size = rhs.size();
 }
 
