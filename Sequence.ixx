@@ -790,22 +790,19 @@ public:
 	using inherited::capacity_end;
 
 	inline dynamic_sequence_storage() = default;
-	inline dynamic_sequence_storage(std::initializer_list<value_type> il) : inherited(il.size())
-	{
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
-		m_data_end = capacity_end();
-	}
-	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<TRAITS.location, T, TRAITS>&& rhs) :  inherited(cap)
-	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_end = capacity_begin() + rhs.size();
-	}
+	inline dynamic_sequence_storage(std::initializer_list<value_type> il) :
+		inherited(il.size()),
+		m_data_end(std::uninitialized_copy(il.begin(), il.end(), capacity_begin()))
+	{}
+	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<TRAITS.location, T, TRAITS>&& rhs) :
+		inherited(cap),
+		m_data_end(std::uninitialized_move(rhs.data_begin(), rhs.data_end(), capacity_begin()))
+	{}
 
-	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) : inherited(rhs.size())
-	{
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_end = capacity_end();
-	}
+	inline dynamic_sequence_storage(const dynamic_sequence_storage& rhs) :
+		inherited(rhs.size()),
+		m_data_end(std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin()))
+	{}
 	inline dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
@@ -813,11 +810,23 @@ public:
 
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
 	{
-		clear();
+		auto dst = data_begin();
+		auto src = rhs.data_begin();
+
 		if (rhs.size() > capacity())
+		{
+			destroy_data(dst, data_end());
 			inherited::swap(inherited(rhs.size()));
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_data_end = capacity_begin() + rhs.size();
+			dst = data_begin();
+		}
+		else
+		{
+			while (src != rhs.data_end() && dst != data_end())
+				*dst++ = *src++;
+			destroy_data(dst, data_end());
+		}
+		m_data_end = std::uninitialized_copy(src, rhs.data_end(), dst);
+
 		return *this;
 	}
 	inline dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
@@ -851,7 +860,11 @@ public:
 		auto current_size = size();
 
 		inherited new_capacity(new_cap);
-		std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin());
+		if constexpr (!std::is_nothrow_move_constructible_v<value_type> && std::is_copy_constructible_v<value_type>)
+			std::uninitialized_copy(data_begin(), data_end(), new_capacity.capacity_begin());
+		else
+			std::uninitialized_move(data_begin(), data_end(), new_capacity.capacity_begin());
+
 		destroy_data(data_begin(), data_end());
 		inherited::swap(new_capacity);
 
@@ -1425,8 +1438,7 @@ public:
 	}
 	inline sequence_storage(sequence_storage&& rhs) :
 		m_storage(std::move(rhs.m_storage))
-	{
-	}
+	{}
 
 	inline sequence_storage& operator=(const sequence_storage& rhs)
 	{

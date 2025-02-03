@@ -21,6 +21,9 @@
     <ClCompile Include="Sequence.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Life.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md">

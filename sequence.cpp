@@ -1,10 +1,10 @@
 import sequence;
+import life;
 
 import std;
 //using namespace std;
 //import <print>;
 //#include <print>
-//#include <vector>
 
 // show - Debugging display for sequence traits.
 
@@ -96,49 +96,6 @@ struct foo {
 
 	int i;
 };
-
-// Lifetime counter
-
-struct life
-{
-	life() : birth(++count) { std::println("  life() {}/{}", i, birth); }
-	life(int i) : i(i), birth(++count) { std::println("  life(int) {}/{}", i, birth); }
-	life(const life& l) : i(l.i), birth(++count)
-	{
-		std::println("  life(const life&) {}/{}", i, birth);
-	}
-	life(life&& l) : i(l.i), birth(++count)
-	{
-		std::println("  life(life&&) {}/{}", i, birth);
-		l.i = 666;
-	}
-	~life()
-	{
-		std::println("  ~life {}/{}", i, birth);
-		i = 99999;
-	}
-
-	life& operator=(const life& l)
-	{
-		i = l.i;
-		std::println("  op=(const life&) {}/{}", i, birth);
-		return *this;
-	}
-	life& operator=(life&& l)
-	{
-		i = l.i;
-		std::println("  op=(life&&) {}/{}", i, birth);
-		l.i = 666;
-		return *this;
-	}
-
-	operator int() const { return i; }
-
-	static int count;
-	int i = 42, birth;
-};
-
-int life::count = 0;
 
 
 // show_elems - Simple element output for any container with elements convertible to int.
@@ -241,31 +198,47 @@ int main()
 
 */
 
-	using typ = sequence<life, {.storage = sequence_storage_lits::VARIABLE,
-								.location = sequence_location_lits::FRONT,
-								.capacity = 1	}>;
-	//using typ = std::vector<life>;
+#if 1
+		using typ = sequence<life, {.storage = sequence_storage_lits::VARIABLE,
+									.location = sequence_location_lits::FRONT,
+									.capacity = 1	}>;
+#else
+		using typ = std::vector<life>;
+#endif
 
 	std::println("{:-^50}","v");
 	typ v{1,2,3,4,5};
+	v.reserve(10);
 	show_cap(v);
 	show_elems(v);
 
 	std::println("{:-^50}","w");
-	typ w{5,6,7};
+//	typ w{5,6,7};
+	typ w{std::move(v)};
 	show_cap(w);
 	show_elems(w);
 
-	std::println("{:-^50}","v=w");
-	v = w;
+//	std::println("{:-^50}","v=w");
+//	v = w;
+//	v = std::move(w);
+/*
+	std::println("{:-^50}","w=v");
+	w = v;
 //	v = std::move(w);
 
 	show_cap(w);
 	show_elems(w);
+	*/
+	//life i = 42;
+	//life j;
+	//j = std::move_if_noexcept(i);
 
 	std::println("{:-^50}","v");
 	show_cap(v);
 	show_elems(v);
+	std::println("{:-^50}","w");
+	show_cap(w);
+	show_elems(w);
 }
 
 #ifdef NONONONO

@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Life.ixx" />
     <ClCompile Include="Sequence.cpp" />
     <ClCompile Include="Sequence.ixx" />
   </ItemGroup>
