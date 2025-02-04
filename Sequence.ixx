@@ -87,13 +87,26 @@ struct sequence_traits
 
 namespace {
 
+// This provides the needed additional uninitialized memory function to handle moving of types.
+
+template<typename InpIt, typename FwdIt>
+auto uninitialized_move_if_noexcept(InpIt src, InpIt end, FwdIt dst)
+{
+	using value_type = std::iterator_traits<InpIt>::value_type;
+	if constexpr (!std::is_nothrow_move_constructible_v<value_type> && std::is_copy_constructible_v<value_type>)
+		return std::uninitialized_copy(src, end, dst);
+	else
+		return std::uninitialized_move(src, end, dst);
+}
+
+
 // The add functions implement the algorithms for adding an element at the front
 // or back. These algorithms are used for both fixed and dynamic storage.
 
 template<typename T, std::regular_invocable FUNC, typename... ARGS>
 inline T* back_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
 {
-	T temp(std::forward<ARGS>(args)...);
+	T temp(std::forward<ARGS>(args)...);	// Do this first in case the T ctor throws.
 	new(dst) T(std::move(*(dst - 1)));
 	adjust();
 	for (auto src = --dst - 1; dst != pos;)
@@ -105,7 +118,7 @@ inline T* back_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
 template<typename T, std::regular_invocable FUNC, typename... ARGS>
 inline T* front_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
 {
-	T temp(std::forward<ARGS>(args)...);
+	T temp(std::forward<ARGS>(args)...);	// Do this first in case the T ctor throws.
 	new(dst - 1) T(std::move(*dst));
 	adjust();
 	--pos;
@@ -213,18 +226,6 @@ inline std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T*
 	std::uninitialized_move(temp.capacity_begin(), temp.capacity_begin() + size, capacity_begin + fg);
 
 	return {fg, bg};
-}
-
-// This provides the needed additional uninitialized memory function to handle moving of types.
-
-template<typename InpIt, typename FwdIt>
-auto uninitialized_move_if_noexcept(InpIt src, InpIt end, FwdIt dst)
-{
-	using value_type = std::iterator_traits<InpIt>::value_type;
-	if constexpr (!std::is_nothrow_move_constructible_v<value_type> && std::is_copy_constructible_v<value_type>)
-		return std::uninitialized_copy(src, end, dst);
-	else
-		return std::uninitialized_move(src, end, dst);
 }
 
 }

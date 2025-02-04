@@ -2,7 +2,7 @@ import sequence;
 import life;
 
 import std;
-//using namespace std;
+using namespace std;
 //import <print>;
 //#include <print>
 
@@ -136,11 +136,79 @@ void show_cap(const std::vector<T>& seq)
 template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
 using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::STATIC, .capacity = CAP }>;
 
+
+void assign(life& l1, const life& l2)
+{
+	l1 = std::move_if_noexcept(l2);
+}
+
 int main()
 {
+
+#if 1
+		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
+									.location = sequence_location_lits::FRONT,
+									.capacity = 5	}>;
+#else
+		using typ = std::vector<life>;
+//		using typ = std::array<life, 5>;
+#endif
+
+	std::println("{:-^50}","v");
+	typ v{1,2,3,4,5};
+//	v.reserve(10);
+	show_cap(v);
+	show_elems(v);
+
+	std::println("{:-^50}","w");
+//	typ w;
+	typ w{5,6,7};
+//	typ w{v};
+//	typ w{std::move(v)};
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","v=w");
+	//w = std::move(v);
+	w.emplace(w.begin()+1, 42);
+
+	show_cap(w);
+	show_elems(w);
+
+	{
+	println("{:-^50}","move");
+	life l1(101);
+	life l2(202);
+	assign(l1, std::move(l2));
+	//l1 = std::move(l2);
+	}
+	println();
+
+//	v = std::move(w);
+/*
+	std::println("{:-^50}","w=v");
+	w = v;
+//	v = std::move(w);
+
+	*/
+	//life i = 42;
+	//life j;
+	//j = std::move_if_noexcept(i);
+
+	//std::println("{:-^50}","v");
+	//show_cap(v);
+	//show_elems(v);
+	//std::println("{:-^50}","w");
+	//show_cap(w);
+	//show_elems(w);
+}
+
+#ifdef NONONONO
+
 	using styp = sequence<int, {.storage = sequence_storage_lits::STATIC,
 								.location = sequence_location_lits::FRONT,
 								.capacity = 8	}>;
+
 	//styp s;
 	//show_cap(s);
 	//show_elems(s);
@@ -198,55 +266,7 @@ int main()
 
 */
 
-#if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
-									.location = sequence_location_lits::FRONT,
-									.capacity = 5	}>;
-#else
-		using typ = std::vector<life>;
-//		using typ = std::array<life, 5>;
-#endif
 
-	std::println("{:-^50}","v");
-	typ v{1,2,3,4,5};
-//	v.reserve(10);
-	show_cap(v);
-	show_elems(v);
-
-	std::println("{:-^50}","w");
-//	typ w;
-	typ w{5,6,7};
-//	typ w{v};
-//	typ w{std::move(v)};
-	show_cap(w);
-	show_elems(w);
-
-	std::println("{:-^50}","v=w");
-	w = std::move(v);
-
-	show_cap(w);
-	show_elems(w);
-
-//	v = std::move(w);
-/*
-	std::println("{:-^50}","w=v");
-	w = v;
-//	v = std::move(w);
-
-	*/
-	//life i = 42;
-	//life j;
-	//j = std::move_if_noexcept(i);
-
-	//std::println("{:-^50}","v");
-	//show_cap(v);
-	//show_elems(v);
-	//std::println("{:-^50}","w");
-	//show_cap(w);
-	//show_elems(w);
-}
-
-#ifdef NONONONO
 	constexpr sequence_traits<unsigned char> traits {
 			.storage = sequence_storage_lits::BUFFERED,
 			.location = sequence_location_lits::FRONT,
