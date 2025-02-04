@@ -231,9 +231,7 @@ inline std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T*
 }
 
 // ==============================================================================================================
-// Fixed capacity storage classes.
-
-// fixed_capacity - This is the base class for fixed_sequence_storage instantiations. It handles the capacity.
+// fixed_capacity - This is the base class for fixed_storage instantiations. It handles the raw capacity.
 
 template<typename T, size_t CAP> requires (CAP != 0)
 class fixed_capacity
@@ -263,6 +261,51 @@ private:
 };
 
 
+// ==============================================================================================================
+// fixed_storage - This is the location-adjustable base class for the fixed_sequence_storage class.
+// It handles the element storage.
+
+template<typename T, sequence_traits TRAITS, sequence_location_lits LOC = TRAITS.location>
+class fixed_storage
+{
+	static_assert(false, "An unimplemented specialization of fixed_storage was instantiated.");
+};
+
+
+template<typename T, sequence_traits TRAITS>
+class fixed_storage<T, TRAITS, sequence_location_lits::FRONT> : public fixed_capacity<T, TRAITS.capacity>
+{
+	using inherited = fixed_capacity<T, TRAITS.capacity>;
+	using value_type = T;
+	using iterator = value_type*;
+	using size_type = typename decltype(TRAITS)::size_type;
+
+public:
+
+	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+
+	inline value_type* data_begin() { return capacity_begin(); }
+	inline value_type* data_end() { return capacity_begin() + m_size; }
+	inline const value_type* data_begin() const { return capacity_begin(); }
+	inline const value_type* data_end() const { return capacity_begin() + m_size; }
+	inline size_t size() const { return m_size; }
+	inline bool empty() const { return m_size == 0; }
+
+protected:
+
+	auto new_data_start() { return capacity_begin(); }
+	auto data_area() const { return m_size; }
+	void set_data_area(size_type size) { m_size = size; }
+	void clear_data_area() { m_size = 0; }
+	void set_size(size_type size) { m_size = size; }
+
+private:
+
+	size_type m_size = 0;
+};
+
 // Forward declaration so that the sequence storage type can refer to each other.
 
 template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
@@ -280,40 +323,51 @@ class fixed_sequence_storage
 };
 
 template<typename T, sequence_traits TRAITS>
-class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
+class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_storage<T, TRAITS>
 {
 	using value_type = T;
 	using iterator = value_type*;
 	using const_iterator = const value_type*;
 	using reference = value_type&;
 	using size_type = typename decltype(TRAITS)::size_type;
-	using inherited = fixed_capacity<T, TRAITS.capacity>;
+	using inherited = fixed_storage<T, TRAITS>;
+
+	using inherited::new_data_start;
+	using inherited::data_area;
+	using inherited::set_data_area;
+	using inherited::clear_data_area;
+	using inherited::set_size;
 
 public:
 
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
+	using inherited::data_begin;
+	using inherited::data_end;
+	using inherited::size;
+	using inherited::empty;
 
 	inline fixed_sequence_storage() = default;
 	inline fixed_sequence_storage(std::initializer_list<value_type> il)
 	{
-		assert(il.size() <= capacity());
+		if (il.size() > capacity())
+			throw std::bad_alloc();
 
-		std::uninitialized_copy(il.begin(), il.end(), capacity_begin());
-		m_size = static_cast<size_type>(il.size());
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start());
+		set_size(static_cast<size_type>(il.size()));				// This must come last in case of a copy exception.
 	}
 	fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&&);
 
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_size = rhs.m_size;
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start());
+		set_data_area(rhs.data_area());								// This must come last in case of a copy exception.
 	}
 	inline fixed_sequence_storage(fixed_sequence_storage&& rhs)
 	{
-		uninitialized_move_if_noexcept(rhs.data_begin(), rhs.data_end(), capacity_begin());
-		m_size = rhs.m_size;
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start());
+		set_data_area(rhs.data_area());								// This must come last in case of a move exception.
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
@@ -326,7 +380,7 @@ public:
 		destroy_data(dst, data_end());
 
 		std::uninitialized_copy(src, rhs.data_end(), dst);
-		m_size = rhs.m_size;
+		set_data_area(rhs.data_area());
 
 		return *this;
 	}
@@ -336,11 +390,11 @@ public:
 		auto src = rhs.data_begin();
 
 		while (src != rhs.data_end() && dst != data_end())
-			*dst++ = std::move_if_noexcept(*src++);
+			*dst++ = std::move(*src++);
 		destroy_data(dst, data_end());
 
-		uninitialized_move_if_noexcept(src, rhs.data_end(), dst);
-		m_size = rhs.m_size;
+		std::uninitialized_move(src, rhs.data_end(), dst);
+		set_data_area(rhs.data_area());
 
 		return *this;
 	}
@@ -350,23 +404,19 @@ public:
 		destroy_data(data_begin(), data_end());
 	}
 
-	inline value_type* data_begin() { return capacity_begin(); }
-	inline value_type* data_end() { return capacity_begin() + m_size; }
-	inline const value_type* data_begin() const { return capacity_begin(); }
-	inline const value_type* data_end() const { return capacity_begin() + m_size; }
-	inline size_t size() const { return m_size; }
-	inline bool empty() const { return m_size == 0; }
 
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
 	{
-		assert(size() < capacity());
+		if (size() >= capacity())
+			throw std::bad_alloc();
+
 		assert(pos >= data_begin() && pos <= data_end());
 
 		if (size() == 0 || pos == data_end())
 			add_back(std::forward<ARGS>(args)...);
 		else
-			pos = back_add_at(data_end(), pos, [this](){ ++m_size; }, std::forward<ARGS>(args)...);
+			pos = back_add_at(data_end(), pos, [this](){ set_data_area(size() + 1); }, std::forward<ARGS>(args)...);
 		return pos;
 	}
 	template<typename... ARGS>
@@ -377,10 +427,11 @@ public:
 	template<typename... ARGS>
 	inline void add_back(ARGS&&... args)
 	{
-		assert(size() < capacity());
+		if (size() >= capacity())
+			throw std::bad_alloc();
 
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
-		++m_size;
+		set_data_area(size() + 1);
 	}
 	template<typename... ARGS>
 	inline void add(size_t count, ARGS&&... args)
@@ -394,17 +445,17 @@ public:
 		if (!empty())
 		{
 			destroy_data(data_begin(), data_end());
-			m_size = 0;
+			clear_data_area();
 		}
 	}
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
 		back_erase(data_begin(), data_end(), erase_begin, erase_end,
-				   [this](size_t count){ m_size -= static_cast<size_type>(count); });
+				   [this](size_t count){ set_data_area(size() - static_cast<size_type>(count)); });
 	}
 	inline void erase(value_type* element)
 	{
-		back_erase(data_begin(), data_end(), element, [this](){ --m_size; });
+		back_erase(data_begin(), data_end(), element, [this](){ set_data_area(size() - 1); });
 	}
 	inline void pop_front()
 	{
@@ -416,13 +467,9 @@ public:
 	{
 		assert(size());
 
-		--m_size;
+		set_data_area(size() - 1);
 		data_end()->~value_type();
 	}
-
-private:
-
-	size_type m_size = 0;
 };
 
 template<typename T, sequence_traits TRAITS>
@@ -1346,8 +1393,8 @@ private:
 template<typename T, sequence_traits TRAITS>
 inline fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&& rhs)
 {
-	uninitialized_move_if_noexcept(rhs.data_begin(), rhs.data_end(), capacity_begin());
-	m_size = rhs.size();
+	std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start());
+	set_data_area(0, rhs.size());		// This must come last in case of a move exception.
 }
 
 

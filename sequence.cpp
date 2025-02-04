@@ -148,7 +148,7 @@ int main()
 #if 1
 		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
 									.location = sequence_location_lits::FRONT,
-									.capacity = 5	}>;
+									.capacity = 8	}>;
 #else
 		using typ = std::vector<life>;
 //		using typ = std::array<life, 5>;
@@ -169,20 +169,12 @@ int main()
 	show_elems(w);
 
 	std::println("{:-^50}","v=w");
-	//w = std::move(v);
-	w.emplace(w.begin()+1, 42);
+	w = std::move(v);
+	//w.emplace(w.begin()+1, 42);
 
 	show_cap(w);
 	show_elems(w);
 
-	{
-	println("{:-^50}","move");
-	life l1(101);
-	life l2(202);
-	assign(l1, std::move(l2));
-	//l1 = std::move(l2);
-	}
-	println();
 
 //	v = std::move(w);
 /*
@@ -204,6 +196,17 @@ int main()
 }
 
 #ifdef NONONONO
+
+
+	{
+	println("{:-^50}","move");
+	life l1(101);
+	life l2(202);
+	assign(l1, std::move(l2));
+	//l1 = std::move(l2);
+	}
+	println();
+
 
 	using styp = sequence<int, {.storage = sequence_storage_lits::STATIC,
 								.location = sequence_location_lits::FRONT,
