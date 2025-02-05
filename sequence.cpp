@@ -160,26 +160,41 @@ int main()
 	show_cap(v);
 	show_elems(v);
 
-	std::println("{:-^50}","w");
-//	typ w;
-	typ w{5,6,7};
-//	typ w{v};
-//	typ w{std::move(v)};
-	show_cap(w);
-	show_elems(w);
+//	std::println("{:-^50}","w");
+////	typ w;
+//	typ w{5,6,7};
+////	typ w{v};
+////	typ w{std::move(v)};
+//	show_cap(w);
+//	show_elems(w);
 
-	std::println("{:-^50}","assign");
-	w = v;
+	//std::println("{:-^50}","assign");
+	//w = v;
 	//w = std::move(v);
 	//w.emplace(w.begin()+1, 42);
 
-	show_cap(w);
-	show_elems(w);
+	//show_cap(w);
+	//show_elems(w);
 
-	std::println("{:-^50}","construct");
-	typ x(w);
-	show_cap(x);
-	show_elems(x);
+	std::println("{:-^50}","erase");
+	v.erase(v.begin() + 2);
+	show_cap(v);
+	show_elems(v);
+
+	std::println("{:-^50}","pop fr");
+	v.pop_front();
+	show_cap(v);
+	show_elems(v);
+
+	std::println("{:-^50}","pop bk");
+	v.pop_back();
+	show_cap(v);
+	show_elems(v);
+
+	//std::println("{:-^50}","construct");
+	//typ x(w);
+	//show_cap(x);
+	//show_elems(x);
 
 //	v = std::move(w);
 /*

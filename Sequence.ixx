@@ -142,11 +142,10 @@ inline void destroy_data(T* data_begin, T* data_end)
 // The erase functions implement the erase element and erase range algorithms for front
 // and back erasure. These algorithms are used for both fixed and dynamic storage.
 
-template<typename T, std::regular_invocable<size_t> FUNC>
-inline void front_erase(T* data_begin, T* data_end, T* erase_begin, T* erase_end, FUNC adjust)
+template<typename T>
+inline void front_erase(T* data_begin, T* erase_begin, T* erase_end)
 {
 	assert(erase_begin >= data_begin);
-	assert(erase_end <= data_end);
 	assert(erase_end >= erase_begin);
 
 	if (erase_begin != erase_end)
@@ -156,27 +155,24 @@ inline void front_erase(T* data_begin, T* data_end, T* erase_begin, T* erase_end
 		auto src = erase_begin - 1;
 		while (src != beg)
 			*dst-- = std::move(*src--);
-		adjust(erase_end - erase_begin);
 		destroy_data(data_begin, ++dst);
 	}
 }
 
-template<typename T, std::regular_invocable FUNC>
-inline void front_erase(T* data_begin, T* data_end, T* dst, FUNC adjust)
+template<typename T>
+inline void front_erase(T* data_begin, T* element)
 {
-	assert(dst >= data_begin && dst < data_end);
+	assert(element >= data_begin);
 
-	auto src = dst - 1;
-	while (dst != data_begin)
-		*dst-- = std::move(*src--);
-	adjust();
-	dst->~T();
+	auto src = element - 1;
+	while (element != data_begin)
+		*element-- = std::move(*src--);
+	element->~T();
 }
 
-template<typename T, std::regular_invocable<size_t> FUNC>
-inline void back_erase(T* data_begin, T* data_end, T* erase_begin, T* erase_end, FUNC adjust)
+template<typename T>
+inline void back_erase(T* data_end, T* erase_begin, T* erase_end)
 {
-	assert(erase_begin >= data_begin);
 	assert(erase_end <= data_end);
 	assert(erase_end >= erase_begin);
 
@@ -186,21 +182,19 @@ inline void back_erase(T* data_begin, T* data_end, T* erase_begin, T* erase_end,
 		auto src = erase_end;
 		while (src != data_end)
 			*dst++ = std::move(*src++);
-		adjust(erase_end - erase_begin);
 		destroy_data(dst, data_end);
 	}
 }
 
-template<typename T, std::regular_invocable FUNC>
-inline void back_erase(T* data_begin, T* data_end, T* dst, FUNC adjust)
+template<typename T>
+inline void back_erase(T* data_end, T* element)
 {
-	assert(dst >= data_begin && dst < data_end);
+	assert(element < data_end);
 
-	auto src = dst + 1;
+	auto src = element + 1;
 	while (src != data_end)
-		*dst++ = std::move(*src++);
-	adjust();
-	dst->~T();
+		*element++ = std::move(*src++);
+	element->~T();
 }
 
 // The recenter function shifts the elements in a MIDDLE location capacity to prepare for size growth.
@@ -294,6 +288,26 @@ public:
 	inline size_t size() const { return m_size; }
 	inline bool empty() const { return m_size == 0; }
 
+	inline void erase(value_type* erase_begin, value_type* erase_end)
+	{
+		back_erase(data_end(), erase_begin, erase_end);
+		m_size -= erase_end - erase_begin;
+	}
+	inline void erase(value_type* element)
+	{
+		back_erase(data_end(), element);
+		--m_size;
+	}
+	inline void pop_front()
+	{
+		erase(data_begin());
+	}
+	inline void pop_back()
+	{
+		--m_size;
+		data_end()->~value_type();
+	}
+
 protected:
 
 	auto new_data_start(size_type size) { return capacity_begin(); }
@@ -327,6 +341,26 @@ public:
 	inline const_iterator data_end() const { return capacity_end(); }
 	inline size_t size() const { return m_size; }
 	inline bool empty() const { return m_size == 0; }
+
+	inline void erase(value_type* erase_begin, value_type* erase_end)
+	{
+		front_erase(data_begin(), erase_begin, erase_end);
+		m_size -= erase_end - erase_begin;
+	}
+	inline void erase(value_type* element)
+	{
+		front_erase(data_begin(), element);
+		--m_size;
+	}
+	inline void pop_front()
+	{
+		data_begin()->~value_type();
+		--m_size;
+	}
+	inline void pop_back()
+	{
+		erase(data_end() - 1);
+	}
 
 protected:
 
@@ -362,6 +396,47 @@ public:
 	inline const_iterator data_end() const { return capacity_end() - m_back_gap; }
 	inline size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 	inline bool empty() const { return m_front_gap + m_back_gap == capacity(); }
+
+	inline void erase(value_type* erase_begin, value_type* erase_end)
+	{
+		// If we are erasing nearer the back or dead center, erase at the back.
+		if (erase_begin - data_begin() >= data_end() - erase_end)
+		{
+			back_erase(data_end(), erase_begin, erase_end);
+			m_back_gap += erase_end - erase_begin;
+		}
+		//  Otherwise erase at the front.
+		else
+		{
+			front_erase(data_begin(), erase_begin, erase_end);
+			m_front_gap += erase_end - erase_begin;
+		}
+	}
+	inline void erase(value_type* element)
+	{
+		// If we are erasing nearer the back or dead center, erase at the back. Otherwise erase at the front.
+		if (element - data_begin() >= data_end() - element)
+		{
+			back_erase(data_end(), element);
+			++m_back_gap;
+		}
+		//  Otherwise erase at the front.
+		else
+		{
+			front_erase(data_begin(), element);
+			++m_front_gap;
+		}
+	}
+	inline void pop_front()
+	{
+		data_begin()->~value_type();
+		++m_front_gap;
+	}
+	inline void pop_back()
+	{
+		++m_back_gap;
+		data_end()->~value_type();
+	}
 
 protected:
 
@@ -416,6 +491,9 @@ public:
 	using inherited::data_end;
 	using inherited::size;
 	using inherited::empty;
+	using inherited::erase;
+	using inherited::pop_front;
+	using inherited::pop_back;
 
 	inline fixed_sequence_storage() = default;
 	inline fixed_sequence_storage(std::initializer_list<value_type> il)
@@ -430,12 +508,12 @@ public:
 
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.data_area()));
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
 		set_size(rhs.size());							// This must come last in case of a move exception.
 	}
 	inline fixed_sequence_storage(fixed_sequence_storage&& rhs)
 	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.data_area()));
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
 		set_size(rhs.size());							// This must come last in case of a move exception.
 	}
 
@@ -466,28 +544,6 @@ public:
 			destroy_data(data_begin(), data_end());
 			set_size(0);
 		}
-	}
-	inline void erase(value_type* erase_begin, value_type* erase_end)
-	{
-		back_erase(data_begin(), data_end(), erase_begin, erase_end,
-				   [this](size_t count){ set_data_area(size() - static_cast<size_type>(count)); });
-	}
-	inline void erase(value_type* element)
-	{
-		back_erase(data_begin(), data_end(), element, [this](){ set_data_area(size() - 1); });
-	}
-	inline void pop_front()
-	{
-		assert(!empty());
-
-		erase(data_begin());
-	}
-	inline void pop_back()
-	{
-		assert(!empty());
-
-		set_data_area(size() - 1);
-		data_end()->~value_type();
 	}
 
 protected:
@@ -1503,10 +1559,10 @@ public:
 	inline size_t size() const { return m_storage.size(); }
 	inline bool empty() const { return m_storage.empty(); }
 
-	inline void pop_front() { m_storage.pop_front(); }
-	inline void pop_back() { m_storage.pop_back(); }
-	inline void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
-	inline void erase(value_type* element) { m_storage.erase(element); }
+	inline void pop_front() { assert(!empty()); m_storage.pop_front(); }
+	inline void pop_back() { assert(!empty()); m_storage.pop_back(); }
+	inline void erase(value_type* begin, value_type* end) { assert(!empty()); m_storage.erase(begin, end); }
+	inline void erase(value_type* element) { assert(!empty()); m_storage.erase(element); }
 	inline void clear() { m_storage.clear(); }
 	inline void free() { m_storage.clear(); }
 
@@ -1606,10 +1662,10 @@ public:
 	inline size_t size() const { return m_storage ? m_storage->size() : 0; }
 	inline bool empty() const { return m_storage ? m_storage->empty() : true; }
 
-	inline void pop_front() { m_storage->pop_front(); }
-	inline void pop_back() { m_storage->pop_back(); }
-	inline void erase(value_type* begin, value_type* end) { m_storage->erase(begin, end); }
-	inline void erase(value_type* element) { m_storage->erase(element); }
+	inline void pop_front() { assert(!empty()); m_storage->pop_front(); }
+	inline void pop_back() { assert(!empty()); m_storage->pop_back(); }
+	inline void erase(value_type* begin, value_type* end) { assert(!empty()); m_storage->erase(begin, end); }
+	inline void erase(value_type* element) { assert(!empty()); m_storage->erase(element); }
 	inline void clear() { if (m_storage) m_storage->clear(); }
 	inline void free()
 	{
@@ -1692,10 +1748,10 @@ public:
 	inline size_t size() const { return m_storage.size(); }
 	inline bool empty() const { return m_storage.empty(); }
 
-	inline void pop_front() { m_storage.pop_front(); }
-	inline void pop_back() { m_storage.pop_back(); }
-	inline void erase(value_type* begin, value_type* end) { m_storage.erase(begin, end); }
-	inline void erase(value_type* element) { m_storage.erase(element); }
+	inline void pop_front() { assert(!empty()); m_storage.pop_front(); }
+	inline void pop_back() { assert(!empty()); m_storage.pop_back(); }
+	inline void erase(value_type* begin, value_type* end) { assert(!empty()); m_storage.erase(begin, end); }
+	inline void erase(value_type* element) { assert(!empty()); m_storage.erase(element); }
 	inline void clear() { m_storage.clear(); }
 	inline void free() { m_storage.free(); }
 
@@ -1794,10 +1850,10 @@ public:
 	inline size_t size() const { return execute([](auto&& storage){ return storage.size(); }); }
 	inline bool empty() const { return execute([](auto&& storage){ return storage.empty(); }); }
 
-	inline void pop_front() { execute([](auto&& storage){ storage.pop_front(); }); }
-	inline void pop_back() { execute([](auto&& storage){ storage.pop_back(); }); }
-	inline void erase(value_type* begin, value_type* end) { execute([=](auto&& storage){ storage.erase(begin, end); }); }
-	inline void erase(value_type* element) { execute([=](auto&& storage){ storage.erase(element); }); }
+	inline void pop_front() { assert(!empty()); execute([](auto&& storage){ storage.pop_front(); }); }
+	inline void pop_back() { assert(!empty()); execute([](auto&& storage){ storage.pop_back(); }); }
+	inline void erase(value_type* begin, value_type* end) { assert(!empty()); execute([=](auto&& storage){ storage.erase(begin, end); }); }
+	inline void erase(value_type* element) { assert(!empty()); execute([=](auto&& storage){ storage.erase(element); }); }
 	inline void clear() { execute([=](auto&& storage){ storage.clear(); }); }
 	inline void free()
 	{
