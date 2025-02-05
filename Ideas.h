@@ -71,3 +71,31 @@ class dynamic_sequence_storage<sequence_location_lits::???, T, TRAITS> : public 
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), m_data_begin);
 	}
 }
+
+
+// This is a FRONT version of a smart assign.
+
+	template<typename FSS>
+	void assign(FSS&& rhs)
+	{
+		constexpr bool move = std::is_rvalue_reference_v<decltype(forward<FSS>(rhs))>;
+	
+		auto dst = data_begin();
+		auto src = rhs.data_begin();
+
+		while (src != rhs.data_end() && dst != data_end())
+			if constexpr (move)
+				*dst++ = std::move(*src++);
+			else
+				*dst++ = *src++;
+
+		destroy_data(dst, data_end());
+
+		if constexpr (move)
+			std::uninitialized_move(src, rhs.data_end(), dst);
+		else
+			std::uninitialized_copy(src, rhs.data_end(), dst);
+
+		set_data_area(rhs.data_area());
+	}
+

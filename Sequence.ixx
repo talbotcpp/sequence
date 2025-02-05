@@ -262,8 +262,8 @@ private:
 
 
 // ==============================================================================================================
-// fixed_storage - This is the location-adjustable base class for the fixed_sequence_storage class.
-// It handles the element storage.
+// fixed_storage - This is the base class for the fixed_sequence_storage class. It provides
+// the three different element management strategies for fixed capacity sequences
 
 template<typename T, sequence_traits TRAITS, sequence_location_lits LOC = TRAITS.location>
 class fixed_storage
@@ -278,6 +278,7 @@ class fixed_storage<T, TRAITS, sequence_location_lits::FRONT> : public fixed_cap
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using value_type = T;
 	using iterator = value_type*;
+	using const_iterator = const value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 
 public:
@@ -286,19 +287,18 @@ public:
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
 
-	inline value_type* data_begin() { return capacity_begin(); }
-	inline value_type* data_end() { return capacity_begin() + m_size; }
-	inline const value_type* data_begin() const { return capacity_begin(); }
-	inline const value_type* data_end() const { return capacity_begin() + m_size; }
+	inline iterator data_begin() { return capacity_begin(); }
+	inline iterator data_end() { return capacity_begin() + m_size; }
+	inline const_iterator data_begin() const { return capacity_begin(); }
+	inline const_iterator data_end() const { return capacity_begin() + m_size; }
 	inline size_t size() const { return m_size; }
 	inline bool empty() const { return m_size == 0; }
 
 protected:
 
-	auto new_data_start() { return capacity_begin(); }
+	auto new_data_start(size_type size) { return capacity_begin(); }
 	auto data_area() const { return m_size; }
 	void set_data_area(size_type size) { m_size = size; }
-	void clear_data_area() { m_size = 0; }
 	void set_size(size_type size) { m_size = size; }
 
 private:
@@ -306,24 +306,94 @@ private:
 	size_type m_size = 0;
 };
 
-// Forward declaration so that the sequence storage type can refer to each other.
+template<typename T, sequence_traits TRAITS>
+class fixed_storage<T, TRAITS, sequence_location_lits::BACK> : public fixed_capacity<T, TRAITS.capacity>
+{
+	using inherited = fixed_capacity<T, TRAITS.capacity>;
+	using value_type = T;
+	using iterator = value_type*;
+	using const_iterator = const value_type*;
+	using size_type = typename decltype(TRAITS)::size_type;
+
+public:
+
+	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+
+	inline iterator data_begin() { return capacity_end() - m_size; }
+	inline iterator data_end() { return capacity_end(); }
+	inline const_iterator data_begin() const { return capacity_end() - m_size; }
+	inline const_iterator data_end() const { return capacity_end(); }
+	inline size_t size() const { return m_size; }
+	inline bool empty() const { return m_size == 0; }
+
+protected:
+
+	auto new_data_start(size_type size) { return capacity_end() - size; }
+	auto data_area() const { return m_size; }
+	void set_data_area(size_type size) { m_size = size; }
+	void set_size(size_type size) { m_size = size; }
+
+private:
+
+	size_type m_size = 0;
+};
+
+template<typename T, sequence_traits TRAITS>
+class fixed_storage<T, TRAITS, sequence_location_lits::MIDDLE> : public fixed_capacity<T, TRAITS.capacity>
+{
+	using inherited = fixed_capacity<T, TRAITS.capacity>;
+	using value_type = T;
+	using iterator = value_type*;
+	using const_iterator = const value_type*;
+	using size_type = typename decltype(TRAITS)::size_type;
+	using area_type = std::pair<size_type, size_type>;
+
+public:
+
+	using inherited::capacity;
+	using inherited::capacity_begin;
+	using inherited::capacity_end;
+
+	inline iterator data_begin() { return capacity_begin() + m_front_gap; }
+	inline iterator data_end() { return capacity_end() - m_back_gap; }
+	inline const_iterator data_begin() const { return capacity_begin() + m_front_gap; }
+	inline const_iterator data_end() const { return capacity_end() - m_back_gap; }
+	inline size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
+	inline bool empty() const { return m_front_gap + m_back_gap == capacity(); }
+
+protected:
+
+	auto new_data_start(size_type size) { return capacity_begin() + TRAITS.front_gap(size); }
+	area_type data_area() const { return {m_front_gap, m_back_gap}; }
+	void set_data_area(area_type area) { m_front_gap = area.first; m_back_gap = area.second; }
+	void set_size(size_type size)
+	{
+		m_front_gap = static_cast<size_type>(TRAITS.front_gap(size));
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + size));
+	}
+
+private:
+
+	// Empty sequences with odd capacity will have the extra space at the back.
+
+	size_type m_front_gap = static_cast<size_type>(TRAITS.front_gap());
+	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.front_gap());
+};
+
+// Forward declaration so that the sequence storage types can refer to each other.
 
 template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage;
 
 
 // ==============================================================================================================
-// fixed_sequence_storage - This class provides the 3 different element management strategies
-// for fixed capacity sequences (static or dynamically allocated).
-
-template<sequence_location_lits LOC, typename T, sequence_traits TRAITS>
-class fixed_sequence_storage
-{
-	static_assert(false, "An unimplemented specialization of fixed_sequence_storage was instantiated.");
-};
+// fixed_sequence_storage - This class provides fixed capacity sequences (which may be static or
+// dynamically allocated). It offers three element management strategies.
 
 template<typename T, sequence_traits TRAITS>
-class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_storage<T, TRAITS>
+class fixed_sequence_storage : fixed_storage<T, TRAITS>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -335,7 +405,6 @@ class fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS> : fixed_s
 	using inherited::new_data_start;
 	using inherited::data_area;
 	using inherited::set_data_area;
-	using inherited::clear_data_area;
 	using inherited::set_size;
 
 public:
@@ -354,48 +423,34 @@ public:
 		if (il.size() > capacity())
 			throw std::bad_alloc();
 
-		std::uninitialized_copy(il.begin(), il.end(), new_data_start());
-		set_size(static_cast<size_type>(il.size()));				// This must come last in case of a copy exception.
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start(static_cast<size_type>(il.size())));
+		set_size(static_cast<size_type>(il.size()));	// This must come last in case of a copy exception.
 	}
 	fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&&);
 
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
-		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start());
-		set_data_area(rhs.data_area());								// This must come last in case of a copy exception.
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.data_area()));
+		set_size(rhs.size());							// This must come last in case of a move exception.
 	}
 	inline fixed_sequence_storage(fixed_sequence_storage&& rhs)
 	{
-		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start());
-		set_data_area(rhs.data_area());								// This must come last in case of a move exception.
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.data_area()));
+		set_size(rhs.size());							// This must come last in case of a move exception.
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
 	{
-		auto dst = data_begin();
-		auto src = rhs.data_begin();
-
-		while (src != rhs.data_end() && dst != data_end())
-			*dst++ = *src++;
-		destroy_data(dst, data_end());
-
-		std::uninitialized_copy(src, rhs.data_end(), dst);
-		set_data_area(rhs.data_area());
-
+		clear();
+		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+		set_size(rhs.size());
 		return *this;
 	}
 	inline fixed_sequence_storage& operator=(fixed_sequence_storage&& rhs)
 	{
-		auto dst = data_begin();
-		auto src = rhs.data_begin();
-
-		while (src != rhs.data_end() && dst != data_end())
-			*dst++ = std::move(*src++);
-		destroy_data(dst, data_end());
-
-		std::uninitialized_move(src, rhs.data_end(), dst);
-		set_data_area(rhs.data_area());
-
+		clear();
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+		set_size(rhs.size());
 		return *this;
 	}
 
@@ -404,6 +459,55 @@ public:
 		destroy_data(data_begin(), data_end());
 	}
 
+	inline void clear()
+	{
+		if (!empty())
+		{
+			destroy_data(data_begin(), data_end());
+			set_size(0);
+		}
+	}
+	inline void erase(value_type* erase_begin, value_type* erase_end)
+	{
+		back_erase(data_begin(), data_end(), erase_begin, erase_end,
+				   [this](size_t count){ set_data_area(size() - static_cast<size_type>(count)); });
+	}
+	inline void erase(value_type* element)
+	{
+		back_erase(data_begin(), data_end(), element, [this](){ set_data_area(size() - 1); });
+	}
+	inline void pop_front()
+	{
+		assert(!empty());
+
+		erase(data_begin());
+	}
+	inline void pop_back()
+	{
+		assert(!empty());
+
+		set_data_area(size() - 1);
+		data_end()->~value_type();
+	}
+
+protected:
+
+	template<typename FSS>
+	void assign(FSS&& rhs)
+	{
+		constexpr bool move = std::is_rvalue_reference_v<decltype(forward<FSS>(rhs))>;
+	
+		clear();
+		auto dst = new_data_start(rhs.size());
+
+		if constexpr (move)
+			std::uninitialized_move(rhs.data_begin(), rhs.data_end(), dst);
+		else
+			std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), dst);
+
+		set_size(rhs.size());
+		///set_data_area(rhs.data_area());
+	}
 
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
@@ -440,38 +544,8 @@ public:
 			add_back(std::forward<ARGS>(args)...);
 	}
 
-	inline void clear()
-	{
-		if (!empty())
-		{
-			destroy_data(data_begin(), data_end());
-			clear_data_area();
-		}
-	}
-	inline void erase(value_type* erase_begin, value_type* erase_end)
-	{
-		back_erase(data_begin(), data_end(), erase_begin, erase_end,
-				   [this](size_t count){ set_data_area(size() - static_cast<size_type>(count)); });
-	}
-	inline void erase(value_type* element)
-	{
-		back_erase(data_begin(), data_end(), element, [this](){ set_data_area(size() - 1); });
-	}
-	inline void pop_front()
-	{
-		assert(size());
-
-		erase(data_begin());
-	}
-	inline void pop_back()
-	{
-		assert(size());
-
-		set_data_area(size() - 1);
-		data_end()->~value_type();
-	}
 };
-
+#ifdef NOTHERE
 template<typename T, sequence_traits TRAITS>
 class fixed_sequence_storage<sequence_location_lits::BACK, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
@@ -790,7 +864,7 @@ private:
 	size_type m_front_gap = static_cast<size_type>(TRAITS.front_gap());
 	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.front_gap());
 };
-
+#endif
 
 // ==============================================================================================================
 // dynamic_capacity
@@ -868,7 +942,7 @@ public:
 		inherited(il.size()),
 		m_data_end(std::uninitialized_copy(il.begin(), il.end(), capacity_begin()))
 	{}
-	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<TRAITS.location, T, TRAITS>&& rhs) :
+	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<T, TRAITS>&& rhs) :
 		inherited(cap),
 		m_data_end(uninitialized_move_if_noexcept(rhs.data_begin(), rhs.data_end(), capacity_begin()))
 	{}
@@ -1391,17 +1465,17 @@ private:
 // fixed_sequence_storage - These member functions have to be here so they can see dynamic_sequence_storage.
 
 template<typename T, sequence_traits TRAITS>
-inline fixed_sequence_storage<sequence_location_lits::FRONT, T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&& rhs)
+inline fixed_sequence_storage<T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<TRAITS.location, T, TRAITS>&& rhs)
 {
-	std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start());
-	set_data_area(0, rhs.size());		// This must come last in case of a move exception.
+	std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+	set_size(rhs.size());		// This must come last in case of a move exception.
 }
 
 
 // ==============================================================================================================
 // sequence_storage - Base class for sequence which provides the 4 different memory allocation strategies.
 
-template<sequence_storage_lits STO, typename T, sequence_traits TRAITS>
+template<typename T, sequence_traits TRAITS, sequence_storage_lits STO = TRAITS.storage>
 class sequence_storage
 {
 	static_assert(false, "An unimplemented specialization of sequence_storage was instantiated.");
@@ -1410,13 +1484,13 @@ class sequence_storage
 // STATIC storage (like std::inplace_vector or boost::static_vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<sequence_storage_lits::STATIC, T, TRAITS>
+class sequence_storage<T, TRAITS, sequence_storage_lits::STATIC>
 {
 
 	using value_type = T;
 	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
-	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
+	using storage_type = fixed_sequence_storage<T, TRAITS>;
 
 public:
 
@@ -1485,12 +1559,12 @@ private:
 // FIXED storage.
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<sequence_storage_lits::FIXED, T, TRAITS>
+class sequence_storage<T, TRAITS, sequence_storage_lits::FIXED>
 {
 	using value_type = T;
 	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
-	using storage_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;
+	using storage_type = fixed_sequence_storage<T, TRAITS>;
 
 public:
 
@@ -1602,7 +1676,7 @@ private:
 // VARIABLE storage.
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<sequence_storage_lits::VARIABLE, T, TRAITS>
+class sequence_storage<T, TRAITS, sequence_storage_lits::VARIABLE>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -1662,14 +1736,14 @@ private:
 // BUFFERED storage supporting a small object buffer optimization (like boost::small_vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<sequence_storage_lits::BUFFERED, T, TRAITS>
+class sequence_storage<T, TRAITS, sequence_storage_lits::BUFFERED>
 {
 	using value_type = T;
 	using iterator = value_type*;
 	using size_type = typename decltype(TRAITS)::size_type;
 
 	enum { STC, DYN };
-	using fixed_type = fixed_sequence_storage<TRAITS.location, T, TRAITS>;		// STC
+	using fixed_type = fixed_sequence_storage<T, TRAITS>;		// STC
 	using dynamic_type = dynamic_sequence_storage<TRAITS.location, T, TRAITS>;	// DYN
 
 public:
@@ -1826,9 +1900,9 @@ private:
 // sequence - This is the main class template.
 
 export template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
-class sequence : public sequence_storage<TRAITS.storage, T, TRAITS>
+class sequence : public sequence_storage<T, TRAITS>
 {
-	using inherited = sequence_storage<TRAITS.storage, T, TRAITS>;
+	using inherited = sequence_storage<T, TRAITS>;
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::reallocate;

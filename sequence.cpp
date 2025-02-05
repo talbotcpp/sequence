@@ -147,7 +147,7 @@ int main()
 
 #if 1
 		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
-									.location = sequence_location_lits::FRONT,
+									.location = sequence_location_lits::MIDDLE,
 									.capacity = 8	}>;
 #else
 		using typ = std::vector<life>;
@@ -168,13 +168,18 @@ int main()
 	show_cap(w);
 	show_elems(w);
 
-	std::println("{:-^50}","v=w");
-	w = std::move(v);
+	std::println("{:-^50}","assign");
+	w = v;
+	//w = std::move(v);
 	//w.emplace(w.begin()+1, 42);
 
 	show_cap(w);
 	show_elems(w);
 
+	std::println("{:-^50}","construct");
+	typ x(w);
+	show_cap(x);
+	show_elems(x);
 
 //	v = std::move(w);
 /*

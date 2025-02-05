@@ -145,6 +145,9 @@
   <ItemGroup>
     <Text Include="To Do.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Ideas.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
