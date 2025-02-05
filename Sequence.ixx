@@ -104,18 +104,6 @@ auto uninitialized_move_if_noexcept(InpIt src, InpIt end, FwdIt dst)
 // or back. These algorithms are used for both fixed and dynamic storage.
 
 template<typename T, std::regular_invocable FUNC, typename... ARGS>
-inline T* back_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
-{
-	T temp(std::forward<ARGS>(args)...);	// Do this first in case the T ctor throws.
-	new(dst) T(std::move(*(dst - 1)));
-	adjust();
-	for (auto src = --dst - 1; dst != pos;)
-		*dst-- = std::move(*src--);
-	*pos = std::move(temp);
-	return pos;
-}
-
-template<typename T, std::regular_invocable FUNC, typename... ARGS>
 inline T* front_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
 {
 	T temp(std::forward<ARGS>(args)...);	// Do this first in case the T ctor throws.
@@ -124,6 +112,18 @@ inline T* front_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
 	--pos;
 	for (auto src = dst + 1; dst != pos;)
 		*dst++ = std::move(*src++);
+	*pos = std::move(temp);
+	return pos;
+}
+
+template<typename T, std::regular_invocable FUNC, typename... ARGS>
+inline T* back_add_at(T* dst, T* pos, FUNC adjust, ARGS&&... args)
+{
+	T temp(std::forward<ARGS>(args)...);	// Do this first in case the T ctor throws.
+	new(dst) T(std::move(*(dst - 1)));
+	adjust();
+	for (auto src = --dst - 1; dst != pos;)
+		*dst-- = std::move(*src--);
 	*pos = std::move(temp);
 	return pos;
 }
@@ -288,6 +288,31 @@ public:
 	inline size_t size() const { return m_size; }
 	inline bool empty() const { return m_size == 0; }
 
+	template<typename... ARGS>
+	inline iterator add_at(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (empty() || pos == data_end())
+			add_back(std::forward<ARGS>(args)...);
+		else
+			pos = back_add_at(data_end(), pos, [this](){ ++m_size; }, std::forward<ARGS>(args)...);
+		return pos;
+	}
+	template<typename... ARGS>
+	inline void add_front(ARGS&&... args)
+	{
+		add_at(data_begin(), std::forward<ARGS>(args)...);
+	}
+	template<typename... ARGS>
+	inline void add_back(ARGS&&... args)
+	{
+		assert(size() < capacity());
+		new(data_end()) value_type(std::forward<ARGS>(args)...);
+		++m_size;
+	}
+
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
 		back_erase(data_end(), erase_begin, erase_end);
@@ -307,6 +332,8 @@ public:
 		--m_size;
 		data_end()->~value_type();
 	}
+
+	void prepare_for(size_type size) {}
 
 protected:
 
@@ -342,6 +369,31 @@ public:
 	inline size_t size() const { return m_size; }
 	inline bool empty() const { return m_size == 0; }
 
+	template<typename... ARGS>
+	inline iterator add_at(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (empty() || pos == data_begin())
+			add_front(std::forward<ARGS>(args)...);
+		else
+			pos = front_add_at(data_begin(), pos, [this](){ ++m_size; }, std::forward<ARGS>(args)...);
+		return pos;
+	}
+	template<typename... ARGS>
+	inline void add_front(ARGS&&... args)
+	{
+		assert(size() < capacity());
+		new(data_begin() - 1) value_type(std::forward<ARGS>(args)...);
+		++m_size;
+	}
+	template<typename... ARGS>
+	inline void add_back(ARGS&&... args)
+	{
+		add_at(data_end(), std::forward<ARGS>(args)...);
+	}
+
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
 		front_erase(data_begin(), erase_begin, erase_end);
@@ -361,6 +413,8 @@ public:
 	{
 		erase(data_end() - 1);
 	}
+
+	void prepare_for(size_type size) {}
 
 protected:
 
@@ -396,6 +450,59 @@ public:
 	inline const_iterator data_end() const { return capacity_end() - m_back_gap; }
 	inline size_t size() const { return capacity() - (m_front_gap + m_back_gap); }
 	inline bool empty() const { return m_front_gap + m_back_gap == capacity(); }
+
+	template<typename... ARGS>
+	inline iterator add_at(iterator pos, ARGS&&... args)
+	{
+		assert(size() < capacity());
+		assert(pos >= data_begin() && pos <= data_end());
+
+		if (empty() || pos == data_end())
+			add_back(std::forward<ARGS>(args)...);
+		else if (pos == data_begin())
+			add_front(std::forward<ARGS>(args)...);
+
+		// Inserting closer to the end--add at back.
+		else if (pos - data_begin() >= data_end() - pos)
+		{
+			if (m_back_gap == 0)
+			{
+				recenter();
+				pos -= m_back_gap;
+			}
+			pos = back_add_at(data_end(), pos, [this](){ --m_back_gap; }, std::forward<ARGS>(args)...);
+		}
+		
+		// Inserting closer to the beginning--add at front.
+		else
+		{
+			if (m_front_gap == 0)
+			{
+				recenter();
+				pos += m_front_gap;
+			}
+			pos = front_add_at(data_begin(), pos, [this](){ --m_front_gap; }, std::forward<ARGS>(args)...);
+		}
+		return pos;
+	}
+	template<typename... ARGS>
+	inline void add_front(ARGS&&... args)
+	{
+		assert(size() < capacity());
+		if (m_front_gap == 0)
+			recenter();
+		new(data_begin() - 1) value_type(std::forward<ARGS>(args)...);
+		--m_front_gap;
+	}
+	template<typename... ARGS>
+	inline void add_back(ARGS&&... args)
+	{
+		assert(size() < capacity());
+		if (m_back_gap == 0)
+			recenter();
+		new(data_end()) value_type(std::forward<ARGS>(args)...);
+		--m_back_gap;
+	}
 
 	inline void erase(value_type* erase_begin, value_type* erase_end)
 	{
@@ -438,11 +545,21 @@ public:
 		data_end()->~value_type();
 	}
 
+	void prepare_for(size_type size)
+	{
+		assert(empty());
+		m_front_gap = static_cast<size_type>(TRAITS.front_gap(size));
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
+	}
+
 protected:
 
+	// Returns the location in the capacity to write to with uninitialized_copy or _move.
 	auto new_data_start(size_type size) { return capacity_begin() + TRAITS.front_gap(size); }
+
 	area_type data_area() const { return {m_front_gap, m_back_gap}; }
 	void set_data_area(area_type area) { m_front_gap = area.first; m_back_gap = area.second; }
+
 	void set_size(size_type size)
 	{
 		m_front_gap = static_cast<size_type>(TRAITS.front_gap(size));
@@ -450,6 +567,17 @@ protected:
 	}
 
 private:
+
+	// Moves the elements to the (approximate) center of the capacity to prepare for size growth.
+	// If the remaining space is odd, then the extra space will be at the front if we are making
+	// space at the front, otherwise it will be at the back.
+	
+	inline void recenter()
+	{
+		auto [front_gap, back_gap] = ::recenter<inherited>(capacity_begin(), capacity_end(), data_begin(), data_end());
+		m_front_gap = static_cast<size_type>(front_gap);
+		m_back_gap = static_cast<size_type>(back_gap);
+	}
 
 	// Empty sequences with odd capacity will have the extra space at the back.
 
@@ -468,7 +596,7 @@ class dynamic_sequence_storage;
 // dynamically allocated). It offers three element management strategies.
 
 template<typename T, sequence_traits TRAITS>
-class fixed_sequence_storage : fixed_storage<T, TRAITS>
+class fixed_sequence_storage : public fixed_storage<T, TRAITS>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -491,9 +619,9 @@ public:
 	using inherited::data_end;
 	using inherited::size;
 	using inherited::empty;
-	using inherited::erase;
-	using inherited::pop_front;
-	using inherited::pop_back;
+	//using inherited::erase;
+	//using inherited::pop_front;
+	//using inherited::pop_back;
 
 	inline fixed_sequence_storage() = default;
 	inline fixed_sequence_storage(std::initializer_list<value_type> il)
@@ -545,61 +673,6 @@ public:
 			set_size(0);
 		}
 	}
-
-protected:
-
-	template<typename FSS>
-	void assign(FSS&& rhs)
-	{
-		constexpr bool move = std::is_rvalue_reference_v<decltype(forward<FSS>(rhs))>;
-	
-		clear();
-		auto dst = new_data_start(rhs.size());
-
-		if constexpr (move)
-			std::uninitialized_move(rhs.data_begin(), rhs.data_end(), dst);
-		else
-			std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), dst);
-
-		set_size(rhs.size());
-		///set_data_area(rhs.data_area());
-	}
-
-	template<typename... ARGS>
-	inline iterator add_at(iterator pos, ARGS&&... args)
-	{
-		if (size() >= capacity())
-			throw std::bad_alloc();
-
-		assert(pos >= data_begin() && pos <= data_end());
-
-		if (size() == 0 || pos == data_end())
-			add_back(std::forward<ARGS>(args)...);
-		else
-			pos = back_add_at(data_end(), pos, [this](){ set_data_area(size() + 1); }, std::forward<ARGS>(args)...);
-		return pos;
-	}
-	template<typename... ARGS>
-	inline void add_front(ARGS&&... args)
-	{
-		add_at(data_begin(), std::forward<ARGS>(args)...);
-	}
-	template<typename... ARGS>
-	inline void add_back(ARGS&&... args)
-	{
-		if (size() >= capacity())
-			throw std::bad_alloc();
-
-		new(data_end()) value_type(std::forward<ARGS>(args)...);
-		set_data_area(size() + 1);
-	}
-	template<typename... ARGS>
-	inline void add(size_t count, ARGS&&... args)
-	{
-		while (count--)
-			add_back(std::forward<ARGS>(args)...);
-	}
-
 };
 #ifdef NOTHERE
 template<typename T, sequence_traits TRAITS>
@@ -1588,11 +1661,6 @@ protected:
 	{
 		m_storage.add_back(std::forward<ARGS>(args)...);
 	}
-	template<typename... ARGS>
-	inline void add(size_t new_size, ARGS&&... args)
-	{
-		m_storage.add(new_size, std::forward<ARGS>(args)...);
-	}
 
 	inline auto data_begin() { return m_storage.data_begin(); }
 	inline auto data_end() { return m_storage.data_end(); }
@@ -1603,9 +1671,10 @@ protected:
 
 	inline void reallocate(size_t new_capacity)
 	{
-		if (new_capacity > capacity())
+		if (new_capacity > TRAITS.capacity)
 			throw std::bad_alloc();
 	}
+	inline void prepare_for(size_type size) { m_storage.prepare_for(size); }
 
 private:
 
@@ -1683,31 +1752,31 @@ protected:
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
 	{
-		if (!m_storage)
-			m_storage.reset(new storage_type);
+		//if (!m_storage)
+		//	m_storage.reset(new storage_type);
 		return m_storage->add_at(pos, std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	inline void add_front(ARGS&&... args)
 	{
-		if (!m_storage)
-			m_storage.reset(new storage_type);
+		//if (!m_storage)
+		//	m_storage.reset(new storage_type);
 		m_storage->add_front(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	inline void add_back(ARGS&&... args)
 	{
-		if (!m_storage)
-			m_storage.reset(new storage_type);
+		//if (!m_storage)
+		//	m_storage.reset(new storage_type);
 		m_storage->add_back(std::forward<ARGS>(args)...);
 	}
-	template<typename... ARGS>
-	inline void add(size_t new_size, ARGS&&... args)
-	{
-		if (!m_storage)
-			m_storage.reset(new storage_type);
-		m_storage->add(new_size, std::forward<ARGS>(args)...);
-	}
+	//template<typename... ARGS>
+	//inline void add(size_t new_size, ARGS&&... args)
+	//{
+	//	if (!m_storage)
+	//		m_storage.reset(new storage_type);
+	//	m_storage->add(new_size, std::forward<ARGS>(args)...);
+	//}
 
 	inline auto data_begin() { return m_storage ? m_storage->data_begin() : nullptr; }
 	inline auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
@@ -1723,6 +1792,7 @@ protected:
 		if (!m_storage)
 			m_storage.reset(new storage_type);
 	}
+	inline void prepare_for(size_type size) { if (m_storage) m_storage->prepare_for(size); }
 
 private:
 
@@ -1780,8 +1850,7 @@ protected:
 
 	inline void reallocate(size_t new_capacity)
 	{
-		if (new_capacity > capacity())
-			m_storage.reallocate(new_capacity);
+		m_storage.reallocate(new_capacity);
 	}
 
 private:
@@ -1965,7 +2034,7 @@ class sequence : public sequence_storage<T, TRAITS>
 	using inherited::add_at;
 	using inherited::add_front;
 	using inherited::add_back;
-	using inherited::add;
+	using inherited::prepare_for;
 
 public:
 
@@ -2139,6 +2208,19 @@ public:
 	inline void push_back(const_reference e) { emplace_back(e); }
 
 private:
+
+	template<typename... ARGS>
+	inline void add(size_t count, ARGS&&... args)
+	{
+		if (empty())
+			prepare_for(count);
+
+		while (count--)
+			if constexpr (traits.location == sequence_location_lits::BACK)
+				add_front(std::forward<ARGS>(args)...);
+			else
+				add_back(std::forward<ARGS>(args)...);
+	}
 
 	static constexpr auto OUT_OF_RANGE_ERROR = "invalid sequence index {}";
 };

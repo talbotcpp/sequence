@@ -146,9 +146,9 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
+		using typ = sequence<life, {.storage = sequence_storage_lits::FIXED,
 									.location = sequence_location_lits::MIDDLE,
-									.capacity = 8	}>;
+									.capacity = 9	}>;
 #else
 		using typ = std::vector<life>;
 //		using typ = std::array<life, 5>;
@@ -191,10 +191,11 @@ int main()
 	show_cap(v);
 	show_elems(v);
 
-	//std::println("{:-^50}","construct");
-	//typ x(w);
-	//show_cap(x);
-	//show_elems(x);
+	std::println("{:-^50}","add");
+	typ x;
+	x.resize(5);
+	show_cap(x);
+	show_elems(x);
 
 //	v = std::move(w);
 /*
