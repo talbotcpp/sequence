@@ -260,11 +260,16 @@ using size_type = SIZE;
 This type is used to store sizes (and gaps) for sequences with fixed capacity. It allows small sequences of
 small types to be made significantly more space efficient by representing the size with a
 smaller type than `size_t`. This size reduction may (or may not) also result in faster run times.
-It is _not_ used for variable-size capacity situations, namely
+
+It is not used for variable-size capacity situations, namely
 `VARIABLE` storage and `BUFFERED` storage when the capacity is dynamically allocated.
-It is also _not_ used in this structure. (Using it for `capacity` complicates
+_Note: it_ is _used for buffered storage when the elements are buffered. This allows buffer space to be used
+efficiently even when unbuffered sequences can be very long_
+
+It is also not used in this structure. Using it for `capacity` complicates
 the code without offering any real benefits, and it's not correct for `increment`
-because the SBO may be small but the possible dynamic size large enough to require a large fixed growth value.)
+because (as noted above) the SBO may be small but the possible dynamic size large,
+thus perhaps requiring a large fixed growth value.
 
 ## storage
 ```C++
@@ -345,7 +350,7 @@ This member specifies the size of the fixed capacity or inital capacity. It has 
 | --- | --- |
 | STATIC | The size of the fixed capacity. |
 | FIXED | The fixed size of the dynamic capacity when allocation occurs. |
-| VARIABLE | The initial size of the dynamic capacity when allocation first occurs. If the sequence is constructed from an initializer list, the capacity is equal to the size of the list. |
+| VARIABLE | The initial size of the dynamic capacity when allocation first occurs. However, if the sequence is constructed from an initializer list, the capacity is equal to the size of the list. |
 | BUFFERED | The size of the optimization buffer (the fixed capacity). If the sequence is constructed from an initializer list and the size of the list is greater than this value, the dynamic capacity is equal to the size of the list. |
 
 Note that the common pattern of constructing a vector and immediately reserving a starting size is not necessary for sequences.
@@ -387,6 +392,6 @@ but it might introduce unnecessary work at the time of the move. If this isn't d
 lazy approach is taken) the container will delete the moved-from elements when it
 is destructed. This might be much later, which might be a good thing in some situations.
 ## Should swap operations optimize on size?
-If a O(n) swap takes place, should the algorithm check the container sizes and cache the smaller one?
+If an O(n) swap takes place, should the algorithm check the container sizes and cache the smaller one?
 This would be a win if the sizes are quite different or if the moves are expensive, but it adds
 two O(1) size calculations and an integer comparison.

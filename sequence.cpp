@@ -146,9 +146,9 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::FIXED,
+		using typ = sequence<life, {.storage = sequence_storage_lits::VARIABLE,
 									.location = sequence_location_lits::MIDDLE,
-									.capacity = 9	}>;
+									.capacity = 10	}>;
 #else
 		using typ = std::vector<life>;
 //		using typ = std::array<life, 5>;
@@ -156,46 +156,62 @@ int main()
 
 	std::println("{:-^50}","v");
 	typ v{1,2,3,4,5};
-//	v.reserve(10);
 	show_cap(v);
 	show_elems(v);
 
-//	std::println("{:-^50}","w");
-////	typ w;
-//	typ w{5,6,7};
-////	typ w{v};
-////	typ w{std::move(v)};
-//	show_cap(w);
-//	show_elems(w);
+	//std::println("{:-^50}","reserve");
+	//v.reserve(10);
+	//show_cap(v);
+	//show_elems(v);
 
-	//std::println("{:-^50}","assign");
-	//w = v;
+	//std::println("{:-^50}","roll");
+	//v.emplace_back(6);
+	//v.pop_front();
+	//v.emplace_back(7);
+	//v.pop_front();
+	//v.emplace_back(8);
+	//v.pop_front();
+	//v.emplace(v.end()-1, 9);
+	//show_cap(v);
+	//show_elems(v);
+	
+	/*
+	std::println("{:-^50}","w");
+//	typ w;
+	typ w{5,6,7};
+//	typ w{v};
+//	typ w{std::move(v)};
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","assign");
+	w = v;
 	//w = std::move(v);
 	//w.emplace(w.begin()+1, 42);
 
-	//show_cap(w);
-	//show_elems(w);
+	show_cap(w);
+	show_elems(w);
+*/
+	//std::println("{:-^50}","erase");
+	//v.erase(v.begin() + 2);
+	//show_cap(v);
+	//show_elems(v);
 
-	std::println("{:-^50}","erase");
-	v.erase(v.begin() + 2);
-	show_cap(v);
-	show_elems(v);
+	//std::println("{:-^50}","pop fr");
+	//v.pop_front();
+	//show_cap(v);
+	//show_elems(v);
 
-	std::println("{:-^50}","pop fr");
-	v.pop_front();
-	show_cap(v);
-	show_elems(v);
+	//std::println("{:-^50}","pop bk");
+	//v.pop_back();
+	//show_cap(v);
+	//show_elems(v);
 
-	std::println("{:-^50}","pop bk");
-	v.pop_back();
-	show_cap(v);
-	show_elems(v);
-
-	std::println("{:-^50}","add");
-	typ x;
-	x.resize(5);
-	show_cap(x);
-	show_elems(x);
+	//std::println("{:-^50}","add");
+	//typ x;
+	//x.resize(5);
+	//show_cap(x);
+	//show_elems(x);
 
 //	v = std::move(w);
 /*
