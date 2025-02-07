@@ -73,10 +73,9 @@ take physical limitations into account.
 ```C++
 sequence& operator=(const sequence&);
 ```
-Copy assigment is linear in the old + new elements, and the resulting sequence
-will have a dynamic allocation if the LHS had one to begin with.
-*Note: this includes the case where the RHS
-has no capacity (is in a freed state).*
+Copy assigment is linear in the old + new elements.
+For `VARIABLE` storage mode, if the LHS has a dynamic allocation,
+copying will not deallocate it if the RHS has no capacity.
 (This is the same behavior as `std::vector`.)
 
 ## Move Assignment
