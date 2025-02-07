@@ -146,29 +146,52 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
-									.location = sequence_location_lits::MIDDLE,
-									.capacity = 10	}>;
+		using typ = sequence<life, {.storage = sequence_storage_lits::BUFFERED,
+									.location = sequence_location_lits::FRONT,
+									.capacity = 5	}>;
 #else
 		using typ = std::vector<life>;
 //		using typ = std::array<life, 5>;
 #endif
 
 	std::println("{:-^50}","v");
-	try {
 //	typ v;
-	typ v{1,2,3,4};
+//	typ v{1,2,3};
+	typ v{1,2,3,4,5,6};
 //	typ v(12, 69);
 //	v.assign(6, 69);
-	array<int, 4> a{5,6,7,8};
-	v.assign(a.begin(), a.end());
+	//array<int, 4> a{5,6,7,8};
+	//v.assign(a.begin(), a.end());
+	v.pop_back();
+	v.pop_back();
 	show_cap(v);
 	show_elems(v);
-	}
-	catch (std::bad_alloc e)
-	{
-		std::println("oops = {}", e.what());
-	}
+
+	//catch (std::bad_alloc e)
+	//{
+	//	std::println("oops = {}", e.what());
+	//}
+
+	std::println("{:-^50}","w");
+	typ w;
+//	typ w{7,8,9};
+//	typ w{7,8,9,10,11,12};
+//	typ w{v};
+//	typ w{std::move(v)};
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","assign to w");
+	w = v;
+	//w = std::move(v);
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","v");
+	show_cap(v);
+	show_elems(v);
+
+	//w.emplace(w.begin()+1, 42);
 
 	//std::println("{:-^50}","reserve");
 	//v.reserve(10);
@@ -187,18 +210,6 @@ int main()
 	//show_elems(v);
 	
 	/*
-	std::println("{:-^50}","w");
-//	typ w;
-	typ w{5,6,7};
-//	typ w{v};
-//	typ w{std::move(v)};
-	show_cap(w);
-	show_elems(w);
-
-	std::println("{:-^50}","assign");
-	w = v;
-	//w = std::move(v);
-	//w.emplace(w.begin()+1, 42);
 
 	show_cap(w);
 	show_elems(w);

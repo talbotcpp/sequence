@@ -623,6 +623,8 @@ public:
 		std::uninitialized_copy(il.begin(), il.end(), new_data_start(static_cast<size_type>(il.size())));
 		set_size(static_cast<size_type>(il.size()));	// This must come last in case of a copy exception.
 	}
+
+	fixed_sequence_storage(const dynamic_sequence_storage<T, TRAITS>&);
 	fixed_sequence_storage(dynamic_sequence_storage<T, TRAITS>&&);
 
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
@@ -1116,6 +1118,7 @@ public:
 		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
 		set_size(il.size());	// This must come last in case of a copy exception.
 	}
+
 	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<T, TRAITS>&& rhs) :
 		inherited(cap)
 	{
@@ -1183,7 +1186,14 @@ public:
 
 
 // ==============================================================================================================
-// fixed_sequence_storage - This member function is out here so it can see dynamic_sequence_storage.
+// fixed_sequence_storage - These member functions are out here so they can see dynamic_sequence_storage.
+
+template<typename T, sequence_traits TRAITS>
+inline fixed_sequence_storage<T, TRAITS>::fixed_sequence_storage(const dynamic_sequence_storage<T, TRAITS>& rhs)
+{
+	std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+	set_size(rhs.size());		// This must come last in case of a move exception.
+}
 
 template<typename T, sequence_traits TRAITS>
 inline fixed_sequence_storage<T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<T, TRAITS>&& rhs)
@@ -1463,36 +1473,24 @@ public:
 			m_storage.emplace<DYN>(il);
 	}
 
-	//inline sequence_storage(const sequence_storage& rhs)
-	//{
-	//	if (rhs.m_storage)
-	//	{
-	//		m_storage.reset(new storage_type);
-	//		*m_storage = *rhs.m_storage;
-	//	}
-	//}
-	//inline sequence_storage(sequence_storage&& rhs) :
-	//	m_storage(std::move(rhs.m_storage))
-	//{
-	//}
+	inline sequence_storage(const sequence_storage& rhs)
+	{
+		if (rhs.size() <= TRAITS.capacity)
+			rhs.execute([&](auto&& storage){ m_storage.emplace<STC>(storage); });
+		else
+			m_storage = rhs.m_storage;
+	}
+	inline sequence_storage(sequence_storage&& rhs) = default;
 
-	//inline sequence_storage& operator=(const sequence_storage& rhs)
-	//{
-	//	if (rhs.m_storage.index() == STC)
-	//	if (rhs.m_storage)
-	//	{
-	//		if (!m_storage)
-	//			m_storage.reset(new storage_type);
-	//		*m_storage = *rhs.m_storage;
-	//	}
-	//	else clear();
-	//	return *this;
-	//}
-	//inline sequence_storage& operator=(sequence_storage&& rhs)
-	//{
-	//	m_storage = std::move(rhs.m_storage);
-	//	return *this;
-	//}
+	inline sequence_storage& operator=(const sequence_storage& rhs)
+	{
+		if (rhs.size() <= TRAITS.capacity)
+			rhs.execute([&](auto&& storage){ m_storage.emplace<STC>(storage); });
+		else
+			m_storage = rhs.m_storage;
+		return *this;
+	}
+	inline sequence_storage& operator=(sequence_storage&&) = default;
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
@@ -1587,6 +1585,8 @@ protected:
 				m_storage.emplace<STC>(dynamic_type(std::move(get<DYN>(m_storage))));
 		// If we're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
+
+	inline void prepare_for(size_t size) { execute([size](auto&& storage){ return storage.prepare_for(size); }); }
 
 private:
 

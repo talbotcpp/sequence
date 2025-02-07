@@ -298,8 +298,11 @@ but an empty sequence can be restored to having no capacity by calling shrink_to
 Buffered sequences have a fixed capacity embedded in the sequence object which is used when the
 size is less than or equal to the fixed capacity size; when the sequence grows larger than the
 fixed capacity size, the capacity is allocated dynamically (like `boost::small_vector`).
-The capacity can change and move. Clearing the sequence deallocates the capacity if it was
-dynamically allocated. Erasing the sequence does not deallocate the capacity. Reserving a
+The capacity can change and move. Calling
+shrink_to_fit if the size is less than or equal to the fixed capacity size and the capacity is
+allocated dynamically will move the elements into the buffer and deallocate the dynamic capacity.
+Neither clearing nor erasing the sequence deallocates a dynamically allocated capacity.
+Reserving a
 capacity less than or equal to the fixed capacity size has no effect. Reserving a capacity
 greater than the fixed capacity size causes the capacity to be dynamically (re)allocated.
 
