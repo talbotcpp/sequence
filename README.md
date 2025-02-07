@@ -146,8 +146,8 @@ bool is_dynamic() const;
 Returns `true` if the capacity is dynamically allocated. For `BUFFERED` storage sequences this can change at
 runtime and answers the question, "Is the capacity on the heap (vs. buffered in the sequence object)?"
 For all other storage modes, the value is determined at compile time and the function is `static constexpr`.
-*Note: this function cannot be used to determine if the sequence is in a default-constructed state (i.e. has no capacity).
-Use `capacity` to answer this question.*
+*Note: this function cannot be used to determine if the sequence is in a freed or default-constructed state (has no capacity).
+Use* `capacity() == 0` *to answer this question.*
 ## reserve
 ```C++
 void reserve(size_t new_capacity);
@@ -214,7 +214,8 @@ template<typename... ARGS>
 inline void resize(size_type new_size, ARGS&&... args)
 ```
 If `new_size` < `size()`, erases the last `size() - new_size` elements from the sequence, otherwise appends
-`new_size - size()` elements to the sequence that are emplace-constructed from `args`.
+`new_size - size()` elements to the sequence that are emplace-constructed from `args`. For `BACK` storage sequences,
+elements are appended at the front, otherwise they are appended at the back.
 
 ## clear
 ```C++

@@ -1,10 +1,12 @@
 import sequence;
 import life;
 
-import std;
-using namespace std;
+//import std;
 //import <print>;
-//#include <print>
+#include <print>
+#include <vector>
+
+using namespace std;
 
 // show - Debugging display for sequence traits.
 
@@ -146,7 +148,7 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::VARIABLE,
+		using typ = sequence<life, {.storage = sequence_storage_lits::BUFFERED,
 									.location = sequence_location_lits::FRONT,
 									.capacity = 5	}>;
 #else
@@ -155,9 +157,9 @@ int main()
 #endif
 
 	std::println("{:-^50}","v");
-	typ v;
+//	typ v;
 //	typ v = {1,2,3};
-//	typ v{1,2,3,4,5,6};
+	typ v{1,2,3,4,5,6};
 //	typ v(6, 69);
 	//v.resize(1);
 	//v.resize(5);
@@ -174,7 +176,7 @@ int main()
 	//	std::println("oops = {}", e.what());
 	//}
 
-//	std::println("{:-^50}","w");
+	std::println("{:-^50}","w");
 //	typ w;
 //	typ w{7,8,9};
 	typ w{7,8,9,10,11,12};
@@ -183,9 +185,20 @@ int main()
 	show_cap(w);
 	show_elems(w);
 
-	std::println("{:-^50}","assign to w");
-	w = v;
+	//std::println("{:-^50}","assign to w");
+	//w = v;
 	//w = std::move(v);
+	//show_cap(w);
+	//show_elems(w);
+
+	std::println("{:-^50}","swap");
+	w.swap(v);
+//	v.swap(w);
+
+	std::println("{:-^50}","v");
+	show_cap(v);
+	show_elems(v);
+	std::println("{:-^50}","w");
 	show_cap(w);
 	show_elems(w);
 
