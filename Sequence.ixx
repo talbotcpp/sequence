@@ -58,11 +58,6 @@ struct sequence_traits
 		}
 	};
 
-	// 'is_variable' returns true iff the capacity can change size
-	// (i.e. storage is VARIABLE or BUFFERED).
-
-	constexpr bool is_variable() const { return storage >= sequence_storage_lits::VARIABLE; }
-
 	// 'front_gap' returns the location of the start of the data given a capacity and size.
 	// The formula is based on the 'location' value.
 
@@ -345,8 +340,6 @@ public:
 protected:
 
 	inline auto new_data_start(size_t size) { return capacity_begin(); }
-	//auto data_area() const { return m_size; }
-	//void set_data_area(size_type size) { m_size = size; }
 	inline void set_size(size_t size) { assert(fits_in<size_type>(size)); m_size = size; }
 
 private:
@@ -426,8 +419,6 @@ public:
 protected:
 
 	inline auto new_data_start(size_t size) { return capacity_end() - size; }
-	//auto data_area() const { return m_size; }
-	//void set_data_area(size_type size) { m_size = size; }
 	inline void set_size(size_t size) { assert(fits_in<size_type>(size)); m_size = size; }
 
 private:
@@ -564,10 +555,6 @@ protected:
 
 	// Returns the location in the capacity to write to with uninitialized_copy or _move.
 	inline auto new_data_start(size_t size) { return capacity_begin() + TRAITS.front_gap(size); }
-
-	//area_type data_area() const { return {m_front_gap, m_back_gap}; }
-	//void set_data_area(area_type area) { m_front_gap = area.first; m_back_gap = area.second; }
-
 	inline void set_size(size_t size)
 	{
 		assert(fits_in<size_type>(size));
@@ -615,8 +602,6 @@ class fixed_sequence_storage : public fixed_storage<T, TRAITS>
 	using inherited = fixed_storage<T, TRAITS>;
 
 	using inherited::new_data_start;
-	//using inherited::data_area;
-	//using inherited::set_data_area;
 	using inherited::set_size;
 
 public:
@@ -1198,7 +1183,7 @@ public:
 
 
 // ==============================================================================================================
-// fixed_sequence_storage - These member functions have to be here so they can see dynamic_sequence_storage.
+// fixed_sequence_storage - This member function is out here so it can see dynamic_sequence_storage.
 
 template<typename T, sequence_traits TRAITS>
 inline fixed_sequence_storage<T, TRAITS>::fixed_sequence_storage(dynamic_sequence_storage<T, TRAITS>&& rhs)
@@ -1359,31 +1344,18 @@ protected:
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
 	{
-		//if (!m_storage)
-		//	m_storage.reset(new storage_type);
 		return m_storage->add_at(pos, std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	inline void add_front(ARGS&&... args)
 	{
-		//if (!m_storage)
-		//	m_storage.reset(new storage_type);
 		m_storage->add_front(std::forward<ARGS>(args)...);
 	}
 	template<typename... ARGS>
 	inline void add_back(ARGS&&... args)
 	{
-		//if (!m_storage)
-		//	m_storage.reset(new storage_type);
 		m_storage->add_back(std::forward<ARGS>(args)...);
 	}
-	//template<typename... ARGS>
-	//inline void add(size_t new_size, ARGS&&... args)
-	//{
-	//	if (!m_storage)
-	//		m_storage.reset(new storage_type);
-	//	m_storage->add(new_size, std::forward<ARGS>(args)...);
-	//}
 
 	inline auto data_begin() { return m_storage ? m_storage->data_begin() : nullptr; }
 	inline auto data_end() { return m_storage ? m_storage->data_end() : nullptr; }
@@ -1693,10 +1665,11 @@ public:
 	template<typename... ARGS>
 	inline sequence(size_type n, ARGS&&... args)
 	{
-		if constexpr (traits.is_variable())
-			if (n)
-				reallocate(std::max<size_t>(n, traits.capacity));
-		add(n, std::forward<ARGS>(args)...);
+		if (n)
+		{
+			reallocate(std::max<size_t>(n, traits.capacity));
+			add(n, std::forward<ARGS>(args)...);
+		}
 	}
 
 	inline sequence& operator=(const sequence&) = default;
@@ -1707,19 +1680,21 @@ public:
 	inline void assign(size_type n, ARGS&&... args)
 	{
 		clear();
-		if constexpr (traits.is_variable())
-			if (n > capacity())
-				reallocate(std::max<size_t>(n, traits.capacity));
+		if (n > capacity())
+			reallocate(std::max<size_t>(n, traits.capacity));
 		add(n, std::forward<ARGS>(args)...);
 	}
 
-	// This is not sufficient. It is pessimized for BACK and MIDDLE sequences.
 	template<typename IT>
+		requires requires (IT i) { *i; }
 	inline void assign(IT first, IT last)
 	{
 		clear();
 		for (; first != last; ++first)
-			emplace_back(*first);
+			if constexpr (traits.location == sequence_location_lits::BACK)
+				emplace_front(*first);
+			else
+				emplace_back(*first);
 	}
 
 	inline void assign(std::initializer_list<value_type> il) { assign(il.begin(), il.end()); }
@@ -1761,14 +1736,14 @@ public:
 
 	inline void reserve(size_t new_capacity)
 	{
-		if (!traits.is_variable() || new_capacity > capacity())
+		if (new_capacity > capacity())
 			reallocate(new_capacity);
 	}
 	inline void shrink_to_fit()
 	{
 		if (auto current_size = size(); current_size == 0)
 			free();
-		else if (traits.is_variable() && current_size < capacity())
+		else if (current_size < capacity())
 			reallocate(current_size);
 	}
 	template<typename... ARGS>

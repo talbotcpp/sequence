@@ -103,10 +103,10 @@ struct foo {
 template<typename SEQ>
 void show_elems(const SEQ& seq)
 {
-	std::print("{}>\t", seq.size());
+	std::print("{: >2}>  ", seq.size());
 	if (seq.empty()) std::print("EMPTY");
 	else for (auto&& e : seq)
-		std::print("{}\t", int(e));
+		std::print("{}  ", int(e));
 	std::println();
 }
 
@@ -115,20 +115,20 @@ void show_elems(const SEQ& seq)
 template<typename SEQ>
 void show_cap(const SEQ& seq)
 {
-	std::print("{}{}\t", seq.capacity(), seq.is_dynamic() ? 'D' : 'S');
+	std::print("{: >2}{}  ", seq.capacity(), seq.is_dynamic() ? 'D' : 'S');
 	if (seq.capacity_begin())
 		for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
-			std::print("{}\t", int(*p));
+			std::print("{}  ", int(*p));
 	else std::print("NULL");
 	std::println();
 }
 template<typename T>
 void show_cap(const std::vector<T>& seq)
 {
-	std::print("{}{}\t", seq.capacity(), 'D');
+	std::print("{: >2}{}  ", seq.capacity(), 'D');
 	if (seq.data())
 		for (auto p = seq.data(); p != seq.data() + seq.capacity(); ++p)
-			std::print("{}\t", int(*p));
+			std::print("{}  ", int(*p));
 	else std::print("NULL");
 	std::println();
 }
@@ -146,7 +146,7 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::VARIABLE,
+		using typ = sequence<life, {.storage = sequence_storage_lits::STATIC,
 									.location = sequence_location_lits::MIDDLE,
 									.capacity = 10	}>;
 #else
@@ -155,9 +155,20 @@ int main()
 #endif
 
 	std::println("{:-^50}","v");
-	typ v{1,2,3,4,5};
+	try {
+//	typ v;
+	typ v{1,2,3,4};
+//	typ v(12, 69);
+//	v.assign(6, 69);
+	array<int, 4> a{5,6,7,8};
+	v.assign(a.begin(), a.end());
 	show_cap(v);
 	show_elems(v);
+	}
+	catch (std::bad_alloc e)
+	{
+		std::println("oops = {}", e.what());
+	}
 
 	//std::println("{:-^50}","reserve");
 	//v.reserve(10);
