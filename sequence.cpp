@@ -1,10 +1,10 @@
 import sequence;
 import life;
 
-//import std;
+import std;
 //import <print>;
-#include <print>
-#include <vector>
+//#include <print>
+//#include <vector>
 
 using namespace std;
 
@@ -138,8 +138,8 @@ void show_cap(const std::vector<T>& seq)
 template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
 using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::STATIC, .capacity = CAP }>;
 
-
-void assign(life& l1, const life& l2)
+template<typename L>
+void assign(L& l1, const L& l2)
 {
 	l1 = std::move_if_noexcept(l2);
 }
@@ -148,11 +148,11 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life, {.storage = sequence_storage_lits::BUFFERED,
+		using typ = sequence<life<true>, {.storage = sequence_storage_lits::BUFFERED,
 									.location = sequence_location_lits::FRONT,
 									.capacity = 5	}>;
 #else
-		using typ = std::vector<life>;
+		using typ = std::vector<life<true>>;
 //		using typ = std::array<life, 5>;
 #endif
 
@@ -170,6 +170,14 @@ int main()
 	//v.pop_back();
 	show_cap(v);
 	show_elems(v);
+
+	//auto p = std::data(v);
+	//for (auto e = p + 6; p != e; ++p)
+	//	std::print("{}\t", int(*p));
+	//std::println();
+	std::println("{:-^50}","for_each");
+	std::ranges::for_each(v, [](const auto& l){std::print("{}\t", int(l));});
+	std::println();
 
 	//catch (std::bad_alloc e)
 	//{
@@ -202,6 +210,8 @@ int main()
 	show_cap(w);
 	show_elems(w);
 
+
+	typ::value_type::print_log();
 	//std::println("{:-^50}","v");
 	//show_cap(v);
 	//show_elems(v);
