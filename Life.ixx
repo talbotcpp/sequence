@@ -33,46 +33,46 @@ public:
 
 	life()
 	{
-		log.emplace_back(id, DEFAULT_CONSTRUCT, value);
+		add_record(id, DEFAULT_CONSTRUCT, value);
 	}
 	life(int value) : value(value)
 	{
-		log.emplace_back(id, VALUE_CONSTRUCT, value);
+		add_record(id, VALUE_CONSTRUCT, value);
 	}
 
 	life(const life& rhs) : value(rhs.value)
 	{
-		log.emplace_back(id, COPY_CONSTRUCT, value);
+		add_record(id, COPY_CONSTRUCT, value);
 	}
 	life(life&& rhs) noexcept(NOEXCEPT_MOVE) : value(rhs.value)
 	{
 		rhs.value = value_tags::MOVED_FROM;
-		log.emplace_back(id, MOVE_CONSTRUCT, value);
+		add_record(id, MOVE_CONSTRUCT, value);
 	}
 
 	life& operator=(int v)
 	{
 		value = v;
-		log.emplace_back(id, VALUE_ASSIGN, value);
+		add_record(id, VALUE_ASSIGN, value);
 		return *this;
 	}
 	life& operator=(const life& rhs)
 	{
 		value = rhs.value;
-		log.emplace_back(id, COPY_ASSIGN, value);
+		add_record(id, COPY_ASSIGN, value);
 		return *this;
 	}
 	life& operator=(life&& rhs)
 	{
 		value = rhs.value;
 		rhs.value = value_tags::MOVED_FROM;
-		log.emplace_back(id, MOVE_ASSIGN, value);
+		add_record(id, MOVE_ASSIGN, value);
 		return *this;
 	}
 
 	~life()
 	{
-		log.emplace_back(id, DESTRUCT, value);
+		add_record(id, DESTRUCT, value);
 		value = value_tags::DESTRUCTED;
 	}
 
@@ -88,10 +88,18 @@ public:
 		record(STR&& comment) : operation(COMMENT), comment(std::forward<STR>(comment)) {}
 		record(int id, int operation, int value) : id(id), operation(operation), value(value) {}
 
-		std::string comment;
+		inline bool operator==(const record& rhs) const
+		{
+			return	id == rhs.id &&
+					operation == rhs.operation &&
+					value == rhs.value;
+		}
+		inline bool operator!=(const record& rhs) const { return !operator==(rhs); }
+
 		unsigned id = 0;
 		unsigned operation;
 		signed value = 0;
+		std::string comment;
 	};
 
 	using log_type = std::list<record>;
@@ -101,7 +109,7 @@ public:
 	template<typename STR>
 	static void add_comment(STR&& comment)
 	{
-		log.emplace_back(std::forward<STR>(comment));
+		add_record(std::forward<STR>(comment));
 	}
 
 	static void print_log()
@@ -121,7 +129,7 @@ public:
 	}
 	static void print_operation(unsigned operation)
 	{
-		const char* operations[] = {
+		const char* operations[COMMENT + 1] = {
 			"DC",		// DEFAULT_CONSTRUCT
 			"VC",		// VALUE_CONSTRUCT
 			"CC",		// COPY_CONSTRUCT
@@ -140,23 +148,50 @@ public:
 		switch (value)
 		{
 		default:
-				std::print("{: >4d}", value);	break;
+			std::print("{: >4d}", value);	break;
 		case DEFAULTED:
-				std::print("{: >4}", "DEF");		break;
+			std::print("{: >4}", "DEF");		break;
 		case DESTRUCTED:
-				std::print("{: >4}", "DST");		break;
+			std::print("{: >4}", "DST");		break;
 		case MOVED_FROM:
-				std::print("{: >4}", "MOV");		break;
+			std::print("{: >4}", "MOV");		break;
 		}
+	}
+
+	static bool check_log(const record* next, const record* end)
+	{
+		for (; last != log.end() && next != end; ++last)
+		{
+			if (last->operation == COMMENT) continue;
+			if (*last != *next) return false;
+			++next;
+		}
+		return true;
+	}
+	template<int SIZE>
+	static bool check_log(const record (&records)[SIZE])
+	{
+		return check_log(std::begin(records), std::end(records));
 	}
 
 private:
 
+	template<typename... ARGS>
+	static void add_record(ARGS... args)
+	{
+		if (log.empty()) last = log.end();
+		log.emplace_back(args...);
+		if (last == log.end()) --last;
+	}
+
 	static unsigned previous_id;
-	static std::list<record> log;
+	static log_type log;
+	static log_type::const_iterator last;
 };
 
-template<bool NOEXCEPT_MOVE = true>
+template<bool NOEXCEPT_MOVE>
 unsigned life<NOEXCEPT_MOVE>::previous_id = 0;
-template<bool NOEXCEPT_MOVE = true>
+template<bool NOEXCEPT_MOVE>
 life<NOEXCEPT_MOVE>::log_type life<NOEXCEPT_MOVE>::log;
+template<bool NOEXCEPT_MOVE>
+life<NOEXCEPT_MOVE>::log_type::const_iterator life<NOEXCEPT_MOVE>::last;

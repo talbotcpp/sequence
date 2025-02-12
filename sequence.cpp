@@ -148,15 +148,16 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life<true>, {.storage = sequence_storage_lits::BUFFERED,
+		using typ = sequence<life<true>, {.storage = sequence_storage_lits::STATIC,
 									.location = sequence_location_lits::FRONT,
-									.capacity = 5	}>;
+									.capacity = 6	}>;
 #else
 		using typ = std::vector<life<true>>;
 //		using typ = std::array<life, 5>;
 #endif
 
 	std::println("{:-^50}","v");
+	typ::value_type::add_comment("Make v");
 //	typ v;
 //	typ v = {1,2,3};
 	typ v{1,2,3,4,5,6};
@@ -184,6 +185,7 @@ int main()
 	//	std::println("oops = {}", e.what());
 	//}
 
+	typ::value_type::add_comment("Make w");
 	std::println("{:-^50}","w");
 //	typ w;
 //	typ w{7,8,9};
@@ -199,6 +201,7 @@ int main()
 	//show_cap(w);
 	//show_elems(w);
 
+	typ::value_type::add_comment("swap");
 	std::println("{:-^50}","swap");
 	w.swap(v);
 //	v.swap(w);
@@ -212,6 +215,26 @@ int main()
 
 
 	typ::value_type::print_log();
+	typ::value_type::record recs1[] = {
+		{1,		VALUE_CONSTRUCT,	1},
+		{2,		VALUE_CONSTRUCT,	2},
+		{3,		VALUE_CONSTRUCT,	3},
+		{4,		VALUE_CONSTRUCT,	4},
+		{5,		VALUE_CONSTRUCT,	5},
+		{6,		VALUE_CONSTRUCT,	6},
+	};
+	println("Check: {}", typ::value_type::check_log(recs1));
+
+	typ::value_type::record recs2[] = {
+		{7,		COPY_CONSTRUCT,	1},
+		{8,		COPY_CONSTRUCT,	2},
+		{9,		COPY_CONSTRUCT,	3},
+		{10,	COPY_CONSTRUCT,	4},
+		{11,	COPY_CONSTRUCT,	5},
+		{12,	COPY_CONSTRUCT,	6},
+	};
+	println("Check: {}", typ::value_type::check_log(recs2));
+
 	//std::println("{:-^50}","v");
 	//show_cap(v);
 	//show_elems(v);
