@@ -236,7 +236,7 @@ int main()
 	println("Check: {}", typ::value_type::check_log(recs2));
 
 	typ::value_type::clear_log();
-	//{
+	{
 	//typ seq{1,2,3};
 
 	//typ::value_type::record records[] = {
@@ -271,22 +271,35 @@ int main()
 
 	typ::value_type::clear_log();
 
-//	lhs = std::move(rhs);
-	lhs = rhs;
+	lhs = std::move(rhs);
+//	lhs = rhs;
 	typ::value_type::print_new_log();
 
 	typ::value_type::record records[] = {
 		{4,		DESTRUCT,		1},
 		{5,		DESTRUCT,		2},
 		{6,		DESTRUCT,		3},
-		{15,		COPY_CONSTRUCT,	4},
-		{16,		COPY_CONSTRUCT,	5},
-		{17,		COPY_CONSTRUCT,	6},
-		{18,		COPY_CONSTRUCT,	7},
+		{15,	MOVE_CONSTRUCT,	4},
+		{16,	MOVE_CONSTRUCT,	5},
+		{17,	MOVE_CONSTRUCT,	6},
+		{18,	MOVE_CONSTRUCT,	7},
 	};
 	println("Check: {}", typ::value_type::check_log(records));
+	}
+	println();
+	typ::value_type::print_new_log();
 
-
+	typ::value_type::record records[] = {
+		{11,	DESTRUCT,	MOVED_FROM},
+		{12,	DESTRUCT,	MOVED_FROM},
+		{13,	DESTRUCT,	MOVED_FROM},
+		{14,	DESTRUCT,	MOVED_FROM},
+		{15,	DESTRUCT,	4},
+		{16,	DESTRUCT,	5},
+		{17,	DESTRUCT,	6},
+		{18,	DESTRUCT,	7},
+	};
+	println("Check: {}", typ::value_type::check_log(records));
 
 	//std::println("{:-^50}","v");
 	//show_cap(v);

@@ -60,7 +60,7 @@ TEST_METHOD(Copy)
 	}>;
 
 	typ::value_type::reset();
-
+	{
 	typ lhs{1,2,3};
 	typ rhs{4,5,6,7};
 
@@ -83,6 +83,18 @@ TEST_METHOD(Copy)
 		{18,	COPY_CONSTRUCT,	7},
 	};
 	Assert::IsTrue(typ::value_type::check_log(records));
+	}
+	typ::value_type::record records[] = {
+		{11,	DESTRUCT,	4},
+		{12,	DESTRUCT,	5},
+		{13,	DESTRUCT,	6},
+		{14,	DESTRUCT,	7},
+		{15,	DESTRUCT,	4},
+		{16,	DESTRUCT,	5},
+		{17,	DESTRUCT,	6},
+		{18,	DESTRUCT,	7},
+	};
+	Assert::IsTrue(typ::value_type::check_log(records));
 }
 
 TEST_METHOD(Move)
@@ -94,7 +106,7 @@ TEST_METHOD(Move)
 	}>;
 
 	typ::value_type::reset();
-
+	{
 	typ lhs{1,2,3};
 	typ rhs{4,5,6,7};
 
@@ -115,6 +127,18 @@ TEST_METHOD(Move)
 		{16,	MOVE_CONSTRUCT,	5},
 		{17,	MOVE_CONSTRUCT,	6},
 		{18,	MOVE_CONSTRUCT,	7},
+	};
+	Assert::IsTrue(typ::value_type::check_log(records));
+	}
+	typ::value_type::record records[] = {
+		{11,	DESTRUCT,	MOVED_FROM},
+		{12,	DESTRUCT,	MOVED_FROM},
+		{13,	DESTRUCT,	MOVED_FROM},
+		{14,	DESTRUCT,	MOVED_FROM},
+		{15,	DESTRUCT,	4},
+		{16,	DESTRUCT,	5},
+		{17,	DESTRUCT,	6},
+		{18,	DESTRUCT,	7},
 	};
 	Assert::IsTrue(typ::value_type::check_log(records));
 }
