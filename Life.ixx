@@ -103,6 +103,7 @@ public:
 	};
 
 	using log_type = std::list<record>;
+	static void reset() { previous_id = 0; clear_log(); }
 	static void clear_log() { log.clear(); }
 	static const log_type& get_log() { return log; }
 
@@ -112,21 +113,9 @@ public:
 		add_record(std::forward<STR>(comment));
 	}
 
-	static void print_log()
-	{
-		for (const auto& record : log)
-		{
-			if (record.operation == COMMENT)
-				std::println("{}", record.comment);
-			else
-			{
-				std::print("{: >4d}", record.id);
-				print_operation(record.operation);
-				print_value(record.value);
-				std::println();
-			}
-		}
-	}
+	static void print_log() { print_log_range(log.begin()); }
+	static void print_new_log() { print_log_range(last); }
+
 	static void print_operation(unsigned operation)
 	{
 		const char* operations[COMMENT + 1] = {
@@ -182,6 +171,22 @@ private:
 		if (log.empty()) last = log.end();
 		log.emplace_back(args...);
 		if (last == log.end()) --last;
+	}
+
+	static void print_log_range(log_type::const_iterator rec)
+	{
+		for (; rec != log.end(); ++rec)
+		{
+			if (rec->operation == COMMENT)
+				std::println("{}", rec->comment);
+			else
+			{
+				std::print("{: >4d}", rec->id);
+				print_operation(rec->operation);
+				print_value(rec->value);
+				std::println();
+			}
+		}
 	}
 
 	static unsigned previous_id;

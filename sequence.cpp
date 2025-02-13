@@ -235,6 +235,59 @@ int main()
 	};
 	println("Check: {}", typ::value_type::check_log(recs2));
 
+	typ::value_type::clear_log();
+	//{
+	//typ seq{1,2,3};
+
+	//typ::value_type::record records[] = {
+	//	{1,		VALUE_CONSTRUCT,	1},
+	//	{2,		VALUE_CONSTRUCT,	2},
+	//	{3,		VALUE_CONSTRUCT,	3},
+	//	{4,		COPY_CONSTRUCT,		1},
+	//	{5,		COPY_CONSTRUCT,		2},
+	//	{6,		COPY_CONSTRUCT,		3},
+	//	{3,		DESTRUCT,			3},
+	//	{2,		DESTRUCT,			2},
+	//	{1,		DESTRUCT,			1},
+	//};
+	//typ::value_type::print_new_log();
+	//println("Check: {}", typ::value_type::check_log(records));
+	//}
+	//typ::value_type::print_new_log();
+	//typ::value_type::record records[] = {
+	//	{4,		DESTRUCT,		1},
+	//	{5,		DESTRUCT,		2},
+	//	{6,		DESTRUCT,		3},
+	//};
+	//println("Check: {}", typ::value_type::check_log(records));
+
+	std::println("{:-^50}","test");
+	typ::value_type::reset();
+
+	typ lhs{1,2,3};
+	typ rhs{4,5,6,7};
+	typ::value_type::print_new_log();
+	println();
+
+	typ::value_type::clear_log();
+
+//	lhs = std::move(rhs);
+	lhs = rhs;
+	typ::value_type::print_new_log();
+
+	typ::value_type::record records[] = {
+		{4,		DESTRUCT,		1},
+		{5,		DESTRUCT,		2},
+		{6,		DESTRUCT,		3},
+		{15,		COPY_CONSTRUCT,	4},
+		{16,		COPY_CONSTRUCT,	5},
+		{17,		COPY_CONSTRUCT,	6},
+		{18,		COPY_CONSTRUCT,	7},
+	};
+	println("Check: {}", typ::value_type::check_log(records));
+
+
+
 	//std::println("{:-^50}","v");
 	//show_cap(v);
 	//show_elems(v);
