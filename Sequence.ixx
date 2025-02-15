@@ -620,8 +620,8 @@ public:
 		if (il.size() > capacity())
 			throw std::bad_alloc();
 
-		std::uninitialized_copy(il.begin(), il.end(), new_data_start(static_cast<size_type>(il.size())));
-		set_size(static_cast<size_type>(il.size()));	// This must come last in case of a copy exception.
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
+		set_size(il.size());	// This must come last in case of a copy exception.
 	}
 
 	fixed_sequence_storage(const dynamic_sequence_storage<T, TRAITS>&);
@@ -630,12 +630,12 @@ public:
 	inline fixed_sequence_storage(const fixed_sequence_storage& rhs)
 	{
 		std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
-		set_size(rhs.size());							// This must come last in case of a move exception.
+		set_size(rhs.size());	// This must come last in case of a move exception.
 	}
 	inline fixed_sequence_storage(fixed_sequence_storage&& rhs)
 	{
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
-		set_size(rhs.size());							// This must come last in case of a move exception.
+		set_size(rhs.size());	// This must come last in case of a move exception.
 	}
 
 	inline fixed_sequence_storage& operator=(const fixed_sequence_storage& rhs)
@@ -650,6 +650,16 @@ public:
 		clear();
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
 		set_size(rhs.size());
+		return *this;
+	}
+	inline fixed_sequence_storage& operator=(std::initializer_list<value_type> il)
+	{
+		if (il.size() > capacity())
+			throw std::bad_alloc();
+
+		clear();
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
+		set_size(il.size());
 		return *this;
 	}
 
@@ -1151,6 +1161,15 @@ public:
 		swap(rhs);
 		return *this;
 	}
+	inline dynamic_sequence_storage& operator=(std::initializer_list<value_type> il)
+	{
+		clear();
+		if (il.size() > capacity())
+			swap(inherited(il.size()));
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
+		set_size(il.size());
+		return *this;
+	}
 
 	inline ~dynamic_sequence_storage()
 	{
@@ -1227,6 +1246,7 @@ public:
 
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
+	inline sequence_storage& operator=(std::initializer_list<value_type> il) { m_storage = il; return *this; }
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	static constexpr size_t capacity() { return TRAITS.capacity; }
@@ -1326,6 +1346,17 @@ public:
 		m_storage = std::move(rhs.m_storage);
 		return *this;
 	}
+	inline sequence_storage& operator=(std::initializer_list<value_type> il)
+	{
+		if (il.empty()) clear();
+		else
+		{
+			if (!m_storage)
+				m_storage.reset(new storage_type);
+			*m_storage = il;
+		}
+		return *this;
+	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return m_storage ? TRAITS.capacity : 0; }
@@ -1400,6 +1431,7 @@ public:
 
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
+	inline sequence_storage& operator=(std::initializer_list<value_type> il) { m_storage = il; return *this; }
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_t>::max(); }
 	inline size_t capacity() const { return m_storage.capacity(); }
@@ -1484,13 +1516,21 @@ public:
 
 	inline sequence_storage& operator=(const sequence_storage& rhs)
 	{
-		if (rhs.size() <= TRAITS.capacity)
+		if (rhs.size() <= TRAITS.capacity && is_dynamic())
 			rhs.execute([&](auto&& storage){ m_storage.emplace<STC>(storage); });
 		else
 			m_storage = rhs.m_storage;
 		return *this;
 	}
 	inline sequence_storage& operator=(sequence_storage&&) = default;
+	inline sequence_storage& operator=(std::initializer_list<value_type> il)
+	{
+		if (il.size() <= TRAITS.capacity && is_dynamic())
+			m_storage.emplace<STC>(il);
+		else
+			m_storage = il;
+		return *this;
+	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
@@ -1627,11 +1667,12 @@ public:
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-	using inherited::size;
-	using inherited::empty;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
+
+	using inherited::size;
+	using inherited::empty;
 	using inherited::erase;
 	using inherited::clear;
 	using inherited::free;
@@ -1674,7 +1715,9 @@ public:
 
 	inline sequence& operator=(const sequence&) = default;
 	inline sequence& operator=(sequence&&) = default;
-	inline sequence& operator=(std::initializer_list<value_type> il) { assign(il); return *this; }
+
+	inline sequence& operator=(std::initializer_list<value_type> il) { inherited::operator=(il); return *this; }
+	inline void assign(std::initializer_list<value_type> il) { operator=(il); }
 
 	template<typename... ARGS>
 	inline void assign(size_type n, ARGS&&... args)
@@ -1697,7 +1740,6 @@ public:
 				emplace_back(*first);
 	}
 
-	inline void assign(std::initializer_list<value_type> il) { assign(il.begin(), il.end()); }
 
 	inline iterator					begin() { return data_begin(); }
 	inline const_iterator			begin() const { return data_begin(); }
@@ -1720,6 +1762,9 @@ public:
 	inline const value_type&		front() const { return *data_begin(); }
 	inline value_type&				back() { return *(data_end() - 1); }
 	inline const value_type&		back() const { return *(data_end() - 1); }
+
+	inline size_t front_gap() const { return data_begin() - capacity_begin(); }
+	inline size_t back_gap() const { return capacity_end() - data_end(); }
 
 	inline value_type& at(size_t index)
 	{

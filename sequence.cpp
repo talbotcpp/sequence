@@ -48,67 +48,33 @@ void show(const SEQ& seq)
 	std::println();
 }
 
-// foo - Instrumented debugging type for life cycle testing.
+// print_value - Prints special values as meaningful tags.
 
-struct no_answers{};
+void print_value(int i)
+{
+	auto print = [](auto v){ std::print("{: >5}", v); };
 
-struct foo {
-	foo() : i(42) { std::println("  foo() {}", i); }
-	foo(int i) : i(i) { std::println("  foo(int) {}", i); }
-	foo(const foo& f) : i(f.i)
+	switch (i)
 	{
-		std::println("  foo(const foo&) {}", i);
+	case DEFAULTED:		print("DEF"); break;
+	case DESTRUCTED:	print("DST"); break;
+	case MOVED_FROM:	print("MOV"); break;
+	default:
+		if (i >= 0 && i < 1000) print(i);
+		else print("GAR");
+		break;
 	}
-	foo(foo&& f) : i(f.i)
-	{
-		if (i == 86)
-		{
-			std::println("  foo(foo&&) BAD");
-			throw no_answers();
-		}
-		std::println("  foo(foo&&) {}", i);
-		f.i = 666;
-	}
-	~foo()
-	{
-		std::println("  ~foo {}", i);
-		i = 99999;
-	}
-
-	foo& operator=(const foo& f)
-	{
-		i = f.i;
-		std::println("  foo(const foo&) {}", i);
-		return *this;
-	}
-	foo& operator=(foo&& f)
-	{
-		i = f.i;
-		if (i == 86)
-		{
-			std::println("  op=(foo&&) BAD");
-			throw no_answers();
-		}
-		std::println("  op=(foo&&) {}", i);
-		f.i = 666;
-		return *this;
-	}
-
-	operator int() const { return i; }
-
-	int i;
-};
-
+}
 
 // show_elems - Simple element output for any container with elements convertible to int.
 
 template<typename SEQ>
 void show_elems(const SEQ& seq)
 {
-	std::print("{: >2}>  ", seq.size());
+	std::print("{: >2}> ", seq.size());
 	if (seq.empty()) std::print("EMPTY");
 	else for (auto&& e : seq)
-		std::print("{}  ", int(e));
+		print_value(e);
 	std::println();
 }
 
@@ -117,21 +83,21 @@ void show_elems(const SEQ& seq)
 template<typename SEQ>
 void show_cap(const SEQ& seq)
 {
-	std::print("{: >2}{}  ", seq.capacity(), seq.is_dynamic() ? 'D' : 'S');
+	std::print("{: >2}{} ", seq.capacity(), seq.is_dynamic() ? 'D' : 'S');
 	if (seq.capacity_begin())
 		for (auto p = seq.capacity_begin(); p != seq.capacity_end(); ++p)
-			std::print("{}  ", int(*p));
-	else std::print("NULL");
+			print_value(*p);
+	else std::print(" NULL");
 	std::println();
 }
 template<typename T>
 void show_cap(const std::vector<T>& seq)
 {
-	std::print("{: >2}{}  ", seq.capacity(), 'D');
+	std::print("{: >2}{} ", seq.capacity(), 'D');
 	if (seq.data())
 		for (auto p = seq.data(); p != seq.data() + seq.capacity(); ++p)
-			std::print("{}  ", int(*p));
-	else std::print("NULL");
+			print_value(*p);
+	else std::print("  NULL");
 	std::println();
 }
 
@@ -144,6 +110,17 @@ void assign(L& l1, const L& l2)
 	l1 = std::move_if_noexcept(l2);
 }
 
+struct C
+{
+
+    life<true>* x = nullptr;
+
+    C() {x = new life<true>; throw 42;}
+
+    ~C() {delete x;}
+
+};
+
 int main()
 {
 
@@ -155,12 +132,12 @@ int main()
 		using typ = std::vector<life<true>>;
 //		using typ = std::array<life, 5>;
 #endif
-
+	{
 	std::println("{:-^50}","v");
 	typ::value_type::add_comment("Make v");
 //	typ v;
-//	typ v = {1,2,3};
-	typ v{1,2,3,4,5,6};
+	typ v = {1,2,3};
+//	typ v{1,2,3,4,5,6};
 //	typ v(6, 69);
 	//v.resize(1);
 	//v.resize(5);
@@ -172,18 +149,44 @@ int main()
 	show_cap(v);
 	show_elems(v);
 
-	//auto p = std::data(v);
-	//for (auto e = p + 6; p != e; ++p)
-	//	std::print("{}\t", int(*p));
-	//std::println();
-	std::println("{:-^50}","for_each");
-	std::ranges::for_each(v, [](const auto& l){std::print("{}\t", int(l));});
-	std::println();
+	typ::value_type::add_comment("Make IL");
 
-	//catch (std::bad_alloc e)
-	//{
-	//	std::println("oops = {}", e.what());
-	//}
+	std::initializer_list<life<true>> ils[7] = {
+		{},
+		{4},
+		{4,5},
+		{4,5,6},
+		{4,5,6,7},
+		{4,5,6,7,8},
+		{4,5,6,7,8,9},
+	};
+
+	typ::value_type::add_comment("Assign v");
+	v = ils[5];
+	show_cap(v);
+	show_elems(v);
+	typ::value_type::add_comment("End of scope");
+//	typ::value_type::print_log();
+
+	typ::value_type::add_comment("Make w");
+	std::println("{:-^50}","w");
+//	typ w;
+//	typ w{7,8,9};
+	typ w{7,8,9,10,11,12};
+//	typ w{v};
+//	typ w{std::move(v)};
+	show_cap(w);
+	show_elems(w);
+
+	std::println("{:-^50}","assign to w");
+	w = v;
+	//w = std::move(v);
+	show_cap(w);
+	show_elems(w);
+	}
+}
+
+#ifdef NONONONO
 
 	typ::value_type::add_comment("Make w");
 	std::println("{:-^50}","w");
@@ -236,7 +239,6 @@ int main()
 	println("Check: {}", typ::value_type::check_log(recs2));
 
 	typ::value_type::clear_log();
-	{
 	//typ seq{1,2,3};
 
 	//typ::value_type::record records[] = {
@@ -271,35 +273,6 @@ int main()
 
 	typ::value_type::clear_log();
 
-	lhs = std::move(rhs);
-//	lhs = rhs;
-	typ::value_type::print_new_log();
-
-	typ::value_type::record records[] = {
-		{4,		DESTRUCT,		1},
-		{5,		DESTRUCT,		2},
-		{6,		DESTRUCT,		3},
-		{15,	MOVE_CONSTRUCT,	4},
-		{16,	MOVE_CONSTRUCT,	5},
-		{17,	MOVE_CONSTRUCT,	6},
-		{18,	MOVE_CONSTRUCT,	7},
-	};
-	println("Check: {}", typ::value_type::check_log(records));
-	}
-	println();
-	typ::value_type::print_new_log();
-
-	typ::value_type::record records[] = {
-		{11,	DESTRUCT,	MOVED_FROM},
-		{12,	DESTRUCT,	MOVED_FROM},
-		{13,	DESTRUCT,	MOVED_FROM},
-		{14,	DESTRUCT,	MOVED_FROM},
-		{15,	DESTRUCT,	4},
-		{16,	DESTRUCT,	5},
-		{17,	DESTRUCT,	6},
-		{18,	DESTRUCT,	7},
-	};
-	println("Check: {}", typ::value_type::check_log(records));
 
 	//std::println("{:-^50}","v");
 	//show_cap(v);
@@ -367,8 +340,6 @@ int main()
 	//show_cap(w);
 	//show_elems(w);
 }
-
-#ifdef NONONONO
 
 
 	{

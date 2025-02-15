@@ -139,11 +139,11 @@ public:
 		default:
 			std::print("{: >4d}", value);	break;
 		case DEFAULTED:
-			std::print("{: >4}", "DEF");		break;
+			std::print("{: >4}", "DEF");	break;
 		case DESTRUCTED:
-			std::print("{: >4}", "DST");		break;
+			std::print("{: >4}", "DST");	break;
 		case MOVED_FROM:
-			std::print("{: >4}", "MOV");		break;
+			std::print("{: >4}", "MOV");	break;
 		}
 	}
 
@@ -196,7 +196,9 @@ private:
 
 template<bool NOEXCEPT_MOVE>
 unsigned life<NOEXCEPT_MOVE>::previous_id = 0;
+
 template<bool NOEXCEPT_MOVE>
 life<NOEXCEPT_MOVE>::log_type life<NOEXCEPT_MOVE>::log;
+
 template<bool NOEXCEPT_MOVE>
 life<NOEXCEPT_MOVE>::log_type::const_iterator life<NOEXCEPT_MOVE>::last;
