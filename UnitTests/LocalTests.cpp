@@ -18,29 +18,29 @@ TEST_CLASS(LocalTests)
 	TEST_METHOD(Size_Type)
 	{
 		sequence<int8_t, sequence_traits<uint64_t>{
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 3
 		}> seq1;
 		Assert::AreEqual(size_t(16), sizeof(seq1));
 
 		sequence<int8_t, sequence_traits<uint32_t>{
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 3
 		}> seq2;
 		Assert::AreEqual(size_t(8), sizeof(seq2));
 
 		sequence<int8_t, sequence_traits<uint16_t>{
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 3
 		}> seq3;
 		Assert::AreEqual(size_t(6), sizeof(seq3));
 
 		sequence<int8_t, sequence_traits<uint8_t>{
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 3
 		}> seq4;
 		Assert::AreEqual(size_t(4), sizeof(seq4));
@@ -48,8 +48,8 @@ TEST_CLASS(LocalTests)
 	TEST_METHOD(Copy)
 	{
 		using typ = sequence<life, {
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 6
 		}>;
 
@@ -93,8 +93,8 @@ TEST_CLASS(LocalTests)
 	TEST_METHOD(Move)
 	{
 		using typ = sequence<life, {
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 6
 		}>;
 
@@ -138,8 +138,8 @@ TEST_CLASS(LocalTests)
 	TEST_METHOD(Overfill)
 	{
 		using typ = sequence<life, {
-			.storage = sequence_storage_lits::LOCAL,
-			.location = sequence_location_lits::FRONT,
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::FRONT,
 			.capacity = 6
 		}>;
 		typ seq{1,2,3,4,5,6};

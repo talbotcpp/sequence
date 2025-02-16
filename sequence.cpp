@@ -24,24 +24,24 @@ void show(const SEQ& seq)
 	std::print("Storage:\t");
 	switch (seq.traits.storage)
 	{
-		case sequence_storage_lits::LOCAL:		std::println("LOCAL");		break;
-		case sequence_storage_lits::FIXED:		std::println("FIXED");		break;
-		case sequence_storage_lits::VARIABLE:	std::println("VARIABLE");	break;
-		case sequence_storage_lits::BUFFERED:	std::println("BUFFERED");	break;
+		case storage_modes::LOCAL:		std::println("LOCAL");		break;
+		case storage_modes::FIXED:		std::println("FIXED");		break;
+		case storage_modes::VARIABLE:	std::println("VARIABLE");	break;
+		case storage_modes::BUFFERED:	std::println("BUFFERED");	break;
 	}
 	std::print("Location:\t");
 	switch (seq.traits.location)
 	{
-		case sequence_location_lits::FRONT:		std::println("FRONT");		break;
-		case sequence_location_lits::MIDDLE:	std::println("MIDDLE");		break;
-		case sequence_location_lits::BACK:		std::println("BACK");		break;
+		case location_modes::FRONT:		std::println("FRONT");		break;
+		case location_modes::MIDDLE:	std::println("MIDDLE");		break;
+		case location_modes::BACK:		std::println("BACK");		break;
 	}
 	std::print("Growth:\t\t");
 	switch (seq.traits.growth)
 	{
-		case sequence_growth_lits::LINEAR:		std::println("LINEAR");			break;
-		case sequence_growth_lits::EXPONENTIAL:	std::println("EXPONENTIAL");	break;
-		case sequence_growth_lits::VECTOR:		std::println("VECTOR");			break;
+		case growth_modes::LINEAR:		std::println("LINEAR");			break;
+		case growth_modes::EXPONENTIAL:	std::println("EXPONENTIAL");	break;
+		case growth_modes::VECTOR:		std::println("VECTOR");			break;
 	}
 
 	std::println("Capacity:\t{}", seq.traits.capacity);
@@ -105,7 +105,7 @@ void show_cap(const std::vector<T>& seq)
 }
 
 template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
-using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::LOCAL, .capacity = CAP }>;
+using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = storage_modes::LOCAL, .capacity = CAP }>;
 
 template<typename L>
 void assign(L& l1, const L& l2)
@@ -134,8 +134,8 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life_throws, {.storage = sequence_storage_lits::VARIABLE,
-									.location = sequence_location_lits::FRONT,
+		using typ = sequence<life_throws, {.storage = storage_modes::VARIABLE,
+									.location = location_modes::FRONT,
 									.capacity = 6	}>;
 #else
 		using typ = std::vector<life<true>>;
@@ -349,8 +349,8 @@ int main()
 	println();
 
 
-	using styp = sequence<int, {.storage = sequence_storage_lits::LOCAL,
-								.location = sequence_location_lits::FRONT,
+	using styp = sequence<int, {.storage = storage_modes::LOCAL,
+								.location = location_modes::FRONT,
 								.capacity = 8	}>;
 
 	//styp s;
@@ -412,9 +412,9 @@ int main()
 
 
 	constexpr sequence_traits<unsigned char> traits {
-			.storage = sequence_storage_lits::BUFFERED,
-			.location = sequence_location_lits::FRONT,
-			.growth = sequence_growth_lits::LINEAR,
+			.storage = storage_modes::BUFFERED,
+			.location = location_modes::FRONT,
+			.growth = growth_modes::LINEAR,
 			.capacity = 10,
 			.increment = 1,
 	};
@@ -599,8 +599,8 @@ int main()
 	//	show_elems(s3);
 	//}
 	//sequence<foo, {
-	//	.storage = sequence_storage_lits::LOCAL,
-	//	.location = sequence_location_lits::FRONT,
+	//	.storage = storage_modes::LOCAL,
+	//	.location = location_modes::FRONT,
 	//	.capacity = 12,
 	//}> s3;
 //	vector<int> s3;

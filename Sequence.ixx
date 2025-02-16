@@ -20,13 +20,13 @@ import <format>;
 // ==============================================================================================================
 // Traits - Control structure template parameter.
 
-// sequence_lits - Literals used to specify the values of various sequence traits.
+// Mode Literals - Used to specify the values of various sequence traits.
 // These are hoisted out of the class template to avoid template dependencies.
-// See sequence_traits below for a detailed discussion of these values.
+// See README.md for a detailed discussion of these values.
 
-export enum class sequence_storage_lits { LOCAL, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
-export enum class sequence_location_lits { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
-export enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };			// See sequence_traits::growth.
+export enum class storage_modes { LOCAL, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
+export enum class location_modes { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
+export enum class growth_modes { LINEAR, EXPONENTIAL, VECTOR };			// See sequence_traits::growth.
 
 // sequence_traits - Structure used to supply the sequence traits. This is fully documented in the README.md file.
 
@@ -35,9 +35,9 @@ struct sequence_traits
 {
 	using size_type = SIZE;
 
-	sequence_storage_lits storage = sequence_storage_lits::VARIABLE;
-	sequence_location_lits location = sequence_location_lits::FRONT;
-	sequence_growth_lits growth = sequence_growth_lits::VECTOR;
+	storage_modes storage = storage_modes::VARIABLE;
+	location_modes location = location_modes::FRONT;
+	growth_modes growth = growth_modes::VECTOR;
 
 	size_t capacity = 1;
 	size_t increment = 1;
@@ -48,12 +48,12 @@ struct sequence_traits
 		if (cap < capacity) return capacity;
 		else switch (growth)
 		{
-			case sequence_growth_lits::LINEAR:
+			case growth_modes::LINEAR:
 				return cap + increment;
-			case sequence_growth_lits::EXPONENTIAL:
+			case growth_modes::EXPONENTIAL:
 				return cap + std::max(size_t(cap * (factor - 1.f)), increment);
 			default:
-			case sequence_growth_lits::VECTOR:
+			case growth_modes::VECTOR:
 				return cap + std::max<size_t>(cap / 2, 1u);
 		}
 	};
@@ -66,9 +66,9 @@ struct sequence_traits
 		switch (location)
 		{
 		default:
-		case sequence_location_lits::FRONT:		return 0;
-		case sequence_location_lits::BACK:		return cap - size;
-		case sequence_location_lits::MIDDLE:	return (cap - size) / 2;
+		case location_modes::FRONT:		return 0;
+		case location_modes::BACK:		return cap - size;
+		case location_modes::MIDDLE:	return (cap - size) / 2;
 		}
 	}
 	constexpr size_t front_gap(size_t size = 0) const
@@ -209,7 +209,7 @@ std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_b
 	std::uninitialized_move(data_begin, data_end, temp.capacity_begin());
 	destroy_data(data_begin, data_end);
 
-	auto fg = sequence_traits{.location = sequence_location_lits::MIDDLE}.front_gap(capacity, size);
+	auto fg = sequence_traits{.location = location_modes::MIDDLE}.front_gap(capacity, size);
 	auto bg = capacity - (fg + size);
 	if (data_begin == capacity_begin) std::swap(fg, bg);
 	std::uninitialized_move(temp.capacity_begin(), temp.capacity_begin() + size, capacity_begin + fg);
@@ -262,14 +262,14 @@ private:
 // fixed_storage - This is the base class for the fixed_sequence_storage class. It provides
 // the three different element management strategies for fixed capacity sequences
 
-template<typename T, sequence_traits TRAITS, sequence_location_lits LOC = TRAITS.location>
+template<typename T, sequence_traits TRAITS, location_modes LOC = TRAITS.location>
 class fixed_storage
 {
 	static_assert(false, "An unimplemented specialization of fixed_storage was instantiated.");
 };
 
 template<typename T, sequence_traits TRAITS>
-class fixed_storage<T, TRAITS, sequence_location_lits::FRONT> : public fixed_capacity<T, TRAITS.capacity>
+class fixed_storage<T, TRAITS, location_modes::FRONT> : public fixed_capacity<T, TRAITS.capacity>
 {
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using value_type = T;
@@ -348,7 +348,7 @@ private:
 };
 
 template<typename T, sequence_traits TRAITS>
-class fixed_storage<T, TRAITS, sequence_location_lits::BACK> : public fixed_capacity<T, TRAITS.capacity>
+class fixed_storage<T, TRAITS, location_modes::BACK> : public fixed_capacity<T, TRAITS.capacity>
 {
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using value_type = T;
@@ -427,7 +427,7 @@ private:
 };
 
 template<typename T, sequence_traits TRAITS>
-class fixed_storage<T, TRAITS, sequence_location_lits::MIDDLE> : public fixed_capacity<T, TRAITS.capacity>
+class fixed_storage<T, TRAITS, location_modes::MIDDLE> : public fixed_capacity<T, TRAITS.capacity>
 {
 	using inherited = fixed_capacity<T, TRAITS.capacity>;
 	using value_type = T;
@@ -732,14 +732,14 @@ protected:
 // dynamic_storage - This is the base class for the dynamic_sequence_storage class. It provides
 // the three different element management strategies for dynamic capacity sequences
 
-template<typename T, sequence_traits TRAITS, sequence_location_lits LOC = TRAITS.location>
+template<typename T, sequence_traits TRAITS, location_modes LOC = TRAITS.location>
 class dynamic_storage
 {
 	static_assert(false, "An unimplemented specialization of dynamic_storage was instantiated.");
 };
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_storage<T, TRAITS, sequence_location_lits::FRONT> : public dynamic_capacity<T>
+class dynamic_storage<T, TRAITS, location_modes::FRONT> : public dynamic_capacity<T>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -831,7 +831,7 @@ private:
 };
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_storage<T, TRAITS, sequence_location_lits::BACK> : public dynamic_capacity<T>
+class dynamic_storage<T, TRAITS, location_modes::BACK> : public dynamic_capacity<T>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -923,7 +923,7 @@ private:
 };
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_storage<T, TRAITS, sequence_location_lits::MIDDLE> : public dynamic_capacity<T>
+class dynamic_storage<T, TRAITS, location_modes::MIDDLE> : public dynamic_capacity<T>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -1225,7 +1225,7 @@ inline fixed_sequence_storage<T, TRAITS>::fixed_sequence_storage(dynamic_sequenc
 // ==============================================================================================================
 // sequence_storage - Base class for sequence which provides the 4 different memory allocation strategies.
 
-template<typename T, sequence_traits TRAITS, sequence_storage_lits STO = TRAITS.storage>
+template<typename T, sequence_traits TRAITS, storage_modes STO = TRAITS.storage>
 class sequence_storage
 {
 	static_assert(false, "An unimplemented specialization of sequence_storage was instantiated.");
@@ -1234,7 +1234,7 @@ class sequence_storage
 // LOCAL storage (like std::inplace_vector or boost::static_vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<T, TRAITS, sequence_storage_lits::LOCAL>
+class sequence_storage<T, TRAITS, storage_modes::LOCAL>
 {
 
 	using value_type = T;
@@ -1306,7 +1306,7 @@ private:
 // FIXED storage.
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<T, TRAITS, sequence_storage_lits::FIXED>
+class sequence_storage<T, TRAITS, storage_modes::FIXED>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -1422,7 +1422,7 @@ private:
 // VARIABLE storage.
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<T, TRAITS, sequence_storage_lits::VARIABLE>
+class sequence_storage<T, TRAITS, storage_modes::VARIABLE>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -1484,7 +1484,7 @@ private:
 // BUFFERED storage supporting a small object buffer optimization (like boost::small_vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<T, TRAITS, sequence_storage_lits::BUFFERED>
+class sequence_storage<T, TRAITS, storage_modes::BUFFERED>
 {
 	using value_type = T;
 	using iterator = value_type*;
@@ -1691,11 +1691,11 @@ public:
 				  "Exponential capacity growth must be greater than 1.0.");
 
 	// Maintaining elements in the middle of the capacity is more or less useless without the ability to shift.
-	static_assert(traits.location != sequence_location_lits::MIDDLE || std::move_constructible<T>,
+	static_assert(traits.location != location_modes::MIDDLE || std::move_constructible<T>,
 				  "Middle element location requires move-constructible types.");
 
 	// A fixed capacity of any kind requires that the size type can represent a count up to the fixed capacity size.
-	static_assert(traits.storage == sequence_storage_lits::VARIABLE ||
+	static_assert(traits.storage == storage_modes::VARIABLE ||
 				  traits.capacity <= std::numeric_limits<size_type>::max(),
 				  "Size type is insufficient to hold requested capacity.");
 
@@ -1734,7 +1734,7 @@ public:
 	{
 		clear();
 		for (; first != last; ++first)
-			if constexpr (traits.location == sequence_location_lits::BACK)
+			if constexpr (traits.location == location_modes::BACK)
 				emplace_front(*first);
 			else
 				emplace_back(*first);
@@ -1845,7 +1845,7 @@ private:
 			prepare_for(count);
 
 		while (count--)
-			if constexpr (traits.location == sequence_location_lits::BACK)
+			if constexpr (traits.location == location_modes::BACK)
 				add_front(std::forward<ARGS>(args)...);
 			else
 				add_back(std::forward<ARGS>(args)...);

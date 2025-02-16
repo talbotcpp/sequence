@@ -16,7 +16,7 @@ concept sequence_storage_implementation = requires(T& t)
 }
 
 template<typename T, sequence_traits TRAITS>
-class fixed_sequence_storage<sequence_location_lits::???, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
+class fixed_sequence_storage<location_modes::???, T, TRAITS> : fixed_capacity<T, TRAITS.capacity>
 {
 	// FRONT
 	template<sequence_storage_implementation SEQ>
@@ -45,7 +45,7 @@ class fixed_sequence_storage<sequence_location_lits::???, T, TRAITS> : fixed_cap
 }
 
 template<typename T, sequence_traits TRAITS>
-class dynamic_sequence_storage<sequence_location_lits::???, T, TRAITS> : public dynamic_capacity<T, TRAITS>
+class dynamic_sequence_storage<location_modes::???, T, TRAITS> : public dynamic_capacity<T, TRAITS>
 {
 	// FRONT
 	template<sequence_storage_implementation SEQ>
