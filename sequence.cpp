@@ -21,7 +21,7 @@ void show(const SEQ& seq)
 	std::print("Storage:\t");
 	switch (seq.traits.storage)
 	{
-		case sequence_storage_lits::STATIC:		std::println("STATIC");		break;
+		case sequence_storage_lits::LOCAL:		std::println("LOCAL");		break;
 		case sequence_storage_lits::FIXED:		std::println("FIXED");		break;
 		case sequence_storage_lits::VARIABLE:	std::println("VARIABLE");	break;
 		case sequence_storage_lits::BUFFERED:	std::println("BUFFERED");	break;
@@ -102,7 +102,7 @@ void show_cap(const std::vector<T>& seq)
 }
 
 template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
-using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::STATIC, .capacity = CAP }>;
+using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = sequence_storage_lits::LOCAL, .capacity = CAP }>;
 
 template<typename L>
 void assign(L& l1, const L& l2)
@@ -125,7 +125,7 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life<true>, {.storage = sequence_storage_lits::STATIC,
+		using typ = sequence<life<true>, {.storage = sequence_storage_lits::LOCAL,
 									.location = sequence_location_lits::FRONT,
 									.capacity = 6	}>;
 #else
@@ -352,7 +352,7 @@ int main()
 	println();
 
 
-	using styp = sequence<int, {.storage = sequence_storage_lits::STATIC,
+	using styp = sequence<int, {.storage = sequence_storage_lits::LOCAL,
 								.location = sequence_location_lits::FRONT,
 								.capacity = 8	}>;
 
@@ -602,7 +602,7 @@ int main()
 	//	show_elems(s3);
 	//}
 	//sequence<foo, {
-	//	.storage = sequence_storage_lits::STATIC,
+	//	.storage = sequence_storage_lits::LOCAL,
 	//	.location = sequence_location_lits::FRONT,
 	//	.capacity = 12,
 	//}> s3;

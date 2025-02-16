@@ -19,7 +19,7 @@ TEST_CLASS(UnitTests)
 TEST_METHOD(Copy)
 {
 	using typ = sequence<life<true>, {
-		.storage = sequence_storage_lits::STATIC,
+		.storage = sequence_storage_lits::LOCAL,
 		.location = sequence_location_lits::FRONT,
 		.capacity = 6
 	}>;
@@ -64,7 +64,7 @@ TEST_METHOD(Copy)
 TEST_METHOD(Move)
 {
 	using typ = sequence<life<true>, {
-		.storage = sequence_storage_lits::STATIC,
+		.storage = sequence_storage_lits::LOCAL,
 		.location = sequence_location_lits::FRONT,
 		.capacity = 6
 	}>;

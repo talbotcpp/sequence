@@ -118,7 +118,7 @@ public:
 	TEST_METHOD(IL_Static_Front)
 	{
 		il_construction_test<{
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::FRONT,
 			.capacity = 6
 		}>();
@@ -127,7 +127,7 @@ public:
 	TEST_METHOD(IL_Static_Back)
 	{
 		il_construction_test<{
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::BACK,
 			.capacity = 6
 		}>();
@@ -136,7 +136,7 @@ public:
 	TEST_METHOD(IL_Static_Middle)
 	{
 		il_construction_test<{
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::MIDDLE,
 			.capacity = 6
 		}>();
@@ -181,7 +181,7 @@ public:
 	TEST_METHOD(IL_Assign_Static_Front)
 	{
 		il_assignment_test<{
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::FRONT,
 			.capacity = 10
 		}>(10, 4);
@@ -190,7 +190,7 @@ public:
 	TEST_METHOD(IL_Assign_Static_Back)
 	{
 		il_assignment_test<{
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::BACK,
 			.capacity = 10
 		}>(10, 4);
@@ -199,7 +199,7 @@ public:
 	TEST_METHOD(IL_Assign_Static_Middle)
 	{
 		constexpr sequence_traits traits{
-			.storage = sequence_storage_lits::STATIC,
+			.storage = sequence_storage_lits::LOCAL,
 			.location = sequence_location_lits::MIDDLE,
 			.capacity = 10
 		};

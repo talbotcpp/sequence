@@ -24,7 +24,7 @@ import <format>;
 // These are hoisted out of the class template to avoid template dependencies.
 // See sequence_traits below for a detailed discussion of these values.
 
-export enum class sequence_storage_lits { STATIC, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
+export enum class sequence_storage_lits { LOCAL, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
 export enum class sequence_location_lits { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
 export enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };			// See sequence_traits::growth.
 
@@ -1231,10 +1231,10 @@ class sequence_storage
 	static_assert(false, "An unimplemented specialization of sequence_storage was instantiated.");
 };
 
-// STATIC storage (like std::inplace_vector or boost::static_vector).
+// LOCAL storage (like std::inplace_vector or boost::static_vector).
 
 template<typename T, sequence_traits TRAITS>
-class sequence_storage<T, TRAITS, sequence_storage_lits::STATIC>
+class sequence_storage<T, TRAITS, sequence_storage_lits::LOCAL>
 {
 
 	using value_type = T;

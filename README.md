@@ -21,7 +21,7 @@ import sequence;
 
 int main()
 {
-    sequence<int, {.storage = sequence_storage_lits::STATIC, .capacity = 10}>
+    sequence<int, {.storage = sequence_storage_lits::LOCAL, .capacity = 10}>
     seq = {1,2,3,4,5,6};
     
     for (auto n : seq)
@@ -87,7 +87,7 @@ will always retain a dynamic allocation if there was one. *Note: this includes t
 has no capacity (is in a freed state).*
 (This is the same behavior as `std::vector`.)
 
-For `STATIC` storage mode, move assignment is linear in the old + new elements.
+For `LOCAL` storage mode, move assignment is linear in the old + new elements.
 
 For `FIXED` and `VARIABLE` storage modes,
 move assignment is linear in the old elements (the move of the new elements will be constant).
@@ -120,7 +120,7 @@ size_t capacity() const;
 ```
 This member function returns the current size of the capacity. It has different behavior for each storage mode:
 
-#### STATIC
+#### LOCAL
 
 Returns the fixed capacity size as defined by the `capacity` member of the `sequence_traits` template parameter.
 
@@ -155,7 +155,7 @@ void reserve(size_t new_capacity);
 This member function attempts to increase the capacity to be equal to its argument. If `capacity()` is
 greater than or equal to `new_capacity`, it has no effect. Otherwise, it has different behavior for each storage mode:
 
-#### STATIC
+#### LOCAL
 
 Throws `std::bad_alloc` if `new_capacity > capacity()`. Otherwise has no effect.
 
@@ -181,7 +181,7 @@ void shrink_to_fit();
 This member function attempts to reduce the capacity to be equal to the size. If `capacity()` is
 already equal to `size()`, it has no effect. Otherwise, it has different behavior for each storage mode:
 
-#### STATIC
+#### LOCAL
 
 Has no effect.
 
@@ -206,7 +206,7 @@ void swap(sequence& other);
 ```
 For `FIXED` and `VARIABLE` storage modes, this member provides O(1) swap. For `BUFFERED` storage,
 it will provide O(1) swap for two unbuffered containers, but will be O(n) if one or both are buffered.
-For `STATIC` storage it provides O(n) swap (as if by `std::swap`).
+For `LOCAL` storage it provides O(n) swap (as if by `std::swap`).
 
 ## resize
 ```C++
@@ -233,7 +233,7 @@ void free();
 ```
 This member function erases (deletes) all of the elements in the container and deallocates
 any dynamic storage, placing the container in a default-constructed state. After a free,
-`FIXED` and `VARIABLE` storage sequences have no capacity. *Note: `STATIC` and `BUFFERED` storage sequences always have
+`FIXED` and `VARIABLE` storage sequences have no capacity. *Note: `LOCAL` and `BUFFERED` storage sequences always have
 a capacity that is at least the fixed capacity size.*
 
 ## Exceptions
@@ -273,13 +273,13 @@ thus perhaps requiring a large fixed growth value.
 
 ## storage
 ```C++
-enum class sequence_storage_lits { STATIC, FIXED, VARIABLE, BUFFERED };
+enum class sequence_storage_lits { LOCAL, FIXED, VARIABLE, BUFFERED };
 sequence_storage_lits storage = sequence_storage_lits::VARIABLE;
 ```
 
 This member specifies how the capacity is handled in memory. It offers four storage options:
 
-#### STATIC
+#### LOCAL
 The capacity is fixed and embedded in the sequence object (like `std::inplace_vector` or `boost::static_vector`).
 The capacity cannot change size or move, and it has the same lifetime as the container.
 #### FIXED
@@ -351,7 +351,7 @@ This member specifies the size of the fixed capacity or inital capacity. It has 
 
 | Storage | Meaning |
 | --- | --- |
-| STATIC | The size of the fixed capacity. |
+| LOCAL | The size of the fixed capacity. |
 | FIXED | The fixed size of the dynamic capacity when allocation occurs. |
 | VARIABLE | The initial size of the dynamic capacity when allocation first occurs. However, if the sequence is constructed from an initializer list, the capacity is equal to the size of the list. |
 | BUFFERED | The size of the optimization buffer (the fixed capacity). If the sequence is constructed from an initializer list and the size of the list is greater than this value, the dynamic capacity is equal to the size of the list. |
