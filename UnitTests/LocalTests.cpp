@@ -10,40 +10,87 @@ namespace UnitTests
 
 TEST_CLASS(LocalTests)
 {
-	TEST_METHOD_INITIALIZE(InitLife)
-	{
-		life::reset();
-	}
+	// This tests that the size_type is working for FRONT and BACK
+	// location modes (which each use just a size field).
 
-	TEST_METHOD(Size_Type)
+	template<location_modes MODE>
+	void size_test()
 	{
 		sequence<int8_t, sequence_traits<uint64_t>{
 			.storage = storage_modes::LOCAL,
-			.location = location_modes::FRONT,
+			.location = MODE,
 			.capacity = 3
 		}> seq1;
 		Assert::AreEqual(size_t(16), sizeof(seq1));
 
 		sequence<int8_t, sequence_traits<uint32_t>{
 			.storage = storage_modes::LOCAL,
-			.location = location_modes::FRONT,
+			.location = MODE,
 			.capacity = 3
 		}> seq2;
 		Assert::AreEqual(size_t(8), sizeof(seq2));
 
 		sequence<int8_t, sequence_traits<uint16_t>{
 			.storage = storage_modes::LOCAL,
-			.location = location_modes::FRONT,
+			.location = MODE,
 			.capacity = 3
 		}> seq3;
 		Assert::AreEqual(size_t(6), sizeof(seq3));
 
 		sequence<int8_t, sequence_traits<uint8_t>{
 			.storage = storage_modes::LOCAL,
-			.location = location_modes::FRONT,
+			.location = MODE,
 			.capacity = 3
 		}> seq4;
 		Assert::AreEqual(size_t(4), sizeof(seq4));
+	}
+
+public:
+
+	TEST_METHOD_INITIALIZE(InitLife)
+	{
+		life::reset();
+	}
+
+	TEST_METHOD(Size_Type_Front)
+	{
+		size_test<location_modes::FRONT>();
+	}
+
+	TEST_METHOD(Size_Type_Back)
+	{
+		size_test<location_modes::BACK>();
+	}
+
+	TEST_METHOD(Size_Type_Middle)
+	{
+		sequence<int8_t, sequence_traits<uint64_t>{
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::MIDDLE,
+			.capacity = 3
+		}> seq1;
+		Assert::AreEqual(size_t(24), sizeof(seq1));
+
+		sequence<int8_t, sequence_traits<uint32_t>{
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::MIDDLE,
+			.capacity = 3
+		}> seq2;
+		Assert::AreEqual(size_t(12), sizeof(seq2));
+
+		sequence<int8_t, sequence_traits<uint16_t>{
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::MIDDLE,
+			.capacity = 3
+		}> seq3;
+		Assert::AreEqual(size_t(8), sizeof(seq3));
+
+		sequence<int8_t, sequence_traits<uint8_t>{
+			.storage = storage_modes::LOCAL,
+			.location = location_modes::MIDDLE,
+			.capacity = 3
+		}> seq4;
+		Assert::AreEqual(size_t(5), sizeof(seq4));
 	}
 	TEST_METHOD(Copy)
 	{

@@ -286,8 +286,8 @@ The capacity cannot change size or move, and it has the same lifetime as the con
 The capacity is dynamically allocated. The capacity cannot change size or move once allocated.
 A default-initialized sequence has no capacity. Neither clearing nor erasing the sequence deallocates the capacity,
 but an empty sequence can be restored to having no capacity by calling `shrink_to_fit` or `free`.
-Erasing the sequence does not deallocate the capacity. The in-class
-storage is only one pointer; the size(s) are stored in the dynamic allocation and are represented by the `size_type`.
+The in-class storage is only one pointer; the size information is stored in the dynamic allocation and is
+represented by the `size_type`.
 #### VARIABLE
 The capacity is dynamically allocated. The capacity can change and move.
 A default-initialized sequence has no capacity.
