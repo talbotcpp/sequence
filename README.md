@@ -284,22 +284,22 @@ The capacity is fixed and embedded in the sequence object (like `std::inplace_ve
 The capacity cannot change size or move, and it has the same lifetime as the container.
 #### FIXED
 The capacity is dynamically allocated. The capacity cannot change size or move once allocated.
-A default-initialized sequence has no capacity. Clearing the sequence
-deallocates the capacity (note that this is different behavior from `VARIABLE` or `std::vector`).
+A default-initialized sequence has no capacity. Neither clearing nor erasing the sequence deallocates the capacity,
+but an empty sequence can be restored to having no capacity by calling `shrink_to_fit` or `free`.
 Erasing the sequence does not deallocate the capacity. The in-class
 storage is only one pointer; the size(s) are stored in the dynamic allocation and are represented by the `size_type`.
 #### VARIABLE
 The capacity is dynamically allocated. The capacity can change and move.
 A default-initialized sequence has no capacity.
 Neither clearing nor erasing the sequence deallocates the capacity,
-but an empty sequence can be restored to having no capacity by calling shrink_to_fit.
+but an empty sequence can be restored to having no capacity by calling `shrink_to_fit` or `free`.
 (All of these behaviors are exactly like `std::vector`.)
 #### BUFFERED
 Buffered sequences have a fixed capacity embedded in the sequence object which is used when the
 size is less than or equal to the fixed capacity size; when the sequence grows larger than the
 fixed capacity size, the capacity is allocated dynamically (like `boost::small_vector`).
 The capacity can change and move. Calling
-shrink_to_fit if the size is less than or equal to the fixed capacity size and the capacity is
+`shrink_to_fit` if the size is less than or equal to the fixed capacity size and the capacity is
 allocated dynamically will move the elements into the buffer and deallocate the dynamic capacity.
 Neither clearing nor erasing the sequence deallocates a dynamically allocated capacity.
 Reserving a
