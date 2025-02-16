@@ -1,7 +1,7 @@
 #include "CppUnitTest.h"
+#include "Life.h"
 
 import sequence;
-import life;
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -14,7 +14,7 @@ TEST_CLASS(ILTests)
 	template<sequence_traits TRAITS>
 	void il_construction_test()
 	{
-		using seq_type = sequence<life<true>, TRAITS>;
+		using seq_type = sequence<life, TRAITS>;
 		using val_type = typename seq_type::value_type;
 		using rec_type = typename val_type::record;
 
@@ -54,7 +54,7 @@ TEST_CLASS(ILTests)
 	template<sequence_traits TRAITS>
 	void il_assignment_test(size_t capacity, size_t elements)
 	{
-		using seq_type = sequence<life<true>, TRAITS>;
+		using seq_type = sequence<life, TRAITS>;
 		using val_type = typename seq_type::value_type;
 		using rec_type = typename val_type::record;
 
@@ -68,7 +68,7 @@ TEST_CLASS(ILTests)
 		else
 			Assert::AreEqual(TRAITS.capacity, seq.capacity(), L"capacity");
 
-		std::initializer_list<life<true>> ils[7] = {
+		std::initializer_list<life> ils[7] = {
 			{},
 			{4},
 			{4,5},
@@ -111,11 +111,10 @@ public:
 		
 	TEST_METHOD_INITIALIZE(InitLife)
 	{
-		life<true>::reset();
-		life<false>::reset();
+		life::reset();
 	}
 
-	TEST_METHOD(IL_Static_Front)
+	TEST_METHOD(Static_Front)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::LOCAL,
@@ -124,7 +123,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Static_Back)
+	TEST_METHOD(Static_Back)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::LOCAL,
@@ -133,7 +132,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Static_Middle)
+	TEST_METHOD(Static_Middle)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::LOCAL,
@@ -142,7 +141,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Fixed_Front)
+	TEST_METHOD(Fixed_Front)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::FIXED,
@@ -151,7 +150,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Variable_Front)
+	TEST_METHOD(Variable_Front)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::VARIABLE,
@@ -160,7 +159,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Buffered_Front_Buf)
+	TEST_METHOD(Buffered_Front_Buf)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::BUFFERED,
@@ -169,7 +168,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Buffered_Front_Dyn)
+	TEST_METHOD(Buffered_Front_Dyn)
 	{
 		il_construction_test<{
 			.storage = sequence_storage_lits::BUFFERED,
@@ -178,7 +177,7 @@ public:
 		}>();
 	}
 
-	TEST_METHOD(IL_Assign_Static_Front)
+	TEST_METHOD(Assign_Static_Front)
 	{
 		il_assignment_test<{
 			.storage = sequence_storage_lits::LOCAL,
@@ -187,7 +186,7 @@ public:
 		}>(10, 4);
 	}
 
-	TEST_METHOD(IL_Assign_Static_Back)
+	TEST_METHOD(Assign_Static_Back)
 	{
 		il_assignment_test<{
 			.storage = sequence_storage_lits::LOCAL,
@@ -196,7 +195,7 @@ public:
 		}>(10, 4);
 	}
 
-	TEST_METHOD(IL_Assign_Static_Middle)
+	TEST_METHOD(Assign_Static_Middle)
 	{
 		constexpr sequence_traits traits{
 			.storage = sequence_storage_lits::LOCAL,
@@ -205,8 +204,21 @@ public:
 		};
 
 		il_assignment_test<traits>(10, 4);
-		life<true>::reset();
+		life::reset();
 		il_assignment_test<traits>(10, 5);
+	}
+
+	TEST_METHOD(Overfill)
+	{
+		using typ = sequence<int, {
+			.storage = sequence_storage_lits::LOCAL,
+			.location = sequence_location_lits::FRONT,
+			.capacity = 6
+		}>;
+		
+		Assert::ExpectException<std::bad_alloc>(
+			[](){ typ seq{1,2,3,4,5,6,7}; },
+			L"IL construct too many");
 	}
 
 };

@@ -1,5 +1,8 @@
+#include "Life.h"
+
+
 import sequence;
-import life;
+//import life;
 
 import std;
 //import <print>;
@@ -113,19 +116,25 @@ void assign(L& l1, const L& l2)
 struct C
 {
 
-    life<true>* x = nullptr;
+    life* x = nullptr;
 
-    C() {x = new life<true>; throw 42;}
+    C() {x = new life; throw 42;}
 
     ~C() {delete x;}
 
 };
 
+template<typename F>
+void foo(F f)
+{
+	f();
+}
+
 int main()
 {
 
 #if 1
-		using typ = sequence<life<true>, {.storage = sequence_storage_lits::LOCAL,
+		using typ = sequence<life_throws, {.storage = sequence_storage_lits::VARIABLE,
 									.location = sequence_location_lits::FRONT,
 									.capacity = 6	}>;
 #else
@@ -136,8 +145,8 @@ int main()
 	std::println("{:-^50}","v");
 	typ::value_type::add_comment("Make v");
 //	typ v;
-	typ v = {1,2,3};
-//	typ v{1,2,3,4,5,6};
+//	typ v = {1,2,3};
+	typ v{1,2,3,4,5,6};
 //	typ v(6, 69);
 	//v.resize(1);
 	//v.resize(5);
@@ -149,41 +158,29 @@ int main()
 	show_cap(v);
 	show_elems(v);
 
-	typ::value_type::add_comment("Make IL");
+	typ::value_type::add_comment("Push");
+	v.push_back(7);
 
-	std::initializer_list<life<true>> ils[7] = {
-		{},
-		{4},
-		{4,5},
-		{4,5,6},
-		{4,5,6,7},
-		{4,5,6,7,8},
-		{4,5,6,7,8,9},
-	};
-
-	typ::value_type::add_comment("Assign v");
-	v = ils[5];
-	show_cap(v);
-	show_elems(v);
-	typ::value_type::add_comment("End of scope");
-//	typ::value_type::print_log();
-
-	typ::value_type::add_comment("Make w");
-	std::println("{:-^50}","w");
-//	typ w;
-//	typ w{7,8,9};
-	typ w{7,8,9,10,11,12};
-//	typ w{v};
-//	typ w{std::move(v)};
-	show_cap(w);
-	show_elems(w);
-
-	std::println("{:-^50}","assign to w");
-	w = v;
-	//w = std::move(v);
-	show_cap(w);
-	show_elems(w);
+//	typ::value_type::add_comment("Make w");
+//	std::println("{:-^50}","w");
+////	typ w;
+////	typ w{7,8,9};
+//	typ w{7,8,9,10,11,12};
+////	typ w{v};
+////	typ w{std::move(v)};
+//	show_cap(w);
+//	show_elems(w);
+//
+//	std::println("{:-^50}","assign to w");
+//	w = v;
+//	//w = std::move(v);
+//	show_cap(w);
+//	show_elems(w);
+	typ::value_type::add_comment("End of Scope");
 	}
+	typ::value_type::print_log();
+
+	foo([](){ println("foo with lambda"); });
 }
 
 #ifdef NONONONO

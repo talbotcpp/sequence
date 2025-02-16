@@ -147,7 +147,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Life.ixx" />
+    <ClCompile Include="Life.cpp" />
     <ClCompile Include="Sequence.cpp" />
     <ClCompile Include="Sequence.ixx" />
   </ItemGroup>
@@ -159,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Ideas.h" />
+    <ClInclude Include="Life.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
