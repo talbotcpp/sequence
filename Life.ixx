@@ -1,6 +1,7 @@
-// Lifetime metered object for testing containers and such. This monitors all
-// contruction, destruction and assignment, and it keeps track of lifetimes with
-// a static counter.
+// life and life_throws - Lifetime metered objects for testing containers and such.
+// They monitors all contruction, destruction and assignment, and keep track of
+// lifetimes with a static counter. The life_throws version has a noexcept(false)
+// move constructor.
 
 export module life;
 
@@ -26,8 +27,7 @@ export enum event_tags : unsigned {
 	COMMENT
 };
 
-export template<bool NOEXCEPT_MOVE = true>
-class life
+export class life
 {
 public:
 
@@ -44,7 +44,7 @@ public:
 	{
 		add_record(id, COPY_CONSTRUCT, value);
 	}
-	life(life&& rhs) noexcept(NOEXCEPT_MOVE) : value(rhs.value)
+	life(life&& rhs) noexcept : value(rhs.value)
 	{
 		rhs.value = value_tags::MOVED_FROM;
 		add_record(id, MOVE_CONSTRUCT, value);
@@ -194,11 +194,19 @@ private:
 	static log_type::const_iterator last;
 };
 
-template<bool NOEXCEPT_MOVE>
-unsigned life<NOEXCEPT_MOVE>::previous_id = 0;
+unsigned life::previous_id = 0;
+life::log_type life::log;
+life::log_type::const_iterator life::last;
 
-template<bool NOEXCEPT_MOVE>
-life<NOEXCEPT_MOVE>::log_type life<NOEXCEPT_MOVE>::log;
+// This derived class removes the noexcept move constructor.
 
-template<bool NOEXCEPT_MOVE>
-life<NOEXCEPT_MOVE>::log_type::const_iterator life<NOEXCEPT_MOVE>::last;
+export class life_throws : public life
+{
+public:
+
+	life_throws() = default;
+	life_throws(int value) : life(value) {}
+
+	life_throws(const life_throws& rhs) = default;
+	life_throws(life_throws&& rhs) noexcept(false) = default;
+};

@@ -1,8 +1,5 @@
-#include "Life.h"
-
-
 import sequence;
-//import life;
+import life;
 
 import std;
 //import <print>;

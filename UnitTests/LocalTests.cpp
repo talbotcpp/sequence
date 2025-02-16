@@ -1,7 +1,7 @@
 #include "CppUnitTest.h"
-#include "Life.h"
 
 import sequence;
+import life;
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
