@@ -335,12 +335,9 @@ public:
 		data_end()->~value_type();
 	}
 
-	inline void prepare_for(size_t size) {}
-
-protected:
-
-	inline auto new_data_start(size_t size) { return capacity_begin(); }
 	inline void set_size(size_t size) { assert(fits_in<size_type>(size)); m_size = size; }
+	inline void prepare_for(size_t size) {}
+	inline auto new_data_start(size_t size) { return capacity_begin(); }
 
 private:
 
@@ -414,12 +411,9 @@ public:
 		erase(data_end() - 1);
 	}
 
-	inline void prepare_for(size_t size) {}
-
-protected:
-
-	inline auto new_data_start(size_t size) { return capacity_end() - size; }
 	inline void set_size(size_t size) { assert(fits_in<size_type>(size)); m_size = size; }
+	inline void prepare_for(size_t size) {}
+	inline auto new_data_start(size_t size) { return capacity_end() - size; }
 
 private:
 
@@ -543,6 +537,12 @@ public:
 		data_end()->~value_type();
 	}
 
+	inline void set_size(size_t size)
+	{
+		assert(fits_in<size_type>(size));
+		m_front_gap = static_cast<size_type>(TRAITS.front_gap(size));
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + size));
+	}
 	inline void prepare_for(size_t size)
 	{
 		assert(empty());
@@ -550,17 +550,7 @@ public:
 		m_front_gap = static_cast<size_type>(TRAITS.front_gap(size));
 		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
 	}
-
-protected:
-
-	// Returns the location in the capacity to write to with uninitialized_copy or _move.
 	inline auto new_data_start(size_t size) { return capacity_begin() + TRAITS.front_gap(size); }
-	inline void set_size(size_t size)
-	{
-		assert(fits_in<size_type>(size));
-		m_front_gap = static_cast<size_type>(TRAITS.front_gap(size));
-		m_back_gap = static_cast<size_type>(TRAITS.capacity - (m_front_gap + size));
-	}
 
 private:
 
@@ -601,9 +591,6 @@ class fixed_sequence_storage : public fixed_storage<T, TRAITS>
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = fixed_storage<T, TRAITS>;
 
-	using inherited::new_data_start;
-	using inherited::set_size;
-
 public:
 
 	using inherited::capacity;
@@ -611,6 +598,8 @@ public:
 	using inherited::capacity_end;
 	using inherited::data_begin;
 	using inherited::data_end;
+	using inherited::new_data_start;
+	using inherited::set_size;
 	using inherited::size;
 	using inherited::empty;
 
@@ -650,16 +639,6 @@ public:
 		clear();
 		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
 		set_size(rhs.size());
-		return *this;
-	}
-	inline fixed_sequence_storage& operator=(std::initializer_list<value_type> il)
-	{
-		if (il.size() > capacity())
-			throw std::bad_alloc();
-
-		clear();
-		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
-		set_size(il.size());
 		return *this;
 	}
 
@@ -807,9 +786,9 @@ public:
 		data_end()->~value_type();
 	}
 
+	inline void set_size(size_t size) { m_data_end = capacity_begin() + size; }
 	inline void prepare_for(size_t size) {}
 	inline auto new_data_start(size_t size) { return capacity_begin(); }
-	inline void set_size(size_t size) { m_data_end = capacity_begin() + size; }
 
 protected:
 
@@ -899,9 +878,9 @@ public:
 		erase(data_end() - 1);
 	}
 
+	inline void set_size(size_t size) { m_data_begin = capacity_end() - size; }
 	inline void prepare_for(size_t size) {}
 	inline auto new_data_start(size_t size) { return capacity_end() - size; }
-	inline void set_size(size_t size) { m_data_begin = capacity_end() - size; }
 
 protected:
 
@@ -1044,6 +1023,11 @@ public:
 		data_end()->~value_type();
 	}
 
+	inline void set_size(size_t size)
+	{
+		m_data_begin = capacity_begin() + TRAITS.front_gap(capacity(), size);
+		m_data_end = m_data_begin + size;
+	}
 	inline void prepare_for(size_t size)
 	{
 		assert(empty());
@@ -1053,11 +1037,6 @@ public:
 	inline auto new_data_start(size_t size)
 	{
 		return capacity_begin() + TRAITS.front_gap(capacity(), size);
-	}
-	inline void set_size(size_t size)
-	{
-		m_data_begin = capacity_begin() + TRAITS.front_gap(capacity(), size);
-		m_data_end = m_data_begin + size;
 	}
 
 protected:
@@ -1107,9 +1086,6 @@ class dynamic_sequence_storage : public dynamic_storage<T, TRAITS>
 	using size_type = typename decltype(TRAITS)::size_type;
 	using inherited = dynamic_storage<T, TRAITS>;
 
-	using inherited::new_data_start;
-	using inherited::set_size;
-
 public:
 
 	using inherited::capacity;
@@ -1117,6 +1093,8 @@ public:
 	using inherited::capacity_end;
 	using inherited::data_begin;
 	using inherited::data_end;
+	using inherited::new_data_start;
+	using inherited::set_size;
 	using inherited::size;
 	using inherited::empty;
 	using inherited::swap;
@@ -1159,15 +1137,6 @@ public:
 	inline dynamic_sequence_storage& operator=(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
-		return *this;
-	}
-	inline dynamic_sequence_storage& operator=(std::initializer_list<value_type> il)
-	{
-		clear();
-		if (il.size() > capacity())
-			swap(inherited(il.size()));
-		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
-		set_size(il.size());
 		return *this;
 	}
 
@@ -1246,7 +1215,6 @@ public:
 
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
-	inline sequence_storage& operator=(std::initializer_list<value_type> il) { m_storage = il; return *this; }
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	static constexpr size_t capacity() { return TRAITS.capacity; }
@@ -1296,7 +1264,9 @@ protected:
 		if (new_capacity > TRAITS.capacity)
 			throw std::bad_alloc();
 	}
-	inline void prepare_for(size_type size) { m_storage.prepare_for(size); }
+	inline void set_size(size_t size) { m_storage.set_size(size); }
+	inline void prepare_for(size_t size) { m_storage.prepare_for(size); }
+	inline auto new_data_start(size_t size) { return m_storage.new_data_start(size); }
 
 private:
 
@@ -1344,17 +1314,6 @@ public:
 	inline sequence_storage& operator=(sequence_storage&& rhs)
 	{
 		m_storage = std::move(rhs.m_storage);
-		return *this;
-	}
-	inline sequence_storage& operator=(std::initializer_list<value_type> il)
-	{
-		if (il.empty()) clear();
-		else
-		{
-			if (!m_storage)
-				m_storage.reset(new storage_type);
-			*m_storage = il;
-		}
 		return *this;
 	}
 
@@ -1412,7 +1371,9 @@ protected:
 		if (!m_storage)
 			m_storage.reset(new storage_type);
 	}
-	inline void prepare_for(size_type size) { if (m_storage) m_storage->prepare_for(size); }
+	inline void set_size(size_t size) { assert(m_storage); m_storage->set_size(size); }
+	inline void prepare_for(size_t size) { assert(m_storage); m_storage->prepare_for(size); }
+	inline auto new_data_start(size_t size) { assert(m_storage); return m_storage->new_data_start(size); }
 
 private:
 
@@ -1431,7 +1392,6 @@ public:
 
 	inline sequence_storage() = default;
 	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
-	inline sequence_storage& operator=(std::initializer_list<value_type> il) { m_storage = il; return *this; }
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_t>::max(); }
 	inline size_t capacity() const { return m_storage.capacity(); }
@@ -1473,8 +1433,9 @@ protected:
 	{
 		m_storage.reallocate(new_capacity);
 	}
-
+	inline void set_size(size_t size) { m_storage.set_size(size); }
 	inline void prepare_for(size_t size) { m_storage.prepare_for(size); }
+	inline auto new_data_start(size_t size) { return m_storage.new_data_start(size); }
 
 private:
 
@@ -1523,14 +1484,6 @@ public:
 		return *this;
 	}
 	inline sequence_storage& operator=(sequence_storage&&) = default;
-	inline sequence_storage& operator=(std::initializer_list<value_type> il)
-	{
-		if (il.size() <= TRAITS.capacity && is_dynamic())
-			m_storage.emplace<STC>(il);
-		else
-			m_storage = il;
-		return *this;
-	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
@@ -1625,8 +1578,9 @@ protected:
 				m_storage.emplace<STC>(dynamic_type(std::move(get<DYN>(m_storage))));
 		// If we're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
-
-	inline void prepare_for(size_t size) { execute([size](auto&& storage){ return storage.prepare_for(size); }); }
+	inline void set_size(size_t size) { execute([size](auto&& storage){ storage.set_size(size); }); }
+	inline void prepare_for(size_t size) { execute([size](auto&& storage){ storage.prepare_for(size); }); }
+	inline auto new_data_start(size_t size) { return execute([size](auto&& storage){ return storage.new_data_start(size); }); }
 
 private:
 
@@ -1652,10 +1606,12 @@ class sequence : public sequence_storage<T, TRAITS>
 	using inherited::data_begin;
 	using inherited::data_end;
 	using inherited::reallocate;
+	using inherited::prepare_for;
+	using inherited::new_data_start;
+	using inherited::set_size;
 	using inherited::add_at;
 	using inherited::add_front;
 	using inherited::add_back;
-	using inherited::prepare_for;
 
 public:
 
@@ -1716,8 +1672,16 @@ public:
 	inline sequence& operator=(const sequence&) = default;
 	inline sequence& operator=(sequence&&) = default;
 
-	inline sequence& operator=(std::initializer_list<value_type> il) { inherited::operator=(il); return *this; }
-	inline void assign(std::initializer_list<value_type> il) { operator=(il); }
+	inline sequence& operator=(std::initializer_list<value_type> il) { assign(il); return *this; }
+	inline void assign(std::initializer_list<value_type> il)
+	{
+		clear();
+		auto size = il.size();
+		if (size > capacity())
+			reallocate(size);
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start(size));
+		set_size(size);
+	}
 
 	template<typename... ARGS>
 	inline void assign(size_type n, ARGS&&... args)

@@ -141,10 +141,12 @@ int main()
 	{
 	std::println("{:-^50}","v");
 	typ::value_type::add_comment("Make v");
-//	typ v;
+	typ v;
 //	typ v = {1,2,3};
-	typ v{1,2,3,4,5,6};
+//	typ v{1,2,3,4,5,6};
 //	typ v(6, 69);
+	typ::value_type::add_comment("Assign IL");
+	v = {1,2,3,4,5,6};
 	//v.resize(1);
 	//v.resize(5);
 	//v.assign(5, 69);
@@ -155,8 +157,8 @@ int main()
 	show_cap(v);
 	show_elems(v);
 
-	typ::value_type::add_comment("Push");
-	v.push_back(7);
+	//typ::value_type::add_comment("Push");
+	//v.push_back(7);
 
 //	typ::value_type::add_comment("Make w");
 //	std::println("{:-^50}","w");
@@ -177,7 +179,6 @@ int main()
 	}
 	typ::value_type::print_log();
 
-	foo([](){ println("foo with lambda"); });
 }
 
 #ifdef NONONONO
