@@ -58,6 +58,8 @@ struct sequence_traits
 		}
 	};
 
+	constexpr bool can_grow() const { return storage >= storage_modes::VARIABLE; }
+
 	// 'front_gap' returns the location of the start of the data given a capacity and size.
 	// The formula is based on the 'location' value.
 
@@ -1399,6 +1401,13 @@ public:
 	inline size_t size() const { return m_storage.size(); }
 	inline bool empty() const { return m_storage.empty(); }
 
+	inline auto data_begin() { return m_storage.data_begin(); }
+	inline auto data_end() { return m_storage.data_end(); }
+	inline auto data_begin() const { return m_storage.data_begin(); }
+	inline auto data_end() const { return m_storage.data_end(); }
+	inline auto capacity_begin() const { return m_storage.capacity_begin(); }
+	inline auto capacity_end() const { return m_storage.capacity_end(); }
+
 	inline void pop_front() { assert(!empty()); m_storage.pop_front(); }
 	inline void pop_back() { assert(!empty()); m_storage.pop_back(); }
 	inline void erase(value_type* begin, value_type* end) { assert(!empty()); m_storage.erase(begin, end); }
@@ -1413,6 +1422,12 @@ public:
 
 protected:
 
+	template<sequence_traits TR, storage_modes STO>
+	inline sequence_storage& operator=(sequence_storage<T, TR, STO>&& rhs)
+	{
+		//m_storage.swap(rhs.m_storage);
+	}
+
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args) { return m_storage.add_at(pos, std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
@@ -1421,13 +1436,6 @@ protected:
 	inline void add_back(ARGS&&... args) { m_storage.add_back(std::forward<ARGS>(args)...); }
 	template<typename... ARGS>
 	inline void add(size_t new_size, ARGS&&... args) { m_storage.add(new_size, std::forward<ARGS>(args)...); }
-
-	inline auto data_begin() { return m_storage.data_begin(); }
-	inline auto data_end() { return m_storage.data_end(); }
-	inline auto data_begin() const { return m_storage.data_begin(); }
-	inline auto data_end() const { return m_storage.data_end(); }
-	inline auto capacity_begin() const { return m_storage.capacity_begin(); }
-	inline auto capacity_end() const { return m_storage.capacity_end(); }
 
 	inline void reallocate(size_t new_capacity)
 	{
@@ -1671,6 +1679,35 @@ public:
 
 	inline sequence& operator=(const sequence&) = default;
 	inline sequence& operator=(sequence&&) = default;
+
+	template<sequence_traits TR>
+	inline sequence& operator=(const sequence<T, TR>& rhs)
+	{
+		clear();
+		auto size = rhs.size();
+		if (size > capacity())
+			reallocate(size);
+		std::uninitialized_copy(rhs.begin(), rhs.end(), new_data_start(size));
+		set_size(size);
+
+		return *this;
+	}
+	template<sequence_traits TR>
+	inline sequence& operator=(sequence<T, TR>&& rhs)
+	{
+		if constexpr (traits.can_grow() && rhs.traits.can_grow())
+			inherited::operator=(std::move(rhs));
+		else
+		{
+			clear();
+			auto size = rhs.size();
+			if (size > capacity())
+				reallocate(size);
+			std::uninitialized_move(rhs.begin(), rhs.end(), new_data_start(size));
+			set_size(size);
+		}
+		return *this;
+	}
 
 	inline sequence& operator=(std::initializer_list<value_type> il) { assign(il); return *this; }
 	inline void assign(std::initializer_list<value_type> il)

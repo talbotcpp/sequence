@@ -131,39 +131,48 @@ int main()
 {
 
 #if 1
-		using typ = sequence<life_throws, {.storage = storage_modes::VARIABLE,
+		using ty1 = sequence<life, {.storage = storage_modes::VARIABLE,
 									.location = location_modes::FRONT,
-									.capacity = 6	}>;
+									.capacity = 10	}>;
 #else
-		using typ = std::vector<life<true>>;
+		using typ = std::vector<life>;
 //		using typ = std::array<life, 5>;
 #endif
+		using ty2 = sequence<life, {.storage = storage_modes::VARIABLE,
+									.location = location_modes::FRONT,
+									.capacity = 4	}>;
+
+		using ety = life;
 	{
 	std::println("{:-^50}","v");
-	typ::value_type::add_comment("Make v");
-	typ v;
-//	typ v = {1,2,3};
+	ety::add_comment("Make v");
+//	typ v;
+	ty1 v = {1,2,3};
 //	typ v{1,2,3,4,5,6};
-//	typ v(6, 69);
-	typ::value_type::add_comment("Assign IL");
-	v = {1,2,3,4,5,6};
-	//v.resize(1);
-	//v.resize(5);
-	//v.assign(5, 69);
-	//array<int, 4> a{5,6,7,8};
-	//v.assign(a.begin(), a.end());
-	//v.pop_back();
-	//v.pop_back();
 	show_cap(v);
 	show_elems(v);
+
+	ety::add_comment("Make w");
+	std::println("{:-^50}","w");
+	ty2 w{4,5,6,7,8,9};
+	show_cap(w);
+	show_elems(w);
+
+	ety::add_comment("Assign");
+//	v = w;
+	v = std::move(w);
+
+	std::println("{:-^50}","v");
+	show_cap(v);
+	show_elems(v);
+
+	std::println("{:-^50}","w");
+	show_cap(w);
+	show_elems(w);
 
 	//typ::value_type::add_comment("Push");
 	//v.push_back(7);
 
-//	typ::value_type::add_comment("Make w");
-//	std::println("{:-^50}","w");
-////	typ w;
-////	typ w{7,8,9};
 //	typ w{7,8,9,10,11,12};
 ////	typ w{v};
 ////	typ w{std::move(v)};
@@ -175,9 +184,9 @@ int main()
 //	//w = std::move(v);
 //	show_cap(w);
 //	show_elems(w);
-	typ::value_type::add_comment("End of Scope");
+	ety::add_comment("End of Scope");
 	}
-	typ::value_type::print_log();
+	ety::print_log();
 
 }
 
