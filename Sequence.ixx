@@ -792,6 +792,21 @@ public:
 	inline void prepare_for(size_t size) {}
 	inline auto new_data_start(size_t size) { return capacity_begin(); }
 
+	template<sequence_traits TR, location_modes LOC>
+	inline void assign(dynamic_storage<T, TR, LOC>&& rhs)
+	{
+		auto db = rhs.data_begin();
+		auto de = rhs.data_end();
+
+		inherited::swap(rhs);
+		rhs.set_size(0);
+
+		if constexpr (TRAITS.location != LOC)
+		{
+		}
+		m_data_end = de;
+	}
+
 protected:
 
 	inline void free()
@@ -1423,9 +1438,10 @@ public:
 protected:
 
 	template<sequence_traits TR, storage_modes STO>
-	inline sequence_storage& operator=(sequence_storage<T, TR, STO>&& rhs)
+	inline void assign(sequence_storage<T, TR, STO>&& rhs)
 	{
-		//m_storage.swap(rhs.m_storage);
+		m_storage.clear();
+		m_storage.assign(std::move(rhs.m_storage));
 	}
 
 	template<typename... ARGS>
@@ -1445,7 +1461,7 @@ protected:
 	inline void prepare_for(size_t size) { m_storage.prepare_for(size); }
 	inline auto new_data_start(size_t size) { return m_storage.new_data_start(size); }
 
-private:
+public:
 
 	dynamic_sequence_storage<T, TRAITS> m_storage;
 };
@@ -1696,7 +1712,7 @@ public:
 	inline sequence& operator=(sequence<T, TR>&& rhs)
 	{
 		if constexpr (traits.can_grow() && rhs.traits.can_grow())
-			inherited::operator=(std::move(rhs));
+			inherited::assign(std::move(rhs));
 		else
 		{
 			clear();
