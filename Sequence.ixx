@@ -233,25 +233,85 @@ constexpr bool fits_in(V v)
 
 }
 
+// ==============================================================================================================
+// Shift functions. These are exported to allow unit testing.
+
+// shift_up - Moves a contiguous block of elements (data) toward the begining of the capacity
+// by n positions. If an exception is thrown, all elements (newly created and existing) will
+// be destroyed. n must be positive.
+
 export template<typename T>
-void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
+void shift_up(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
 {
-	assert(data_begin >= capacity_begin && data_begin <= data_end && data_end <= capacity_end);
-	assert(data_begin + n >= capacity_begin && data_end + n <= capacity_end);
+	assert(n > 0);
+	assert(data_begin - n >= capacity_begin);
+	assert(data_begin <= data_end);
+	assert(data_end <= capacity_end);
 
 	auto size = data_end - data_begin;
+	auto last = data_begin + std::min(n, size);
 
-	if (n < 0)
-	{
-		auto last = data_begin + std::min(-n, size);
-		auto next = std::uninitialized_move(data_begin, last, data_begin + n);
+	try {
+		auto next = std::uninitialized_move(data_begin, last, data_begin - n);
 		while (last != data_end)
 			*next++ = std::move(*last++);
+		destroy_data(next > data_begin ? next : data_begin, data_end);
 	}
-	else if (n > 0)
+	catch (...)
 	{
+		destroy_data(data_begin, data_end);
+		throw;
 	}
 }
+
+// shift_down - Moves a contiguous block of elements (data) toward the end of the capacity
+// by n positions. If an exception is thrown, all elements (newly created and existing) will
+// be destroyed. n must be positive.
+
+export template<typename T>
+void shift_down(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
+{
+	assert(n > 0);
+	assert(data_begin >= capacity_begin);
+	assert(data_begin <= data_end);
+	assert(data_end + n <= capacity_end);
+
+	auto size = data_end - data_begin;
+	auto first = data_end - std::min(n, size);
+
+	try {
+		auto next = first + n;
+		std::uninitialized_move(first, data_end, next);
+		while (first != data_begin)
+			*--next = std::move(*--first);
+		destroy_data(data_begin, next < data_end ? next : data_end);
+	}
+	catch (...)
+	{
+		destroy_data(data_begin, data_end);
+		throw;
+	}
+}
+
+// shift (takes a count) - Calls shift_up or shift_down based on the sign of the shift distance n.
+
+export template<typename T>
+inline void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
+{
+	if (n < 0)
+		shift_up(capacity_begin, capacity_end, data_begin, data_end, -n);
+	else if (n > 0)
+		shift_down(capacity_begin, capacity_end, data_begin, data_end, n);
+}
+
+// shift (takes a target) - Calls shift_up or shift_down based on the relationship between the target and data pointers.
+
+export template<typename T>
+inline void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, T* target_begin)
+{
+	shift(capacity_begin, capacity_end, data_begin, data_end, target_begin - data_begin);
+}
+
 
 // ==============================================================================================================
 // fixed_capacity - This is the base class for fixed_storage instantiations. It handles the raw capacity.
@@ -825,14 +885,19 @@ protected:
 		inherited::free();
 		m_data_end = nullptr;
 	}
-	inline void swap(dynamic_storage& rhs)
+
+	template<sequence_traits TR>
+	inline void swap(dynamic_storage<T, TR, location_modes::FRONT>& rhs)
 	{
 		inherited::swap(rhs);
 		std::swap(m_data_end, rhs.m_data_end);
 	}
-	inline void swap(dynamic_storage&& rhs) { swap(rhs); }
+	template<sequence_traits TR>
+	inline void swap(dynamic_storage<T, TR, location_modes::FRONT>&& rhs) { swap(rhs); }
 
 private:
+
+	friend class dynamic_storage;
 
 	iterator m_data_end = nullptr;
 };
@@ -917,14 +982,19 @@ protected:
 		inherited::free();
 		m_data_begin = nullptr;
 	}
-	inline void swap(dynamic_storage& rhs)
+
+	template<sequence_traits TR>
+	inline void swap(dynamic_storage<T, TR, location_modes::BACK>& rhs)
 	{
 		inherited::swap(rhs);
 		std::swap(m_data_begin, rhs.m_data_begin);
 	}
-	inline void swap(dynamic_storage&& rhs) { swap(rhs); }
+	template<sequence_traits TR>
+	inline void swap(dynamic_storage<T, TR, location_modes::BACK>&& rhs) { swap(rhs); }
 
 private:
+
+	friend class dynamic_storage;
 
 	iterator m_data_begin = nullptr;
 };
@@ -1075,15 +1145,20 @@ protected:
 		m_data_begin = nullptr;
 		m_data_end = nullptr;
 	}
-	inline void swap(dynamic_storage& rhs)
+
+	template<sequence_traits TR>
+	inline void swap(dynamic_storage<T, TR, location_modes::MIDDLE>& rhs)
 	{
 		inherited::swap(rhs);
 		std::swap(m_data_begin, rhs.m_data_begin);
 		std::swap(m_data_end, rhs.m_data_end);
 	}
-	inline void swap(dynamic_storage&& rhs) { swap(rhs); }
+	template<sequence_traits TR>
+	inline void swap(dynamic_storage<T, TR, location_modes::MIDDLE>&& rhs) { swap(rhs); }
 
 private:
+
+	friend class dynamic_storage;
 
 	// This function recenters the elements to prepare for size growth. If the remaining space is odd, then the
 	// extra space will be at the front if we are making space at the front, otherwise it will be at the back.
@@ -1173,20 +1248,29 @@ public:
 	{
 		clear();
 
-		auto db = rhs.data_begin();
-		auto de = rhs.data_end();
-		auto size = rhs.size();
+		// If the locations are the same, the rhs is morally the same type, so we can just do a swap.
 
-		inherited::inherited::swap(rhs);	// Skips dynamic_storage and swap the capacity only.
-		rhs.set_size(0);
-
-		if constexpr (TRAITS.location != TR.location)
+		if constexpr (TRAITS.location == TR.location)
 		{
-			// Shift the elements to the correct position within the capacity.
-			// The point is that this will (likely) be much faster than reallocating.
+			swap(rhs);
 		}
 
-		set_size(size);
+		// If not, then we have to shift the elements to the correct position within the capacity.
+		// The point here is that shifting will (likely) be much faster than reallocating, so it's
+		// (hopefully) worth the trouble to do all this.
+
+		else
+		{
+			auto db = rhs.data_begin();
+			auto de = rhs.data_end();
+			auto size = rhs.size();
+
+			inherited::inherited::swap(rhs);	// Skip dynamic_storage and swap the capacity only.
+			rhs.set_size(0);					// Let the rhs know that it's now empty.
+			set_size(0);						// If the shift throws, it will destroy all the elements, so forget about them.
+			shift(capacity_begin(), capacity_end(), db, de, new_data_start(size));
+			set_size(size);
+		}
 	}
 
 	inline ~dynamic_sequence_storage()
@@ -1494,7 +1578,9 @@ protected:
 	inline void prepare_for(size_t size) { m_storage.prepare_for(size); }
 	inline auto new_data_start(size_t size) { return m_storage.new_data_start(size); }
 
-public:
+private:
+
+	friend class sequence_storage;
 
 	dynamic_sequence_storage<T, TRAITS> m_storage;
 };

@@ -1,7 +1,9 @@
 // life and life_throws - Lifetime metered objects for testing containers and such.
-// They monitors all contruction, destruction and assignment, and keep track of
+// They monitor all contruction, destruction and assignment, and keep track of
 // lifetimes with a static counter. The life_throws version has a noexcept(false)
-// move constructor.
+// move constructor. If the static counter reaches throw_at, the move constructor
+// will throw an ident. Set throw_at to zero (default) to prevent throwing. The
+// noexcept(true) version will never throw.
 
 export module life;
 
@@ -93,7 +95,6 @@ public:
 			requires requires (STR&& str) { std::string(std::forward<STR>(str)); }
 		record(STR&& comment) : comment(std::forward<STR>(comment)) {}
 		record(ident i) : ident(i) {}
-///		record(int id, int operation, int value) : ident(id, operation, value) {}
 
 		inline bool operator==(const record& rhs) const
 		{
@@ -107,7 +108,7 @@ public:
 	};
 
 	using log_type = std::list<record>;
-	static void reset() { previous_id = 0; clear_log(); }
+	static void reset() { previous_id = 0; throw_at = 0; clear_log(); }
 	static void clear_log() { log.clear(); }
 	static const log_type& get_log() { return log; }
 
@@ -130,8 +131,8 @@ public:
 			"VA",		// VALUE_ASSIGN
 			"CA",		// COPY_ASSIGN
 			"MA",		// MOVE_ASSIGN
-			"DE",		// DESTRUCT
-			"CM",		// COMMENT
+			"D~",		// DESTRUCT
+			"Cm",		// COMMENT
 		};
 
 		std::print("{: >4}", operations[std::min<unsigned>(operation, COMMENT)]);
@@ -169,7 +170,7 @@ public:
 
 	static unsigned throw_at;
 
-private:
+protected:
 
 	static void add_record(record&& rec)
 	{
@@ -188,6 +189,7 @@ private:
 		}
 		add_record(i);
 	}
+	void add_record(event_tags event) { add_record(ident{id, event, value}); }
 
 	static void print_log_range(log_type::const_iterator rec)
 	{
@@ -226,11 +228,12 @@ public:
 	life_noex(int value) : life_impl(value) {}
 
 	life_noex(const life_noex& rhs) = default;
-	life_noex(life_noex&& rhs) noexcept(NOEX)
+	life_noex(life_noex&& rhs) noexcept(NOEX) : life_impl(std::move(rhs))
 	{
 		if constexpr (NOEX)
-		add_record_throw(VALUE_CONSTRUCT);
-		add_record(MOVE_CONSTRUCT);
+			add_record(MOVE_CONSTRUCT);
+		else
+			add_record_throw(VALUE_CONSTRUCT);
 	}
 
 	life_noex& operator=(const life_noex&) = default;
@@ -239,5 +242,5 @@ public:
 
 // The public names for the noexcept options.
 
-using life = life_noex<true>;
-using life_throws = life_noex<false>;
+export using life = life_noex<true>;
+export using life_throws = life_noex<false>;

@@ -140,7 +140,7 @@ int main()
 #endif
 		using ty2 = sequence<life, {.storage = storage_modes::VARIABLE,
 									.location = location_modes::FRONT,
-									.capacity = 4	}>;
+									.capacity = 10	}>;
 
 		using ety = life;
 	{
@@ -148,13 +148,15 @@ int main()
 	ety::add_comment("Make v");
 //	typ v;
 	ty1 v = {1,2,3};
+	v.reserve(10);
 //	typ v{1,2,3,4,5,6};
 	show_cap(v);
 	show_elems(v);
 
 	ety::add_comment("Make w");
 	std::println("{:-^50}","w");
-	ty2 w{4,5,6,7,8,9};
+	ty2 w{4,5,6,7};
+	w.reserve(10);
 	show_cap(w);
 	show_elems(w);
 
@@ -187,6 +189,8 @@ int main()
 	ety::add_comment("End of Scope");
 	}
 	ety::print_log();
+
+/*
 	println();
 	ety::reset();
 	ety::throw_at = 13;
@@ -195,10 +199,12 @@ int main()
 								.location = location_modes::BACK,
 								.capacity = 10	}>;
 
+	ety::add_comment("Throw Test");
 	ty3 s{1,2,3,4,5};
+	ety::add_comment("Constructed");
 	show_cap(s);
 	try {
-		shift(s.capacity_begin(), s.capacity_end(), s.begin(), s.end(), -3);
+		shift(s.capacity_begin(), s.capacity_end(), s.begin(), s.end(), s.capacity_begin());
 	}
 	catch (ety::ident i)
 	{
@@ -207,11 +213,33 @@ int main()
 		ety::print_value(i.value);
 		println();
 	}
-	//catch (...)
-	//{
-	//}
 	show_cap(s);
 	ety::print_log();
+
+	println();
+	ety::reset();
+	ety::throw_at = 14;
+	std::println("{:-^50}","Uninit Test");
+
+	ety::add_comment("ar1");
+	life_throws ar1[5] = {1,2,3,4,5};
+	ety::add_comment("ar2");
+	life_throws ar2[5];
+	ety::add_comment("destruct");
+	for (auto& e : ar2) e.~life_throws();
+	ety::add_comment("move");
+	try {
+		std::uninitialized_move(ar1, ar1 + 5, ar2);
+	}
+	catch (ety::ident i)
+	{
+		print("EX: {} ", i.id);
+		ety::print_operation(i.operation);
+		ety::print_value(i.value);
+		println();
+	}
+	ety::print_log();
+*/
 }
 
 #ifdef NONONONO
