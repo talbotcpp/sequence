@@ -194,37 +194,6 @@ inline void back_erase(T* data_end, T* element)
 	element->~T();
 }
 
-// shift - Slides the elements by n (positive or negative) positions within the capacity.
-// Preconditions: The elements (data) are a contiguous subset of the capacity. The shift
-// distance (n) does not cause the elements to move outside the capacity.
-
-
-
-// The recenter function shifts the elements in a MIDDLE location capacity to prepare for size growth.
-// If the remaining space is odd, then the extra space will be at the front if we are making space at
-// the front, otherwise it will be at the back. It returns the new front and back gaps.
-
-template<typename CAPACITY, typename T>
-std::pair<size_t, size_t> recenter(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end)
-{
-	assert(data_begin == capacity_begin || data_end == capacity_end);
-	assert(data_begin != capacity_begin || data_end != capacity_end);
-
-	auto capacity = capacity_end - capacity_begin;
-	auto size = data_end - data_begin;
-
-	CAPACITY temp(size);
-	std::uninitialized_move(data_begin, data_end, temp.capacity_begin());
-	destroy_data(data_begin, data_end);
-
-	auto fg = sequence_traits{.location = location_modes::MIDDLE}.front_gap(capacity, size);
-	auto bg = capacity - (fg + size);
-	if (data_begin == capacity_begin) std::swap(fg, bg);
-	std::uninitialized_move(temp.capacity_begin(), temp.capacity_begin() + size, capacity_begin + fg);
-
-	return {fg, bg};
-}
-
 template<std::unsigned_integral T, std::unsigned_integral V>
 constexpr bool fits_in(V v)
 {
@@ -234,11 +203,15 @@ constexpr bool fits_in(V v)
 }
 
 // ==============================================================================================================
-// Shift functions. These are exported to allow unit testing.
+// Shift functions - Slide the elements up or down within the capacity.
+// Preconditions: The elements (data) are a contiguous subset of the capacity. The shift
+// distance does not cause the elements to move outside the capacity.
+// Throws: If an exception is thrown by a move or copy (assignment or construction), all elements
+// (newly created and existing) will be destroyed.
+// These functions are exported to allow unit testing.
 
 // shift_up - Moves a contiguous block of elements (data) toward the begining of the capacity
-// by n positions. If an exception is thrown, all elements (newly created and existing) will
-// be destroyed. n must be positive.
+// by n positions. n must be positive.
 
 export template<typename T>
 void shift_up(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
@@ -265,8 +238,7 @@ void shift_up(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, pt
 }
 
 // shift_down - Moves a contiguous block of elements (data) toward the end of the capacity
-// by n positions. If an exception is thrown, all elements (newly created and existing) will
-// be destroyed. n must be positive.
+// by n positions. n must be positive.
 
 export template<typename T>
 void shift_down(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
@@ -326,7 +298,6 @@ class fixed_capacity
 public:
 
 	fixed_capacity() {}
-	fixed_capacity(size_t cap) {}	/// This should be unnecessary. See ::recenter
 	~fixed_capacity() {}
 
 	constexpr static size_t capacity() { return CAP; }
@@ -547,7 +518,7 @@ public:
 		{
 			if (m_back_gap == 0)
 			{
-				recenter();
+				recenter(false);
 				pos -= m_back_gap;
 			}
 			pos = back_add_at(data_end(), pos, [this](){ --m_back_gap; }, std::forward<ARGS>(args)...);
@@ -558,7 +529,7 @@ public:
 		{
 			if (m_front_gap == 0)
 			{
-				recenter();
+				recenter(true);
 				pos += m_front_gap;
 			}
 			pos = front_add_at(data_begin(), pos, [this](){ --m_front_gap; }, std::forward<ARGS>(args)...);
@@ -570,7 +541,7 @@ public:
 	{
 		assert(size() < capacity());
 		if (m_front_gap == 0)
-			recenter();
+			recenter(true);
 		new(data_begin() - 1) value_type(std::forward<ARGS>(args)...);
 		--m_front_gap;
 	}
@@ -579,7 +550,7 @@ public:
 	{
 		assert(size() < capacity());
 		if (m_back_gap == 0)
-			recenter();
+			recenter(false);
 		new(data_end()) value_type(std::forward<ARGS>(args)...);
 		--m_back_gap;
 	}
@@ -644,13 +615,24 @@ private:
 
 	// Moves the elements to the (approximate) center of the capacity to prepare for size growth.
 	// If the remaining space is odd, then the extra space will be at the front if we are making
-	// space at the front, otherwise it will be at the back.
+	// space at the front, otherwise it will be at the back. The front parameter is true if the
+	// addition will be at the front (requiring a shift down).
 	
-	inline void recenter()
+	inline void recenter(bool front)
 	{
-		auto [front_gap, back_gap] = ::recenter<inherited>(capacity_begin(), capacity_end(), data_begin(), data_end());
-		m_front_gap = static_cast<size_type>(front_gap);
-		m_back_gap = static_cast<size_type>(back_gap);
+		auto beg = data_begin();
+		auto end = data_end();
+
+		auto sz = size();
+		ptrdiff_t fg = TRAITS.front_gap(sz + 1);
+		if (front) ++fg;
+		ptrdiff_t bg = TRAITS.capacity - (fg + sz);
+		ptrdiff_t offset = fg - m_front_gap;
+
+		m_back_gap = static_cast<size_type>(TRAITS.capacity - m_front_gap);
+		shift(capacity_begin(), capacity_end(), beg, end, offset);
+		m_front_gap = static_cast<size_type>(fg);
+		m_back_gap = static_cast<size_type>(bg);
 	}
 
 	// Empty sequences with odd capacity will have the extra space at the back.
@@ -659,15 +641,15 @@ private:
 	size_type m_back_gap = static_cast<size_type>(TRAITS.capacity - TRAITS.front_gap());
 };
 
-// Forward declaration so that the sequence storage types can refer to each other.
-
-template<typename T, sequence_traits TRAITS>
-class dynamic_sequence_storage;
-
 
 // ==============================================================================================================
 // fixed_sequence_storage - This class provides fixed capacity storage (which may be static or
 // dynamically allocated). It offers three element management strategies.
+
+// Forward declaration so that the sequence storage types can refer to each other.
+
+template<typename T, sequence_traits TRAITS>
+class dynamic_sequence_storage;
 
 template<typename T, sequence_traits TRAITS>
 class fixed_sequence_storage : public fixed_storage<T, TRAITS>
@@ -1042,7 +1024,7 @@ public:
 		{
 			if (m_data_end == capacity_end())
 			{
-				recenter();
+				recenter(false);
 				pos -= capacity_end() - m_data_end;
 			}
 			pos = back_add_at(data_end(), pos, [this](){ ++m_data_end; }, std::forward<ARGS>(args)...);
@@ -1053,7 +1035,7 @@ public:
 		{
 			if (m_data_begin == capacity_begin())
 			{
-				recenter();
+				recenter(true);
 				pos += m_data_begin - capacity_begin();
 			}
 			pos = front_add_at(data_begin(), pos, [this](){ --m_data_begin; }, std::forward<ARGS>(args)...);
@@ -1066,7 +1048,7 @@ public:
 	{
 		assert(size() < capacity());
 		if (m_data_begin == capacity_begin())
-			recenter();
+			recenter(true);
 		new(m_data_begin - 1) value_type(std::forward<ARGS>(args)...);
 		--m_data_begin;
 	}
@@ -1075,7 +1057,7 @@ public:
 	{
 		assert(size() < capacity());
 		if (m_data_end == capacity_end())
-			recenter();
+			recenter(false);
 		new(m_data_end) value_type(std::forward<ARGS>(args)...);
 		++m_data_end;
 	}
@@ -1160,14 +1142,26 @@ private:
 
 	friend class dynamic_storage;
 
-	// This function recenters the elements to prepare for size growth. If the remaining space is odd, then the
-	// extra space will be at the front if we are making space at the front, otherwise it will be at the back.
+	// Moves the elements to the (approximate) center of the capacity to prepare for size growth.
+	// If the remaining space is odd, then the extra space will be at the front if we are making
+	// space at the front, otherwise it will be at the back. The front parameter is true if the
+	// addition will be at the front (requiring a shift down).
 	
-	inline void recenter()
+	inline void recenter(bool front)
 	{
-		auto [front_gap, back_gap] = ::recenter<inherited>(capacity_begin(), capacity_end(), data_begin(), data_end());
-		m_data_begin = capacity_begin() + front_gap;
-		m_data_end = capacity_end() - back_gap;
+		auto beg = m_data_begin;
+		auto end = m_data_end;
+
+		auto sz = size();
+		ptrdiff_t fg = TRAITS.front_gap(sz + 1);
+		if (front) ++fg;
+		ptrdiff_t bg = TRAITS.capacity - (fg + sz);
+		ptrdiff_t offset = fg - (beg - capacity_begin());
+
+		m_data_end = m_data_begin;
+		shift(capacity_begin(), capacity_end(), beg, end, offset);
+		m_data_begin = capacity_begin() + fg;
+		m_data_end = m_data_begin + sz;
 	}
 
 	iterator m_data_begin = nullptr;

@@ -190,6 +190,38 @@ int main()
 	}
 	ety::print_log();
 
+
+		using typ = sequence<life, {
+			.storage = storage_modes::VARIABLE,
+			.location = location_modes::MIDDLE,
+			.capacity = 10
+		}>;
+		typ seq{5,6,7,8};
+		seq.reserve(10);
+
+		println();
+		show_cap(seq);
+		show_elems(seq);
+
+		seq.emplace_front(4);
+		seq.emplace_front(3);
+		seq.emplace_front(2);
+
+		println();
+		show_cap(seq);
+		show_elems(seq);
+
+		seq.emplace_front(1);
+
+		println();
+		show_cap(seq);
+		show_elems(seq);
+
+		//typ seq2{1,2,3,4,5,6,7,8};
+		//println();
+		//show_cap(seq2);
+		//show_elems(seq2);
+
 /*
 	println();
 	ety::reset();
