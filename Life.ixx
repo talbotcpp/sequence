@@ -27,52 +27,51 @@ export enum event_tags : unsigned {
 	COMMENT
 };
 
-export class life
+export class life_impl
 {
 public:
 
-	life()
+	life_impl()
 	{
-		add_record(id, DEFAULT_CONSTRUCT, value);
+		add_record_throw(DEFAULT_CONSTRUCT);
 	}
-	life(int value) : value(value)
+	life_impl(int value) : value(value)
 	{
-		add_record(id, VALUE_CONSTRUCT, value);
+		add_record_throw(VALUE_CONSTRUCT);
 	}
 
-	life(const life& rhs) : value(rhs.value)
+	life_impl(const life_impl& rhs) : value(rhs.value)
 	{
-		add_record(id, COPY_CONSTRUCT, value);
+		add_record_throw(COPY_CONSTRUCT);
 	}
-	life(life&& rhs) noexcept : value(rhs.value)
+	life_impl(life_impl&& rhs) : value(rhs.value)
 	{
 		rhs.value = value_tags::MOVED_FROM;
-		add_record(id, MOVE_CONSTRUCT, value);
 	}
 
-	life& operator=(int v)
+	life_impl& operator=(int v)
 	{
 		value = v;
-		add_record(id, VALUE_ASSIGN, value);
+		add_record_throw(VALUE_ASSIGN);
 		return *this;
 	}
-	life& operator=(const life& rhs)
+	life_impl& operator=(const life_impl& rhs)
 	{
 		value = rhs.value;
-		add_record(id, COPY_ASSIGN, value);
+		add_record_throw(COPY_ASSIGN);
 		return *this;
 	}
-	life& operator=(life&& rhs)
+	life_impl& operator=(life_impl&& rhs)
 	{
 		value = rhs.value;
 		rhs.value = value_tags::MOVED_FROM;
-		add_record(id, MOVE_ASSIGN, value);
+		add_record_throw(MOVE_ASSIGN);
 		return *this;
 	}
 
-	~life()
+	~life_impl()
 	{
-		add_record(id, DESTRUCT, value);
+		add_record_throw(DESTRUCT);
 		value = value_tags::DESTRUCTED;
 	}
 
@@ -81,12 +80,20 @@ public:
 	signed value = value_tags::DEFAULTED;
 	const unsigned id = ++previous_id;
 
-	struct record
+	struct ident
+	{
+		unsigned id = 0;
+		unsigned operation = COMMENT;
+		signed value = 0;
+	};
+
+	struct record : public ident
 	{
 		template<typename STR>
 			requires requires (STR&& str) { std::string(std::forward<STR>(str)); }
-		record(STR&& comment) : operation(COMMENT), comment(std::forward<STR>(comment)) {}
-		record(int id, int operation, int value) : id(id), operation(operation), value(value) {}
+		record(STR&& comment) : comment(std::forward<STR>(comment)) {}
+		record(ident i) : ident(i) {}
+///		record(int id, int operation, int value) : ident(id, operation, value) {}
 
 		inline bool operator==(const record& rhs) const
 		{
@@ -96,9 +103,6 @@ public:
 		}
 		inline bool operator!=(const record& rhs) const { return !operator==(rhs); }
 
-		unsigned id = 0;
-		unsigned operation;
-		signed value = 0;
 		std::string comment;
 	};
 
@@ -147,7 +151,7 @@ public:
 		}
 	}
 
-	static bool check_log(const record* next, const record* end)
+	static bool check_log(const ident* next, const ident* end)
 	{
 		for (; last != log.end() && next != end; ++last)
 		{
@@ -158,19 +162,31 @@ public:
 		return true;
 	}
 	template<int SIZE>
-	static bool check_log(const record (&records)[SIZE])
+	static bool check_log(const ident (&records)[SIZE])
 	{
 		return check_log(std::begin(records), std::end(records));
 	}
 
+	static unsigned throw_at;
+
 private:
 
-	template<typename... ARGS>
-	static void add_record(ARGS... args)
+	static void add_record(record&& rec)
 	{
 		if (log.empty()) last = log.end();
-		log.emplace_back(args...);
+		log.emplace_back(std::move(rec));
 		if (last == log.end()) --last;
+	}
+
+	void add_record_throw(event_tags event)
+	{
+		ident i(id, event, value);
+		if (event != DESTRUCT && id == throw_at)
+		{
+			throw_at = 0;	// Ensure we don't throw again.
+			throw i;
+		}
+		add_record(i);
 	}
 
 	static void print_log_range(log_type::const_iterator rec)
@@ -194,19 +210,34 @@ private:
 	static log_type::const_iterator last;
 };
 
-unsigned life::previous_id = 0;
-life::log_type life::log;
-life::log_type::const_iterator life::last;
+unsigned life_impl::previous_id = 0;
+unsigned life_impl::throw_at = 0;
+life_impl::log_type life_impl::log;
+life_impl::log_type::const_iterator life_impl::last;
 
-// This derived class removes the noexcept move constructor.
+// This derived class provides static dispatch on whether the move constructor is noexcept.
 
-export class life_throws : public life
+template<bool NOEX>
+class life_noex : public life_impl
 {
 public:
 
-	life_throws() = default;
-	life_throws(int value) : life(value) {}
+	life_noex() = default;
+	life_noex(int value) : life_impl(value) {}
 
-	life_throws(const life_throws& rhs) = default;
-	life_throws(life_throws&& rhs) noexcept(false) = default;
+	life_noex(const life_noex& rhs) = default;
+	life_noex(life_noex&& rhs) noexcept(NOEX)
+	{
+		if constexpr (NOEX)
+		add_record_throw(VALUE_CONSTRUCT);
+		add_record(MOVE_CONSTRUCT);
+	}
+
+	life_noex& operator=(const life_noex&) = default;
+	life_noex& operator=(life_noex&&) = default;
 };
+
+// The public names for the noexcept options.
+
+using life = life_noex<true>;
+using life_throws = life_noex<false>;

@@ -187,7 +187,31 @@ int main()
 	ety::add_comment("End of Scope");
 	}
 	ety::print_log();
+	println();
+	ety::reset();
+	ety::throw_at = 13;
 
+	using ty3 = sequence<life_throws, {.storage = storage_modes::LOCAL,
+								.location = location_modes::BACK,
+								.capacity = 10	}>;
+
+	ty3 s{1,2,3,4,5};
+	show_cap(s);
+	try {
+		shift(s.capacity_begin(), s.capacity_end(), s.begin(), s.end(), -3);
+	}
+	catch (ety::ident i)
+	{
+		print("EX: {} ", i.id);
+		ety::print_operation(i.operation);
+		ety::print_value(i.value);
+		println();
+	}
+	//catch (...)
+	//{
+	//}
+	show_cap(s);
+	ety::print_log();
 }
 
 #ifdef NONONONO

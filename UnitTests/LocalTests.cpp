@@ -113,7 +113,7 @@ public:
 
 		lhs = rhs;
 
-		typ::value_type::record records[] = {
+		typ::value_type::ident records[] = {
 			{4,		DESTRUCT,		1},
 			{5,		DESTRUCT,		2},
 			{6,		DESTRUCT,		3},
@@ -124,7 +124,7 @@ public:
 		};
 		Assert::IsTrue(typ::value_type::check_log(records));
 		}
-		typ::value_type::record records[] = {
+		typ::value_type::ident records[] = {
 			{11,	DESTRUCT,	4},
 			{12,	DESTRUCT,	5},
 			{13,	DESTRUCT,	6},
@@ -158,7 +158,7 @@ public:
 
 		lhs = std::move(rhs);
 
-		typ::value_type::record records[] = {
+		typ::value_type::ident records[] = {
 			{4,		DESTRUCT,		1},
 			{5,		DESTRUCT,		2},
 			{6,		DESTRUCT,		3},
@@ -169,7 +169,7 @@ public:
 		};
 		Assert::IsTrue(typ::value_type::check_log(records));
 		}
-		typ::value_type::record records[] = {
+		typ::value_type::ident records[] = {
 			{11,	DESTRUCT,	MOVED_FROM},
 			{12,	DESTRUCT,	MOVED_FROM},
 			{13,	DESTRUCT,	MOVED_FROM},

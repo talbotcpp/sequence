@@ -194,6 +194,12 @@ inline void back_erase(T* data_end, T* element)
 	element->~T();
 }
 
+// shift - Slides the elements by n (positive or negative) positions within the capacity.
+// Preconditions: The elements (data) are a contiguous subset of the capacity. The shift
+// distance (n) does not cause the elements to move outside the capacity.
+
+
+
 // The recenter function shifts the elements in a MIDDLE location capacity to prepare for size growth.
 // If the remaining space is odd, then the extra space will be at the front if we are making space at
 // the front, otherwise it will be at the back. It returns the new front and back gaps.
@@ -225,6 +231,26 @@ constexpr bool fits_in(V v)
 	return v <= std::numeric_limits<T>::max();
 }
 
+}
+
+export template<typename T>
+void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, ptrdiff_t n)
+{
+	assert(data_begin >= capacity_begin && data_begin <= data_end && data_end <= capacity_end);
+	assert(data_begin + n >= capacity_begin && data_end + n <= capacity_end);
+
+	auto size = data_end - data_begin;
+
+	if (n < 0)
+	{
+		auto last = data_begin + std::min(-n, size);
+		auto next = std::uninitialized_move(data_begin, last, data_begin + n);
+		while (last != data_end)
+			*next++ = std::move(*last++);
+	}
+	else if (n > 0)
+	{
+	}
 }
 
 // ==============================================================================================================
@@ -725,10 +751,10 @@ class dynamic_storage<T, TRAITS, location_modes::FRONT> : public dynamic_capacit
 	using value_type = T;
 	using iterator = value_type*;
 	using const_iterator = const value_type*;
-	using inherited = dynamic_capacity<T>;
 
 public:
 
+	using inherited = dynamic_capacity<T>;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -792,21 +818,6 @@ public:
 	inline void prepare_for(size_t size) {}
 	inline auto new_data_start(size_t size) { return capacity_begin(); }
 
-	template<sequence_traits TR, location_modes LOC>
-	inline void assign(dynamic_storage<T, TR, LOC>&& rhs)
-	{
-		auto db = rhs.data_begin();
-		auto de = rhs.data_end();
-
-		inherited::swap(rhs);
-		rhs.set_size(0);
-
-		if constexpr (TRAITS.location != LOC)
-		{
-		}
-		m_data_end = de;
-	}
-
 protected:
 
 	inline void free()
@@ -832,10 +843,10 @@ class dynamic_storage<T, TRAITS, location_modes::BACK> : public dynamic_capacity
 	using value_type = T;
 	using iterator = value_type*;
 	using const_iterator = const value_type*;
-	using inherited = dynamic_capacity<T>;
 
 public:
 
+	using inherited = dynamic_capacity<T>;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -924,10 +935,10 @@ class dynamic_storage<T, TRAITS, location_modes::MIDDLE> : public dynamic_capaci
 	using value_type = T;
 	using iterator = value_type*;
 	using const_iterator = const value_type*;
-	using inherited = dynamic_capacity<T>;
 
 public:
 
+	using inherited = dynamic_capacity<T>;
 	using inherited::capacity;
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
@@ -1157,6 +1168,27 @@ public:
 		return *this;
 	}
 
+	template<sequence_traits TR>
+	inline void assign(dynamic_sequence_storage<T, TR>&& rhs)
+	{
+		clear();
+
+		auto db = rhs.data_begin();
+		auto de = rhs.data_end();
+		auto size = rhs.size();
+
+		inherited::inherited::swap(rhs);	// Skips dynamic_storage and swap the capacity only.
+		rhs.set_size(0);
+
+		if constexpr (TRAITS.location != TR.location)
+		{
+			// Shift the elements to the correct position within the capacity.
+			// The point is that this will (likely) be much faster than reallocating.
+		}
+
+		set_size(size);
+	}
+
 	inline ~dynamic_sequence_storage()
 	{
 		destroy_data(data_begin(), data_end());
@@ -1273,6 +1305,8 @@ protected:
 	inline auto data_end() { return m_storage.data_end(); }
 	inline auto data_begin() const { return m_storage.data_begin(); }
 	inline auto data_end() const { return m_storage.data_end(); }
+	inline auto capacity_begin() { return m_storage.capacity_begin(); }
+	inline auto capacity_end() { return m_storage.capacity_end(); }
 	inline auto capacity_begin() const { return m_storage.capacity_begin(); }
 	inline auto capacity_end() const { return m_storage.capacity_end(); }
 
@@ -1440,7 +1474,6 @@ protected:
 	template<sequence_traits TR, storage_modes STO>
 	inline void assign(sequence_storage<T, TR, STO>&& rhs)
 	{
-		m_storage.clear();
 		m_storage.assign(std::move(rhs.m_storage));
 	}
 

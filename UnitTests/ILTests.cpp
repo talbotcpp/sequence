@@ -16,7 +16,7 @@ TEST_CLASS(ILTests)
 	{
 		using seq_type = sequence<life, TRAITS>;
 		using val_type = typename seq_type::value_type;
-		using rec_type = typename val_type::record;
+		using rec_type = typename val_type::ident;
 
 		{
 			seq_type seq{1,2,3};
@@ -56,7 +56,7 @@ TEST_CLASS(ILTests)
 	{
 		using seq_type = sequence<life, TRAITS>;
 		using val_type = typename seq_type::value_type;
-		using rec_type = typename val_type::record;
+		using rec_type = typename val_type::ident;
 
 		seq_type seq{1,2,3};
 		seq.reserve(capacity);
