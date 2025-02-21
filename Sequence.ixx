@@ -58,8 +58,6 @@ struct sequence_traits
 		}
 	};
 
-	constexpr bool can_grow() const { return storage >= storage_modes::VARIABLE; }
-
 	// 'front_gap' returns the location of the start of the data given a capacity and size.
 	// The formula is based on the 'location' value.
 
@@ -199,6 +197,8 @@ constexpr bool fits_in(V v)
 {
 	return v <= std::numeric_limits<T>::max();
 }
+
+constexpr bool can_grow(storage_modes mode) { return mode >= storage_modes::VARIABLE; }
 
 }
 
@@ -674,13 +674,10 @@ public:
 	using inherited::empty;
 
 	inline fixed_sequence_storage() = default;
-	inline fixed_sequence_storage(std::initializer_list<value_type> il)
+	inline fixed_sequence_storage(size_t new_capacity)
 	{
-		if (il.size() > capacity())
+		if (new_capacity > TRAITS.capacity)
 			throw std::bad_alloc();
-
-		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
-		set_size(il.size());	// This must come last in case of a copy exception.
 	}
 
 	fixed_sequence_storage(const dynamic_sequence_storage<T, TRAITS>&);
@@ -1197,12 +1194,7 @@ public:
 	using inherited::swap;
 
 	inline dynamic_sequence_storage() = default;
-	inline dynamic_sequence_storage(std::initializer_list<value_type> il) :
-		inherited(il.size())
-	{
-		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
-		set_size(il.size());	// This must come last in case of a copy exception.
-	}
+	inline dynamic_sequence_storage(size_t new_capacity) : inherited(new_capacity) {}
 
 	inline dynamic_sequence_storage(size_t cap, fixed_sequence_storage<T, TRAITS>&& rhs) :
 		inherited(cap)
@@ -1220,6 +1212,34 @@ public:
 	inline dynamic_sequence_storage(dynamic_sequence_storage&& rhs)
 	{
 		swap(rhs);
+	}
+
+	template<sequence_traits TR>
+	inline dynamic_sequence_storage(dynamic_sequence_storage<T, TR>&& rhs)
+	{
+		// If the locations are the same, the rhs is morally the same type, so we can just do a swap.
+
+		if constexpr (TRAITS.location == TR.location)
+		{
+			swap(rhs);
+		}
+
+		// If not, then we have to shift the elements to the correct position within the capacity.
+		// The point here is that shifting will (likely) be much faster than reallocating, so it's
+		// (hopefully) worth the trouble to do all this.
+
+		else
+		{
+			auto db = rhs.data_begin();
+			auto de = rhs.data_end();
+			auto size = rhs.size();
+
+			inherited::inherited::swap(rhs);	// Skip dynamic_storage and swap the capacity only.
+			rhs.set_size(0);					// Let the rhs know that it's now empty.
+			set_size(0);						// If the shift throws, it will destroy all the elements, so forget about them.
+			shift(capacity_begin(), capacity_end(), db, de, new_data_start(size));
+			set_size(size);
+		}
 	}
 
 	inline dynamic_sequence_storage& operator=(const dynamic_sequence_storage& rhs)
@@ -1341,7 +1361,14 @@ class sequence_storage<T, TRAITS, storage_modes::LOCAL>
 public:
 
 	inline sequence_storage() = default;
-	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
+	inline sequence_storage(size_t new_capacity) : m_storage(new_capacity) {}
+
+	template<sequence_traits TR, storage_modes STO>
+	sequence_storage(sequence_storage<T, TR, STO>&& rhs) : m_storage(rhs.size())
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+		set_size(rhs.size());
+	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
 	static constexpr size_t capacity() { return TRAITS.capacity; }
@@ -1399,6 +1426,8 @@ protected:
 
 private:
 
+	friend class sequence_storage;
+
 	storage_type m_storage;
 };
 
@@ -1415,7 +1444,7 @@ class sequence_storage<T, TRAITS, storage_modes::FIXED>
 public:
 
 	inline sequence_storage() = default;
-	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(new storage_type(il)) {}
+	inline sequence_storage(size_t new_capacity) : m_storage(new storage_type(new_capacity)) {}
 
 	inline sequence_storage(const sequence_storage& rhs)
 	{
@@ -1428,6 +1457,17 @@ public:
 	inline sequence_storage(sequence_storage&& rhs) :
 		m_storage(std::move(rhs.m_storage))
 	{}
+
+	template<sequence_traits TR, storage_modes STO>
+	sequence_storage(sequence_storage<T, TR, STO>&& rhs)
+	{
+		if (rhs.m_storage)
+		{
+			m_storage.reset(new storage_type);
+			std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+			set_size(rhs.size());
+		}
+	}
 
 	inline sequence_storage& operator=(const sequence_storage& rhs)
 	{
@@ -1506,6 +1546,8 @@ protected:
 
 private:
 
+	friend class sequence_storage;
+
 	std::unique_ptr<storage_type> m_storage;
 };
 
@@ -1516,11 +1558,33 @@ class sequence_storage<T, TRAITS, storage_modes::VARIABLE>
 {
 	using value_type = T;
 	using iterator = value_type*;
+	using dynamic_type = dynamic_sequence_storage<T, TRAITS>;
 
 public:
 
 	inline sequence_storage() = default;
-	inline sequence_storage(std::initializer_list<value_type> il) : m_storage(il) {}
+	inline sequence_storage(size_t new_capacity) : m_storage(new_capacity) {}
+
+	template<sequence_traits TR, storage_modes STO> requires (can_grow(STO))
+	sequence_storage(sequence_storage<T, TR, STO>&& rhs)
+	{
+		if (rhs.is_dynamic())
+		{
+			m_storage.swap(dynamic_type(std::move(rhs.get_dynamic_storage())));
+		}
+		else
+		{
+			m_storage.swap(dynamic_type(rhs.size()));
+			std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+			set_size(rhs.size());
+		}
+	}
+	template<sequence_traits TR, storage_modes STO>
+	sequence_storage(sequence_storage<T, TR, STO>&& rhs) : m_storage(rhs.size())
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+		set_size(rhs.size());
+	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_t>::max(); }
 	inline size_t capacity() const { return m_storage.capacity(); }
@@ -1552,7 +1616,7 @@ protected:
 	template<sequence_traits TR, storage_modes STO>
 	inline void assign(sequence_storage<T, TR, STO>&& rhs)
 	{
-		m_storage.assign(std::move(rhs.m_storage));
+		m_storage.assign(std::move(rhs.get_dynamic_storage()));
 	}
 
 	template<typename... ARGS>
@@ -1576,7 +1640,9 @@ private:
 
 	friend class sequence_storage;
 
-	dynamic_sequence_storage<T, TRAITS> m_storage;
+	dynamic_type m_storage;
+
+	dynamic_type& get_dynamic_storage() { return m_storage; }
 };
 
 // BUFFERED storage supporting a small object buffer optimization (like boost::small_vector).
@@ -1595,12 +1661,12 @@ class sequence_storage<T, TRAITS, storage_modes::BUFFERED>
 public:
 
 	inline sequence_storage() = default;
-	inline sequence_storage(std::initializer_list<value_type> il)
+	inline sequence_storage(size_t new_capacity)
 	{
-		if (il.size() <= TRAITS.capacity)
-			m_storage.emplace<STC>(il);
+		if (new_capacity <= TRAITS.capacity)
+			m_storage.emplace<STC>(new_capacity);
 		else
-			m_storage.emplace<DYN>(il);
+			m_storage.emplace<DYN>(new_capacity);
 	}
 
 	inline sequence_storage(const sequence_storage& rhs)
@@ -1671,6 +1737,15 @@ public:
 
 protected:
 
+	template<sequence_traits TR, storage_modes STO>
+	inline void assign(sequence_storage<T, TR, STO>&& rhs)
+	{
+		if (is_dynamic())
+			get<DYN>(m_storage).assign(std::move(rhs.get_dynamic_storage()));
+		else
+			m_storage.emplace<DYN>(std::move(rhs.get_dynamic_storage()));
+	}
+
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
 	{
@@ -1704,15 +1779,15 @@ protected:
 		// The new capacity will not fit in the buffer.
 		if (new_capacity > TRAITS.capacity)
 		{
-			if (m_storage.index() == STC)		// We're moving out of the buffer: switch to dynamic storage.
+			if (m_storage.index() == STC)	// We're moving out of the buffer: switch to dynamic storage.
 				m_storage = dynamic_type(new_capacity, std::move(get<STC>(m_storage)));
-			else								// We're already out of the buffer: adjust the dynamic capacity.		
+			else							// We're already out of the buffer: adjust the dynamic capacity.		
 				get<DYN>(m_storage).reallocate(new_capacity);
 		}
 
 		// The new capacity will fit in the buffer.
-		else if (m_storage.index() == DYN)		// We're moving into the buffer: switch to buffer storage.
-				m_storage.emplace<STC>(dynamic_type(std::move(get<DYN>(m_storage))));
+		else if (is_dynamic())				// We're moving into the buffer: switch to buffer storage.
+				m_storage.emplace<STC>(dynamic_type(std::move(get<DYN>(m_storage))));	// The r-value temp preserves the capacity while we switch the varient.
 		// If we're already in the buffer: do nothing (the buffer capacity cannot change).
 	}
 	inline void set_size(size_t size) { execute([size](auto&& storage){ storage.set_size(size); }); }
@@ -1720,6 +1795,8 @@ protected:
 	inline auto new_data_start(size_t size) { return execute([size](auto&& storage){ return storage.new_data_start(size); }); }
 
 private:
+
+	friend class sequence_storage;
 
 	std::variant<fixed_type, dynamic_type> m_storage;
 
@@ -1730,6 +1807,7 @@ private:
 	inline auto execute(FUNC f) const
 	{ return m_storage.index() == STC ? f(get<STC>(m_storage)) : f(get<DYN>(m_storage)); }
 
+	dynamic_type& get_dynamic_storage() { assert(is_dynamic()); return get<DYN>(m_storage); }
 };
 
 
@@ -1766,6 +1844,8 @@ public:
 
 	using inherited::size;
 	using inherited::empty;
+	using inherited::is_dynamic;
+
 	using inherited::erase;
 	using inherited::clear;
 	using inherited::free;
@@ -1795,7 +1875,22 @@ public:
 	inline sequence() = default;
 	inline sequence(const sequence&) = default;
 	inline sequence(sequence&&) = default;
-	inline sequence(std::initializer_list<value_type> il) : inherited(il) {}
+
+	template<sequence_traits TR>
+	sequence(const sequence<T, TR>& rhs) : inherited(rhs.size())
+	{
+		std::uninitialized_copy(rhs.begin(), rhs.end(), new_data_start(rhs.size()));
+		set_size(rhs.size());			// This must come last in case of a copy exception.
+	}
+	template<sequence_traits TR>
+	sequence(sequence<T, TR>&& rhs) : inherited(std::move(rhs)) {}
+
+	inline sequence(std::initializer_list<value_type> il) : inherited(il.size())
+	{
+		std::uninitialized_copy(il.begin(), il.end(), new_data_start(il.size()));
+		set_size(il.size());	// This must come last in case of a copy exception.
+	}
+
 	template<typename... ARGS>
 	inline sequence(size_type n, ARGS&&... args)
 	{
@@ -1824,17 +1919,20 @@ public:
 	template<sequence_traits TR>
 	inline sequence& operator=(sequence<T, TR>&& rhs)
 	{
-		if constexpr (traits.can_grow() && rhs.traits.can_grow())
-			inherited::assign(std::move(rhs));
-		else
-		{
-			clear();
-			auto size = rhs.size();
-			if (size > capacity())
-				reallocate(size);
-			std::uninitialized_move(rhs.begin(), rhs.end(), new_data_start(size));
-			set_size(size);
-		}
+		if constexpr (can_grow(TRAITS.storage) && can_grow(TR.storage))
+			if (rhs.is_dynamic())
+			{
+				inherited::assign(std::move(rhs));
+				return *this;
+			}
+
+		clear();
+		auto size = rhs.size();
+		if (size > capacity())
+			reallocate(size);
+		std::uninitialized_move(rhs.begin(), rhs.end(), new_data_start(size));
+		set_size(size);
+
 		return *this;
 	}
 

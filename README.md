@@ -10,8 +10,7 @@ The library is provided as a single module file "Sequence.ixx" which exports a m
 
 This is a proof-of-concept implementation meant to illustrate the ideas embodied by sequence.
 It is incomplete in many ways, and is not production-ready code. It is missing a number of important
-features and lacks complete test tooling and a comprehensive test suite.
-This latter implies that it is pretty much untested.
+features and lacks a comprehensive test suite. This latter implies that many aspects are completely untested.
 
 ## Example
 
@@ -69,11 +68,21 @@ static constexpr size_t max_size();
 Returns the largest theoretically supported size. The value is dependent on `size_type` only; it does not
 take physical limitations into account.
 
-## Copy Assignment
+## Copy Construction and Assignment
 ```C++
+sequence(const sequence&);
 sequence& operator=(const sequence&);
 ```
-Copy assigment is linear in the old + new elements.
+Copy is linear in the number of new elements and old elements (if any).
+For `VARIABLE` storage mode, if the LHS has a dynamic allocation,
+copying will not deallocate it if the RHS has no capacity.
+(This is the same behavior as `std::vector`.)
+
+```C++
+template<sequence_traits TR>
+sequence& operator=(const sequence<T, TR>&)
+```
+Copy is linear in the number of new elements and old elements (if any).
 For `VARIABLE` storage mode, if the LHS has a dynamic allocation,
 copying will not deallocate it if the RHS has no capacity.
 (This is the same behavior as `std::vector`.)

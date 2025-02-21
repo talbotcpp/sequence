@@ -138,31 +138,41 @@ int main()
 		using typ = std::vector<life>;
 //		using typ = std::array<life, 5>;
 #endif
-		using ty2 = sequence<life, {.storage = storage_modes::VARIABLE,
-									.location = location_modes::FRONT,
-									.capacity = 10	}>;
+		using ty2 = sequence<life, {.storage = storage_modes::BUFFERED,
+									.location = location_modes::BACK,
+									.capacity = 5	}>;
 
 		using ety = life;
 	{
-	std::println("{:-^50}","v");
-	ety::add_comment("Make v");
-//	typ v;
-	ty1 v = {1,2,3};
-	v.reserve(10);
+	//std::println("{:-^50}","v");
+	//ety::add_comment("Make v");
+//	ty1 v;
+//	ty1 v = {1,2,3};
+//	v.reserve(10);
 //	typ v{1,2,3,4,5,6};
-	show_cap(v);
-	show_elems(v);
+//	show_cap(v);
+//	show_elems(v);
 
 	ety::add_comment("Make w");
 	std::println("{:-^50}","w");
-	ty2 w{4,5,6,7};
-	w.reserve(10);
+	ty2 w{4,5,6,7,8,9};
+//	w.reserve(10);
 	show_cap(w);
 	show_elems(w);
 
-	ety::add_comment("Assign");
+	ety::add_comment("Construct v");
+	ty1 v(move(w));
+	//try {
+	//	ty1 v(w);
+	//}
+	//catch (std::bad_alloc& err)
+	//{
+	//	println("EX: {} ", err.what());
+	//}
+
+//	ety::add_comment("Assign");
 //	v = w;
-	v = std::move(w);
+//	v = std::move(w);
 
 	std::println("{:-^50}","v");
 	show_cap(v);
@@ -190,7 +200,7 @@ int main()
 	}
 	ety::print_log();
 
-
+/*
 		using typ = sequence<life, {
 			.storage = storage_modes::VARIABLE,
 			.location = location_modes::MIDDLE,
@@ -222,7 +232,6 @@ int main()
 		//show_cap(seq2);
 		//show_elems(seq2);
 
-/*
 	println();
 	ety::reset();
 	ety::throw_at = 13;
