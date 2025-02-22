@@ -131,7 +131,7 @@ int main()
 {
 
 #if 1
-		using ty1 = sequence<life, {.storage = storage_modes::VARIABLE,
+		using ty1 = sequence<life, {.storage = storage_modes::BUFFERED,
 									.location = location_modes::FRONT,
 									.capacity = 10	}>;
 #else
@@ -140,7 +140,7 @@ int main()
 #endif
 		using ty2 = sequence<life, {.storage = storage_modes::BUFFERED,
 									.location = location_modes::BACK,
-									.capacity = 5	}>;
+									.capacity = 6	}>;
 
 		using ety = life;
 	{
@@ -150,17 +150,18 @@ int main()
 //	ty1 v = {1,2,3};
 //	v.reserve(10);
 //	typ v{1,2,3,4,5,6};
-//	show_cap(v);
-//	show_elems(v);
+	//show_cap(v);
+	//show_elems(v);
 
 	ety::add_comment("Make w");
 	std::println("{:-^50}","w");
-	ty2 w{4,5,6,7,8,9};
+	ty2 w{4,5,6,7};
 //	w.reserve(10);
 	show_cap(w);
 	show_elems(w);
 
 	ety::add_comment("Construct v");
+//	ty1 v(w);
 	ty1 v(move(w));
 	//try {
 	//	ty1 v(w);

@@ -1678,6 +1678,31 @@ public:
 	}
 	inline sequence_storage(sequence_storage&& rhs) = default;
 
+	template<sequence_traits TR, storage_modes STO> requires (can_grow(STO))
+	sequence_storage(sequence_storage<T, TR, STO>&& rhs)
+	{
+		if (rhs.is_dynamic())
+		{
+			m_storage.emplace<DYN>(std::move(rhs.get_dynamic_storage()));
+		}
+		else
+		{
+			if (rhs.size() <= TRAITS.capacity)
+				m_storage.emplace<STC>();
+			else
+				m_storage.emplace<DYN>(rhs.size());
+
+			std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+			set_size(rhs.size());
+		}
+	}
+	template<sequence_traits TR, storage_modes STO>
+	sequence_storage(sequence_storage<T, TR, STO>&& rhs) : sequence_storage(rhs.size())
+	{
+		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+		set_size(rhs.size());
+	}
+
 	inline sequence_storage& operator=(const sequence_storage& rhs)
 	{
 		if (rhs.size() <= TRAITS.capacity && is_dynamic())
