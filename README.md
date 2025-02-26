@@ -6,6 +6,8 @@ within the capacity, and control over the way the capacity grows if growth is re
 
 The library is provided as a single module file "Sequence.ixx" which exports a module named "sequence".
 
+The class diagram for the implementation can be found [here](ClassDiagram.pdf).
+
 ## Disclaimers
 
 This is a proof-of-concept implementation meant to illustrate the ideas embodied by sequence.

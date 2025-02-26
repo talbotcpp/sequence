@@ -757,17 +757,18 @@ public:
 
 protected:
 
+	inline void free()
+	{
+		m_capacity_begin.reset();
+		m_capacity_end = nullptr;
+	}
+
 	inline void swap(dynamic_capacity& rhs)
 	{
 		std::swap(m_capacity_begin, rhs.m_capacity_begin);
 		std::swap(m_capacity_end, rhs.m_capacity_end);
 	}
 	inline void swap(dynamic_capacity&& rhs) { swap(rhs); }
-	inline void free()
-	{
-		m_capacity_begin.reset();
-		m_capacity_end = nullptr;
-	}
 
 	std::unique_ptr<void, deleter_type> m_capacity_begin;
 	pointer m_capacity_end;
