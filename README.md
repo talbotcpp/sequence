@@ -4,6 +4,10 @@ It may be thought of as a much more flexible and controllable `std::vector`.
 Features include control over where and how the capacity is stored and managed, how the elements are managed
 within the capacity, and control over the way the capacity grows if growth is required (and permitted).
 
+An objection that has been raised about this idea is that it may be too complicated to be user-friendly.
+A (possibly entertaining) answer to this concern is that it's no harder than operating a 1970's era stereo,
+as illustrated [here](Panel.pdf).
+
 The library is provided as a single module file "Sequence.ixx" which exports a module named "sequence".
 
 The class diagram for the implementation can be found [here](ClassDiagram.pdf).
