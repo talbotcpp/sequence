@@ -1449,7 +1449,7 @@ public:
 
 	inline sequence_storage(const sequence_storage& rhs)
 	{
-		if (rhs.m_storage)
+		if (!rhs.empty())
 		{
 			m_storage.reset(new storage_type);
 			*m_storage = *rhs.m_storage;
@@ -1472,7 +1472,7 @@ public:
 
 	inline sequence_storage& operator=(const sequence_storage& rhs)
 	{
-		if (rhs.m_storage)
+		if (!rhs.empty())
 		{
 			if (!m_storage)
 				m_storage.reset(new storage_type);

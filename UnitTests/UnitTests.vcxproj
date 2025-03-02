@@ -179,6 +179,7 @@
     <ClCompile Include="ILTests.cpp" />
     <ClCompile Include="LocalTests.cpp" />
     <ClCompile Include="MiddleTests.cpp" />
+    <ClCompile Include="StorageTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Sequence.vcxproj">

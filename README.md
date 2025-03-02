@@ -9,7 +9,6 @@ A (possibly entertaining) answer to this concern is that it's no harder than ope
 as illustrated [here](Panel.pdf).
 
 The library is provided as a single module file "Sequence.ixx" which exports a module named "sequence".
-
 The class diagram for the implementation can be found [here](ClassDiagram.pdf).
 
 ## Disclaimers
@@ -42,7 +41,7 @@ template<typename T, sequence_traits TRAITS = sequence_traits<size_t>()>
 class sequence;
 ```
 
-The `sequence` class is parameterized on the element type and an instance of a struct non-type
+The `sequence` class is parameterized on the element type and an instance of a structural non-type
 template parameter of type `sequence_traits`. Most of the API has the same behavior
 as for `std::vector`. The ways in which it differs are detailed below.
 
@@ -80,54 +79,49 @@ sequence(const sequence&);
 sequence& operator=(const sequence&);
 ```
 Copy is linear in the number of new elements and old elements (if any).
-For `VARIABLE` storage mode, if the LHS has a dynamic allocation,
-copying will not deallocate it if the RHS has no capacity.
+Dynamic allocations and deallocations of the capacity do not occur for assignments from empty
+or null (no capacity) sequences.
 (This is the same behavior as `std::vector`.)
 
 ```C++
 template<sequence_traits TR>
 sequence& operator=(const sequence<T, TR>&)
 ```
-Copy is linear in the number of new elements and old elements (if any).
-For `VARIABLE` storage mode, if the LHS has a dynamic allocation,
-copying will not deallocate it if the RHS has no capacity.
-(This is the same behavior as `std::vector`.)
+Copy is also available from sequences with different traits. The complexity is the same as for identical sequences.
 
-## Move Assignment
+## Move Construction and Assignment
 ```C++
+sequence(sequence&&);
 sequence& operator=(sequence&&);
 ```
-After move assigment the resulting sequence
-will always retain a dynamic allocation if there was one. *Note: this includes the case where the RHS
-has no capacity (is in a freed state).*
+For dynamically allocated capacity modes, after move assigment the LHS
+will own the dynamic allocation of the RHS if there was one, and have no capacity if there wasn't.
 (This is the same behavior as `std::vector`.)
+Moves into fixed capacities will be moves of the individual elements.
 
-For `LOCAL` storage mode, move assignment is linear in the old + new elements.
+#### LOCAL
+Linear in the number of new elements and old elements (if any).
 
-For `FIXED` and `VARIABLE` storage modes,
-move assignment is linear in the old elements (the move of the new elements will be constant).
-(This is the same behavior as `std::vector`.)
+#### FIXED & VARIABLE
+Linear in the old elements (if any). The move of the new elements is constant.
 
-For `BUFFERED` storage, the complexity will depend on whether the elements are buffered or dynamically allocated:
+#### BUFFERED
+The complexity depends on whether the elements are buffered or dynamically allocated:
 
-#### LHS & RHS Elements Buffered
-
-Linear in the old + new elements, and the resulting
+##### LHS & RHS Elements Buffered
+Linear in the number of new elements and old elements (if any), and the resulting
 sequence will be buffered.
 
-#### LHS Elements Buffered, RHS Elements Dynamically Allocated
-
-Move assignment will be linear in the old elements (the move of the new elements will be constant),
+##### LHS Elements Buffered, RHS Elements Dynamically Allocated
+Linear in the old elements (if any). The move of the new elements is constant,
 and the resulting sequence will be dynamic.
 
-#### LHS Elements Dynamically Allocated, RHS Elements Buffered
+##### LHS Elements Dynamically Allocated, RHS Elements Buffered
+Linear in the number of new elements and old elements, and the resulting
+sequence will be dynamic. *Note: this case is not possible for move construction.*
 
-Linear in the old + new elements, and the resulting
-sequence will be dynamic.
-
-#### LHS & RHS Elements Dynamically Allocated
-
-Move assignment will be linear in the old elements (the move of the new elements will be constant).
+##### LHS & RHS Elements Dynamically Allocated
+Linear in the old elements (if any). The move of the new elements is constant. 
 
 ## capacity
 ```C++
@@ -161,7 +155,7 @@ bool is_dynamic() const;
 Returns `true` if the capacity is dynamically allocated. For `BUFFERED` storage sequences this can change at
 runtime and answers the question, "Is the capacity on the heap (vs. buffered in the sequence object)?"
 For all other storage modes, the value is determined at compile time and the function is `static constexpr`.
-*Note: this function cannot be used to determine if the sequence is in a freed or default-constructed state (has no capacity).
+*Note: this function cannot be used to determine if the sequence is in a freed or default-constructed state (i.e. has no capacity).
 Use* `capacity() == 0` *to answer this question.*
 ## reserve
 ```C++
