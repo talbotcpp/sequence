@@ -17,7 +17,7 @@ This is a proof-of-concept implementation meant to illustrate the ideas embodied
 It is incomplete in many ways, and is not production-ready code. It is missing a number of important
 features and lacks a comprehensive test suite. This latter implies that many aspects are completely untested.
 
-References to features of the C++ Standard Library (e.g. std::vector) are based on one implementation. If the
+References to features of the C++ Standard Library (e.g. `std::vector`) are based on one implementation. If the
 behavior in question is not specified by the C++ standard, your Standard Library may work differently.
 
 ## Example
@@ -88,7 +88,9 @@ or null (no capacity) sequences.
 
 ```C++
 template<sequence_traits TR>
-sequence& operator=(const sequence<T, TR>&)
+sequence(const sequence<T, TR>&);
+template<sequence_traits TR>
+sequence& operator=(const sequence<T, TR>&);
 ```
 Copy is also available from sequences with different traits. The complexity is the same as for identical sequences.
 
@@ -128,7 +130,9 @@ Linear in the old elements (if any). The move of the new elements is constant.
 
 ```C++
 template<sequence_traits TR>
-sequence& operator=(const sequence<T, TR>&)
+sequence(sequence<T, TR>&& rhs);
+template<sequence_traits TR>
+sequence& operator=(sequence<T, TR>&& rhs);
 ```
 Move is also available from sequences with different traits. The complexity will depend on the storage mode
 of the LHS and RHS, and on whether the location mode differs. When a move operation can be done by acquiring
@@ -272,7 +276,7 @@ struct sequence_traits;
 The adjustable characteristics are controlled by the `sequence_traits` structure.
 The template is parameterized on the size type (see below). The default version gives
 behavior (more or less) identical to `std::vector` so that sequence can be used as a
-drop-in replacement for, or an implementation of, vector with no adjustments. For example,
+drop-in replacement or an implementation. For example,
 vector could be implemented as:
 ```C++
 template<typename T>
