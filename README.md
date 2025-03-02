@@ -130,9 +130,9 @@ Linear in the old elements (if any). The move of the new elements is constant.
 
 ```C++
 template<sequence_traits TR>
-sequence(sequence<T, TR>&& rhs);
+sequence(sequence<T, TR>&&);
 template<sequence_traits TR>
-sequence& operator=(sequence<T, TR>&& rhs);
+sequence& operator=(sequence<T, TR>&&);
 ```
 Move is also available from sequences with different traits. The complexity will depend on the storage mode
 of the LHS and RHS, and on whether the location mode differs. When a move operation can be done by acquiring
@@ -239,7 +239,7 @@ template<typename... ARGS>
 inline void resize(size_type new_size, ARGS&&... args)
 ```
 If `new_size` < `size()`, erases the last `size() - new_size` elements from the sequence, otherwise appends
-`new_size - size()` elements to the sequence that are emplace-constructed from `args`. For `BACK` storage sequences,
+`new_size - size()` elements to the sequence that are emplace-constructed from `args` (may be empty). For `BACK` storage sequences,
 elements are appended at the front, otherwise they are appended at the back.
 
 ## clear
@@ -258,7 +258,8 @@ void free();
 ```
 This member function erases (deletes) all of the elements in the container and deallocates
 any dynamic storage, placing the container in a default-constructed state. After a free,
-`FIXED` and `VARIABLE` storage sequences have no capacity. *Note: `LOCAL` and `BUFFERED` storage sequences always have
+`FIXED` and `VARIABLE` storage sequences have no capacity, and `BUFFERED` storage sequences
+are in the buffered state (`is_dynamic() == false`). *Note: `LOCAL` and `BUFFERED` storage sequences always have
 a capacity that is at least the fixed capacity size.*
 
 ## Exceptions
