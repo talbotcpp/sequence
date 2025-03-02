@@ -4,7 +4,7 @@ It may be thought of as a much more flexible and controllable `std::vector`.
 Features include control over where and how the capacity is stored and managed, how the elements are managed
 within the capacity, and control over the way the capacity grows if growth is required (and permitted).
 
-An objection that has been raised about this idea is that it may be too complicated to be user-friendly.
+An objection that has been raised about this approach is that it may be too complicated to be user-friendly.
 A (possibly entertaining) answer to this concern is that it's no harder than operating a 1970's era stereo,
 as illustrated [here](Panel.pdf).
 
@@ -16,6 +16,9 @@ The class diagram for the implementation can be found [here](ClassDiagram.pdf).
 This is a proof-of-concept implementation meant to illustrate the ideas embodied by sequence.
 It is incomplete in many ways, and is not production-ready code. It is missing a number of important
 features and lacks a comprehensive test suite. This latter implies that many aspects are completely untested.
+
+References to features of the C++ Standard Library (e.g. std::vector) are based on one implementation. If the
+behavior in question is not specified by the C++ standard, your Standard Library may work differently.
 
 ## Example
 
@@ -122,6 +125,15 @@ sequence will be dynamic. *Note: this case is not possible for move construction
 
 ##### LHS & RHS Elements Dynamically Allocated
 Linear in the old elements (if any). The move of the new elements is constant. 
+
+```C++
+template<sequence_traits TR>
+sequence& operator=(const sequence<T, TR>&)
+```
+Move is also available from sequences with different traits. The complexity will depend on the storage mode
+of the LHS and RHS, and on whether the location mode differs. When a move operation can be done by acquiring
+the RHS capacity, and the location mode of the RHS is different, a shift of the elements will occur so as to
+comply with the LHS location mode.
 
 ## capacity
 ```C++
@@ -257,9 +269,26 @@ throws `std::out_of_range`.
 template<std::unsigned_integral SIZE = size_t>
 struct sequence_traits;
 ```
-The adjustable characteristics are controlled by the `sequence_traits` structure. The default version gives
-behavior (more or less) identical to `std::vector` so that sequence can be used as a drop-in replacement for, or
-an implementation of, vector with no adjustments. The template is parameterized on the size type (see below).
+The adjustable characteristics are controlled by the `sequence_traits` structure.
+The template is parameterized on the size type (see below). The default version gives
+behavior (more or less) identical to `std::vector` so that sequence can be used as a
+drop-in replacement for, or an implementation of, vector with no adjustments. For example,
+vector could be implemented as:
+```C++
+template<typename T>
+using vector = sequence<T>;
+```
+Similarly, inplace vector could be implemented as:
+```C++
+template<typename T, size_t N,
+         sequence_traits<size_t> TRAITS = {
+            .storage = storage_modes::LOCAL,
+            .capacity = N
+         }>
+using inplace_vector = sequence<T, TRAITS>;
+```
+*Note: one feature provided by `std::inplace_vector` that is not (currently) supported by sequence
+is a zero-size fixed capacity.*
 
 ## size_type
 ```C++
@@ -365,8 +394,11 @@ This member specifies the size of the fixed capacity or inital capacity. It has 
 | VARIABLE | The initial size of the dynamic capacity when allocation first occurs. However, if the sequence is constructed from an initializer list, the capacity is equal to the size of the list. |
 | BUFFERED | The size of the optimization buffer (the fixed capacity). If the sequence is constructed from an initializer list and the size of the list is greater than this value, the dynamic capacity is equal to the size of the list. |
 
-Note that the common pattern of constructing a vector and immediately reserving a starting size is not necessary for sequences.
-Setting this value to the desired initial reserve size will do this automatically and with lazy evaluation, without wasting allocations for containers which remain empty. 
+Note that the common pattern of constructing a vector and immediately
+reserving a starting size is not necessary for sequences.
+Setting `capacity` to the desired initial reserve size will
+do this automatically, and with lazy evaluation to avoid wasting
+allocations for containers which remain empty. 
 
 This value must be greater than 0.
 

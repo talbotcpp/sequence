@@ -101,8 +101,15 @@ void show_cap(const std::vector<T>& seq)
 	std::println();
 }
 
-template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
-using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = storage_modes::LOCAL, .capacity = CAP }>;
+template<typename T>
+using myvec = sequence<T>;
+
+template<typename T, size_t N,
+		 sequence_traits<size_t> TRAITS = {.storage = storage_modes::LOCAL, .capacity = N}>
+using inplace_vector = sequence<T, TRAITS>;
+
+//template<typename T, long long CAP, std::unsigned_integral SIZE = size_t> requires ( CAP > 0 )
+//using static_vector = sequence<T, sequence_traits<SIZE>{ .storage = storage_modes::LOCAL, .capacity = CAP }>;
 
 template<typename L>
 void assign(L& l1, const L& l2)
@@ -200,6 +207,13 @@ int main()
 	ety::add_comment("End of Scope");
 	}
 	ety::print_log();
+
+	println();
+
+	inplace_vector<int, 10> v;
+	show_cap(v);
+	show_elems(v);
+
 
 /*
 		using typ = sequence<life, {
