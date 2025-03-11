@@ -209,12 +209,28 @@ int main()
 	ety::print_log();
 
 	println();
+/*
 
-	inplace_vector<int, 10> v;
-	show_cap(v);
-	show_elems(v);
+	ety::clear_log();
+	life l1(111), l2(222);
 
+	println("l1 = {}\tl2 = {}", int(l1), int(l2));
+	swap(l1, l2);
+	println("l1 = {}\tl2 = {}", int(l1), int(l2));
 
+	ety::print_log();
+*/
+	{
+	ety::clear_log();
+	list<life> l{1,2,3,4};
+	ety::add_comment("Constructed");
+	show_elems(l);
+	l.reverse();
+	show_elems(l);
+	ety::add_comment("Reversed");
+	}
+	ety::add_comment("Destructed");
+	ety::print_log();
 /*
 		using typ = sequence<life, {
 			.storage = storage_modes::VARIABLE,
