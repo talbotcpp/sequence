@@ -277,16 +277,41 @@ public:
 	TEST_METHOD(MaxSize)
 	{
 		{	// MaxSize when size_type is size_t.
-			typ lhs;
-			Assert::AreEqual(std::numeric_limits<size_t>::max(), lhs.max_size());
+			sequence<int, sequence_traits<size_t>{
+				.storage = storage_modes::FIXED,
+				.capacity = 10
+			}> seq;
+			Assert::AreEqual(std::numeric_limits<size_t>::max(), seq.max_size());
 		}
-		{
+		{	// MaxSize when size_type is unsigned char.
 			sequence<int, sequence_traits<unsigned char>{
 				.storage = storage_modes::FIXED,
 				.capacity = 10
-			}> lhs;
-			Assert::AreEqual(size_t(std::numeric_limits<unsigned char>::max()), lhs.max_size());
+			}> seq;
+			Assert::AreEqual(size_t(std::numeric_limits<unsigned char>::max()), seq.max_size());
 		}
+	}
+
+	TEST_METHOD(ReserveOvermax)
+	{
+		sequence<int, sequence_traits<unsigned char>{
+				.storage = storage_modes::FIXED,
+				.capacity = 10
+		}> seq;
+		Assert::ExpectException<std::length_error>(
+			[&](){ seq.reserve(260); },
+			L"reserve more than max_size");
+	}
+
+	TEST_METHOD(ReserveOversize)
+	{
+		sequence<int, sequence_traits<unsigned char>{
+				.storage = storage_modes::FIXED,
+				.capacity = 10
+		}> seq;
+		Assert::ExpectException<std::bad_alloc>(
+			[&](){ seq.reserve(15); },
+			L"reserve more than capacity");
 	}
 };
 
