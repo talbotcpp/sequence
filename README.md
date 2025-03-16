@@ -177,8 +177,10 @@ Use* `capacity() == 0` *to answer this question.*
 ```C++
 void reserve(size_t new_capacity);
 ```
-This member function attempts to increase the capacity to be equal to its argument. If `capacity()` is
-greater than or equal to `new_capacity`, it has no effect. Otherwise, it has different behavior for each storage mode:
+This member function attempts to increase the capacity to be equal to its argument.
+If `new_capacity <= capacity()`, it has no effect. If `new_capacity > max_size()`,
+it throws `std::length_error`.
+Otherwise, it has different behavior for each storage mode:
 
 #### LOCAL
 

@@ -273,6 +273,21 @@ public:
 			Assert::AreEqual(size_t(0), lhs.size());
 		}
 	}
+
+	TEST_METHOD(MaxSize)
+	{
+		{	// MaxSize when size_type is size_t.
+			typ lhs;
+			Assert::AreEqual(std::numeric_limits<size_t>::max(), lhs.max_size());
+		}
+		{
+			sequence<int, sequence_traits<unsigned char>{
+				.storage = storage_modes::FIXED,
+				.capacity = 10
+			}> lhs;
+			Assert::AreEqual(size_t(std::numeric_limits<unsigned char>::max()), lhs.max_size());
+		}
+	}
 };
 
 TEST_CLASS(VariableStorageTests)
@@ -524,6 +539,35 @@ public:
 		}
 	}
 
+	TEST_METHOD(Shrink)
+	{
+		{	// Shrink when size < capacity.
+			typ lhs{1,2,3,4};
+			lhs.reserve(10);
+			Assert::AreEqual(size_t(10), lhs.capacity());
+			Assert::AreEqual(size_t(4), lhs.size());
+
+			lhs.shrink_to_fit();
+			Assert::AreEqual(size_t(4), lhs.capacity());
+			Assert::AreEqual(size_t(4), lhs.size());
+		}
+		{	// Shrink when size == 0.
+			typ lhs;
+			lhs.reserve(10);
+			Assert::AreEqual(size_t(10), lhs.capacity());
+			Assert::AreEqual(size_t(0), lhs.size());
+
+			lhs.shrink_to_fit();
+			Assert::AreEqual(size_t(0), lhs.capacity());
+			Assert::AreEqual(size_t(0), lhs.size());
+		}
+	}
+
+	TEST_METHOD(MaxSize)
+	{
+		typ lhs;
+		Assert::AreEqual(std::numeric_limits<size_t>::max(), lhs.max_size());
+	}
 };
 
 }

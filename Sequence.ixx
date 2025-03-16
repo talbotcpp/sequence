@@ -1714,7 +1714,7 @@ public:
 	}
 	inline sequence_storage& operator=(sequence_storage&&) = default;
 
-	static constexpr size_t max_size() { return std::numeric_limits<size_type>::max(); }
+	static constexpr size_t max_size() { return std::numeric_limits<size_t>::max(); }
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }
 	inline bool is_dynamic() const { return m_storage.index() == DYN; }
 	inline size_t size() const { return execute([](auto&& storage){ return storage.size(); }); }
@@ -1868,6 +1868,7 @@ public:
 	using inherited::capacity_begin;
 	using inherited::capacity_end;
 
+	using inherited::max_size;
 	using inherited::size;
 	using inherited::empty;
 	using inherited::is_dynamic;
@@ -2036,7 +2037,11 @@ public:
 	inline void reserve(size_t new_capacity)
 	{
 		if (new_capacity > capacity())
+		{
+			if (new_capacity > max_size())
+				throw std::length_error(MAX_SIZE_ERROR);
 			reallocate(new_capacity);
+		}
 	}
 	inline void shrink_to_fit()
 	{
@@ -2106,4 +2111,5 @@ private:
 	}
 
 	static constexpr auto OUT_OF_RANGE_ERROR = "invalid sequence index {}";
+	static constexpr auto MAX_SIZE_ERROR = "reserve size is greater than max_size";
 };

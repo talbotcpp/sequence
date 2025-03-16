@@ -164,6 +164,7 @@ int main()
 	std::println("{:-^50}","w");
 	ty2 w{4,5,6,7};
 //	w.reserve(10);
+	std::println("max = {}", w.max_size());
 	show_cap(w);
 	show_elems(w);
 
@@ -219,7 +220,7 @@ int main()
 	println("l1 = {}\tl2 = {}", int(l1), int(l2));
 
 	ety::print_log();
-*/
+
 	{
 	ety::clear_log();
 	list<life> l{1,2,3,4};
@@ -231,8 +232,8 @@ int main()
 	}
 	ety::add_comment("Destructed");
 	ety::print_log();
-/*
-		using typ = sequence<life, {
+
+	using typ = sequence<life, {
 			.storage = storage_modes::VARIABLE,
 			.location = location_modes::MIDDLE,
 			.capacity = 10

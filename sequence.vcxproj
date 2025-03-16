@@ -152,6 +152,7 @@
     <ClCompile Include="Sequence.ixx" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="LICENSE" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
