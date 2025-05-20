@@ -128,11 +128,13 @@ struct C
 
 };
 
-template<typename F>
-void foo(F f)
+template<typename T>
+void foo(T&& t)
 {
-	f();
+	auto x = t;
+	println("foo typeof = {}", typeid(x).name());
 }
+
 
 int main()
 {
@@ -210,7 +212,49 @@ int main()
 	ety::print_log();
 
 	println();
+
+	auto i1 = make_unique<int>(42);
+	auto i2 = make_unique<int>(*i1);
+
+	println("{}, {}", *i1, *i2);
+
+	*i2 = 1234;
+	println("{}, {}", *i1, *i2);
+
+	println();
+
+	int i = 42;
+	foo(move(i));
+
 /*
+
+
+	string s;
+	s.resize_and_overwrite(20, [](auto p, auto count)
+	{
+		auto n = p;
+		for (char c = 'a'; c <= 'z' && count > 0; ++c, --count)
+			*n++ = c;
+		return n - p;
+	});
+	println();
+
+
+	println("{}", s);
+	println("size = {}", s.size());
+	println("capacity = {}", s.capacity());
+	println();
+
+
+	queue<int, sequence<int, {	.storage = storage_modes::LOCAL,
+								.location = location_modes::MIDDLE,
+		.capacity = 6}>> q;
+	q.push(1);
+	q.push(2);
+	q.push(3);
+	q.push(4);
+	for (; !q.empty(); q.pop())
+		print("{}\t", q.front());
 
 	ety::clear_log();
 	life l1(111), l2(222);

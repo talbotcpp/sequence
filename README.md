@@ -82,8 +82,8 @@ sequence(const sequence&);
 sequence& operator=(const sequence&);
 ```
 Copy is linear in the number of new elements and old elements (if any).
-Dynamic allocations and deallocations of the capacity do not occur for assignments from empty
-or null (no capacity) sequences.
+Dynamic allocations and deallocations of the capacity do not occur for assignments from empty sequences
+or sequences with no capacity.
 (This is the same behavior as `std::vector`.)
 
 ```C++

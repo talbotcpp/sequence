@@ -2,6 +2,7 @@ Figure out how to use initializer list correctly. Should it be taken by referenc
 	ILs are light weight, so they can be taken by value.
 	ILs are const, so you can't move from them.
 
-Implement a proper shift (to replace ::recenter).
+Implement a proper shift (to replace ::recenter). DONE
 Deploy shift in VARIABLE mixed-mode assign when locations differ.
 Implement BUFFERED mixed-mode assign.
+
