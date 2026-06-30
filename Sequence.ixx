@@ -2065,7 +2065,7 @@ public:
 		}
 	}
 
-	template< class... ARGS >
+	template<typename... ARGS>
 	inline iterator emplace(const_iterator cpos, ARGS&&... args)
 	{
 		if (auto old_capacity = capacity(); size() == old_capacity)

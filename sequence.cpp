@@ -138,6 +138,11 @@ void foo(T&& t)
 
 int main()
 {
+	long x = 42;
+	println("{}", int(x));
+}
+
+#ifdef NONONONO
 
 #if 1
 		using ty1 = sequence<life, {.storage = storage_modes::BUFFERED,
@@ -358,6 +363,7 @@ int main()
 	ety::print_log();
 */
 }
+#endif
 
 #ifdef NONONONO
 
