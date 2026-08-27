@@ -2034,6 +2034,15 @@ public:
 	inline value_type& operator[](size_t index) & { return *(data_begin() + index); }
 	inline const value_type& operator[](size_t index) const && { return *(data_begin() + index); }
 
+	//template<typename U, sequence_traits TR>
+	//inline const bool operator==(const sequence<U, TR>& rhs) const
+	//{
+	//	if (size() != rhs.size())
+	//		return false;
+	//	else
+	//		return std::ranges::equal(*this, rhs);
+	//}
+
 	inline void reserve(size_t new_capacity)
 	{
 		if (new_capacity > capacity())
@@ -2113,3 +2122,9 @@ private:
 	static constexpr auto OUT_OF_RANGE_ERROR = "invalid sequence index {}";
 	static constexpr auto MAX_SIZE_ERROR = "reserve size is greater than max_size";
 };
+
+export template<typename T, sequence_traits TTR, typename U, sequence_traits UTR>
+inline auto operator<=>(const sequence<T, TTR>& lhs, const sequence<U, UTR>& rhs)
+{
+	return std::lexicographical_compare_three_way(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
