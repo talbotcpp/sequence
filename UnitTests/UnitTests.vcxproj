@@ -176,6 +176,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BufferedTests.cpp" />
     <ClCompile Include="ILTests.cpp" />
     <ClCompile Include="LocalTests.cpp" />
     <ClCompile Include="MiddleTests.cpp" />

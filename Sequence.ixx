@@ -1775,22 +1775,22 @@ protected:
 	template<typename... ARGS>
 	inline iterator add_at(iterator pos, ARGS&&... args)
 	{
-		return execute([=, &...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add_at(pos, std::forward<ARGS>(args)...); });
+		return execute([&](auto&& storage){ return storage.add_at(pos, std::forward<ARGS>(args)...); });
 	}
 	template<typename... ARGS>
 	inline void add_front(ARGS&&... args)
 	{
-		return execute([&...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add_front(std::forward<ARGS>(args)...); });
+		return execute([&](auto&& storage){ return storage.add_front(std::forward<ARGS>(args)...); });
 	}
 	template<typename... ARGS>
 	inline void add_back(ARGS&&... args)
 	{
-		return execute([&...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add_back(std::forward<ARGS>(args)...); });
+		return execute([&](auto&& storage){ return storage.add_back(std::forward<ARGS>(args)...); });
 	}
 	template<typename... ARGS>
 	inline void add(size_t new_size, ARGS&&... args)
 	{
-		return execute([=, &...args = std::forward<ARGS>(args)](auto&& storage){ return storage.add(new_size, std::forward<ARGS>(args)...); });
+		return execute([&](auto&& storage){ return storage.add(new_size, std::forward<ARGS>(args)...); });
 	}
 
 	inline auto data_begin()			{ return execute([](auto&& storage){ return storage.data_begin(); }); }

@@ -135,6 +135,57 @@ void foo(T&& t)
 	println("foo typeof = {}", typeid(x).name());
 }
 
+using typ = sequence<life, {
+	.storage = storage_modes::BUFFERED,
+	.capacity = 4
+}>;
+using val_type = typ::value_type;
+using rec_type = val_type::ident;
+
+int main()
+{
+	println("Sequence Test");
+
+		typ seq{1,2,3,4,5};	// Heap elements are ids 6-10.
+		println("seq.is_dynamic: {}", seq.is_dynamic());
+		val_type::clear_log();
+
+		seq.free();
+
+		rec_type records[] = {
+			{6,		DESTRUCT,	1},
+			{7,		DESTRUCT,	2},
+			{8,		DESTRUCT,	3},
+			{9,		DESTRUCT,	4},
+			{10,	DESTRUCT,	5},
+		};
+		println("val_type::check_log: {}", val_type::check_log(records));
+		println("val_type::get_log.size = 5: {}", val_type::get_log().size());
+		println("seq.capacity = 4: {}", seq.capacity());	// Returns to the buffered state...
+		println("seq.size = 0: {}", seq.size());	// Returns to the buffered state...
+		println("seq.is_dynamic: {}", seq.is_dynamic());
+
+//		seq.push_back(6);							// ...and the buffer is usable.
+		seq.emplace_back(6);							// ...and the buffer is usable.
+		//rec_type records2[] = {
+		//	{11,	VALUE_CONSTRUCT,	6},
+		//};
+		//Assert::IsTrue(val_type::check_log(records2));
+		//Assert::AreEqual(size_t(1), seq.size());
+		//Assert::IsFalse(seq.is_dynamic());
+
+	println("Vector Test");
+
+	vector<life> v;
+	v.reserve(10);
+	v.push_back(1);
+	v.emplace_back(2);
+
+
+}
+
+
+#ifdef NONONONO
 
 int main()
 {
@@ -359,7 +410,6 @@ int main()
 */
 }
 
-#ifdef NONONONO
 
 	typ::value_type::add_comment("Make w");
 	std::println("{:-^50}","w");
