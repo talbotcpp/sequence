@@ -81,10 +81,16 @@ take physical limitations into account.
 sequence(const sequence&);
 sequence& operator=(const sequence&);
 ```
-Copy is linear in the number of new elements and old elements (if any).
-Dynamic allocations and deallocations of the capacity do not occur for assignments from empty sequences
-or sequences with no capacity.
+The dynamic memory handling principle is that dynamic allocations are not quietly lost.
+Rebuffering only occurs when explicitly requested with `shrink_to_fit`.
+Therefore dynamic allocations and deallocations of the capacity do not occur for assignments from empty sequences or sequences with no capacity.
 (This is the same behavior as `std::vector`.)
+
+For a BUFFERED LHS type, if it is dynamic, it will remain dynamic.
+If it is buffered and the RHS elements do not fit in the buffer, it will become dynamic.
+Otherwise it will remain buffered.
+
+Copy complexity is linear in the number of new elements and old elements (if any).
 
 ```C++
 template<sequence_traits TR>
@@ -92,7 +98,7 @@ sequence(const sequence<T, TR>&);
 template<sequence_traits TR>
 sequence& operator=(const sequence<T, TR>&);
 ```
-Copy is also available from sequences with different traits. The complexity is the same as for identical sequences.
+Copy is also available from sequences with different traits.
 
 ## Move Construction and Assignment
 ```C++
@@ -103,6 +109,8 @@ For dynamically allocated capacity modes, after move assigment the LHS
 will own the dynamic allocation of the RHS if there was one, and have no capacity if there wasn't.
 (This is the same behavior as `std::vector`.)
 Moves into fixed capacities will be moves of the individual elements.
+
+Complexities depend on the storage type:
 
 #### LOCAL
 Linear in the number of new elements and old elements (if any).

@@ -1661,6 +1661,8 @@ class sequence_storage<T, TRAITS, storage_modes::BUFFERED>
 
 public:
 
+	// Construction
+
 	inline sequence_storage() = default;
 	inline sequence_storage(size_t new_capacity)
 	{
@@ -1704,15 +1706,65 @@ public:
 		set_size(rhs.size());
 	}
 
+	// Assignment
+
 	inline sequence_storage& operator=(const sequence_storage& rhs)
 	{
-		if (rhs.size() <= TRAITS.capacity && is_dynamic())
-			rhs.execute([&](auto&& storage){ m_storage.emplace<STC>(storage); });
+		if (is_dynamic() && rhs.size() <= capacity())
+		{
+			clear();
+			std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+			set_size(rhs.size());
+		}
 		else
 			m_storage = rhs.m_storage;
 		return *this;
 	}
-	inline sequence_storage& operator=(sequence_storage&&) = default;
+
+	template<sequence_traits TR, storage_modes STO>
+	inline sequence_storage& operator=(const sequence_storage<T, TR, STO>& rhs)
+	{
+		if (is_dynamic() && rhs.size() <= capacity())
+		{
+			clear();
+			std::uninitialized_copy(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+			set_size(rhs.size());
+		}
+		else
+			m_storage = rhs.m_storage;
+		return *this;
+	}
+
+	//inline sequence_storage& operator=(sequence_storage&& rhs)
+	//{
+	//	if (rhs.is_dynamic())
+	//		m_storage.emplace<DYN>(std::move(rhs.get_dynamic_storage()));
+	//	else if (rhs.size() <= capacity())
+	//	{
+	//		clear();
+	//		std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+	//		set_size(rhs.size());
+	//	}
+	//	else
+	//		m_storage = rhs.m_storage;
+	//	return *this;
+	//}
+
+	template<sequence_traits TR, storage_modes STO>
+	inline sequence_storage& operator=(sequence_storage<T, TR, STO>&& rhs)
+	{
+		if (rhs.is_dynamic())
+			m_storage.emplace<DYN>(std::move(rhs.get_dynamic_storage()));
+		else if (rhs.size() <= capacity())
+		{
+			clear();
+			std::uninitialized_move(rhs.data_begin(), rhs.data_end(), new_data_start(rhs.size()));
+			set_size(rhs.size());
+		}
+		else
+			m_storage = rhs.m_storage;
+		return *this;
+	}
 
 	static constexpr size_t max_size() { return std::numeric_limits<size_t>::max(); }
 	inline size_t capacity() const { return execute([](auto&& storage){ return storage.capacity(); }); }

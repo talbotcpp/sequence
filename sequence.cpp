@@ -69,8 +69,10 @@ void print_value(int i)
 // show_elems - Simple element output for any container with elements convertible to int.
 
 template<typename SEQ>
-void show_elems(const SEQ& seq)
+void show_elems(const SEQ& seq, const char* header = nullptr)
 {
+	if (header)
+		std::print("{}: ", header);
 	std::print("{: >2}> ", seq.size());
 	if (seq.empty()) std::print("EMPTY");
 	else for (auto&& e : seq)
@@ -144,43 +146,86 @@ using rec_type = val_type::ident;
 
 int main()
 {
+	auto print_cap = [](const auto& seq){
+		println("seq.capacity = {}\t{}", seq.capacity(), seq.is_dynamic() ? "DYNAMIC" : "STATIC");
+	};
+
 	println("Sequence Test");
 
-		typ seq{1,2,3,4,5};	// Heap elements are ids 6-10.
-		println("seq.is_dynamic: {}", seq.is_dynamic());
-		val_type::clear_log();
+	typ seq1{1,2,3,4};	// Heap elements are ids 6-10.
+	print_cap(seq1);
+	show_elems(seq1);
+	println();
 
-		seq.free();
+	//seq1.clear();
+	//println("seq1.is_dynamic: {}", seq1.is_dynamic());
+	//println("seq1.capacity = {}", seq1.capacity());
+	//show_elems(seq1);
+	//println();
 
-		rec_type records[] = {
-			{6,		DESTRUCT,	1},
-			{7,		DESTRUCT,	2},
-			{8,		DESTRUCT,	3},
-			{9,		DESTRUCT,	4},
-			{10,	DESTRUCT,	5},
-		};
-		println("val_type::check_log: {}", val_type::check_log(records));
-		println("val_type::get_log.size = 5: {}", val_type::get_log().size());
-		println("seq.capacity = 4: {}", seq.capacity());	// Returns to the buffered state...
-		println("seq.size = 0: {}", seq.size());	// Returns to the buffered state...
-		println("seq.is_dynamic: {}", seq.is_dynamic());
+	sequence<life, {
+		.storage = storage_modes::LOCAL,
+		.capacity = 6
+	}> seq2{6,7,8,9,10,11};
+//	typ seq2{6,7,8,9,10};
+	print_cap(seq2);
+	show_elems(seq2);
+	println();
+
+	println("seq2.block = {}", static_cast<const void*>(&seq2[0]));
+	println("seq1.block = {}", static_cast<const void*>(&seq1[0]));
+//		seq1 = seq2;
+	seq1 = move(seq2);
+	println("seq1.block = {}", static_cast<const void*>(&seq1[0]));
+	println();
+
+	print_cap(seq1);
+	show_elems(seq1);
+	println();
+
+	//seq2[2] = 42;
+	//show_elems(seq1, "seq1");
+	//show_elems(seq2, "seq2");
+	//println();
+
+	//seq1.reserve(10);
+	//val_type::clear_log();
+	//val_type::print_log();
+	//println();
+	//seq1.emplace_back(66);
+	//val_type::print_log();
+
+	//seq.free();
+	//val_type::clear_log();
+
+	//rec_type records[] = {
+	//	{6,		DESTRUCT,	1},
+	//	{7,		DESTRUCT,	2},
+	//	{8,		DESTRUCT,	3},
+	//	{9,		DESTRUCT,	4},
+	//	{10,	DESTRUCT,	5},
+	//};
+	//println("val_type::check_log: {}", val_type::check_log(records));
+	//println("val_type::get_log.size = 5: {}", val_type::get_log().size());
+	//println("seq.capacity = 4: {}", seq.capacity());	// Returns to the buffered state...
+	//println("seq.size = 0: {}", seq.size());	// Returns to the buffered state...
+	//println("seq.is_dynamic: {}", seq.is_dynamic());
 
 //		seq.push_back(6);							// ...and the buffer is usable.
-		seq.emplace_back(6);							// ...and the buffer is usable.
-		//rec_type records2[] = {
-		//	{11,	VALUE_CONSTRUCT,	6},
-		//};
-		//Assert::IsTrue(val_type::check_log(records2));
-		//Assert::AreEqual(size_t(1), seq.size());
-		//Assert::IsFalse(seq.is_dynamic());
+//		seq.emplace_back(6);							// ...and the buffer is usable.
+	//rec_type records2[] = {
+	//	{11,	VALUE_CONSTRUCT,	6},
+	//};
+	//Assert::IsTrue(val_type::check_log(records2));
+	//Assert::AreEqual(size_t(1), seq.size());
+	//Assert::IsFalse(seq.is_dynamic());
 
-	println("Vector Test");
+	//println("\nVector Test");
 
 	vector<life> v;
 	v.reserve(10);
 	v.push_back(1);
 	v.emplace_back(2);
-
 
 }
 
