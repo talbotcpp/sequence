@@ -379,7 +379,7 @@ that container is implemented very differently and has very different performanc
 
 ## growth
 ```C++
-enum class sequence_growth_lits { LINEAR, EXPONENTIAL, VECTOR };
+enum class sequence_growth_lits { LINEAR, GEOMETRIC, VECTOR };
 sequence_growth_lits growth = sequence_growth_lits::VECTOR;
 ```
 
@@ -388,13 +388,13 @@ It offers three growth options:
 
 #### LINEAR
 The capacity grows by a fixed number of elements specified by `increment` (see below).
-#### EXPONENTIAL
+#### GEOMETRIC
 The capacity grows exponentially by a factor specified by `factor` (see below).
 #### VECTOR
 Capacity grows in the same way as `std::vector`. This behavior is implementation dependent.
 It is provided so that `sequence` can be used as an implementation of, or drop-in replacement
 for, `std::vector` with no changes in behavior, even if the `std::vector`
-growth behavior cannot be modeled with the `LINEAR` or `EXPONENTIAL` growth modes.
+growth behavior cannot be modeled with the `LINEAR` or `GEOMETRIC` growth modes.
 
 ## capacity
 ```C++
@@ -423,7 +423,7 @@ size_t increment = 1;
 ```
 This member provides the linear capacity growth in elements.
 For `LINEAR` growth it is the amount by which the capacity grows.
-For `EXPONENTIAL` growth it is the minimum amount by which the capacity grows.
+For `GEOMETRIC` growth it is the minimum amount by which the capacity grows.
 
 This value must be greater than 0.
 
@@ -431,7 +431,7 @@ This value must be greater than 0.
 ```C++
 float factor = 1.5;
 ```
-When `EXPONENTIAL` growth is selected, the capacity will grow by the greater of (current capacity × `factor`) and `increment`.
+When `GEOMETRIC` growth is selected, the capacity will grow by the greater of (current capacity × `factor`) and `increment`.
 
 This value must be greater than 1.
 
@@ -454,3 +454,13 @@ is destructed. This might be much later, which might be a good thing in some sit
 If an O(n) swap takes place, should the algorithm check the container sizes and cache the smaller one?
 This would be a win if the sizes are quite different or if the moves are expensive, but it adds
 two O(1) size calculations and an integer comparison.
+## What should `reserve` do in BUFFERED mode if called with `new_capacity` <= `capacity`?
+In a BUFFERED sequence, the buffer size is set at compile time by the `capacity`
+member of the `sequence_traits` structure. If reserve is called with a `new_capacity` argument that is
+\>\= the current size of the container, but \<\= the buffer size, what should happen?
+1. Nothing.
+1. The data should be unbuffered into a dynamic block of the reserve size.
+If the answer is nothing, then there is no way to ask a buffered container to become unbuffered
+with a buffer-size (or smaller) block. I'm not sure that is useful since a dynamic sequence can be used
+in close conjunction with a buffered sequence. In fact, you could do this by creating a dynamic sequence,
+reserving, then moving it into a buffered sequence.

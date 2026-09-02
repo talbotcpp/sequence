@@ -26,7 +26,7 @@ import <format>;
 
 export enum class storage_modes { LOCAL, FIXED, VARIABLE, BUFFERED };	// See sequence_traits::storage.
 export enum class location_modes { FRONT, BACK, MIDDLE };				// See sequence_traits::location.
-export enum class growth_modes { LINEAR, EXPONENTIAL, VECTOR };			// See sequence_traits::growth.
+export enum class growth_modes { LINEAR, GEOMETRIC, VECTOR };			// See sequence_traits::growth.
 
 // sequence_traits - Structure used to supply the sequence traits. This is fully documented in the README.md file.
 
@@ -50,7 +50,7 @@ struct sequence_traits
 		{
 			case growth_modes::LINEAR:
 				return cap + increment;
-			case growth_modes::EXPONENTIAL:
+			case growth_modes::GEOMETRIC:
 				return cap + std::max(size_t(cap * (factor - 1.f)), increment);
 			default:
 			case growth_modes::VECTOR:

@@ -36,9 +36,9 @@ void show(const SEQ& seq)
 	std::print("Growth:\t\t");
 	switch (seq.traits.growth)
 	{
-		case growth_modes::LINEAR:		std::println("LINEAR");			break;
-		case growth_modes::EXPONENTIAL:	std::println("EXPONENTIAL");	break;
-		case growth_modes::VECTOR:		std::println("VECTOR");			break;
+		case growth_modes::LINEAR:		std::println("LINEAR");		break;
+		case growth_modes::GEOMETRIC:	std::println("GEOMETRIC");	break;
+		case growth_modes::VECTOR:		std::println("VECTOR");		break;
 	}
 
 	std::println("Capacity:\t{}", seq.traits.capacity);
