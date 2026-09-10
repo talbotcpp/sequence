@@ -278,11 +278,11 @@ inline void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end
 
 // shift (takes a target) - Calls shift_up or shift_down based on the relationship between the target and data pointers.
 
-export template<typename T>
-inline void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, T* target_begin)
-{
-	shift(capacity_begin, capacity_end, data_begin, data_end, target_begin - data_begin);
-}
+//export template<typename T>
+//inline void shift(T* capacity_begin, T* capacity_end, T* data_begin, T* data_end, T* target_begin)
+//{
+//	shift(capacity_begin, capacity_end, data_begin, data_end, target_begin - data_begin);
+//}
 
 
 // ==============================================================================================================
@@ -318,8 +318,8 @@ private:
 
 
 // ==============================================================================================================
-// fixed_storage - This is the base class for the fixed_sequence_storage class. It provides
-// the three different element management strategies for fixed capacity sequences
+// fixed_storage - This is the base class for the fixed_sequence_storage class. It provides the three different
+// element management strategies for fixed capacity sequences
 
 template<typename T, sequence_traits TRAITS, location_modes LOC = TRAITS.location>
 class fixed_storage
@@ -643,13 +643,14 @@ private:
 
 
 // ==============================================================================================================
-// fixed_sequence_storage - This class provides fixed capacity storage (which may be static or
-// dynamically allocated). It offers three element management strategies.
-
-// Forward declaration so that the sequence storage types can refer to each other.
+// Forward declaration of dynamic_sequence_storage so that the sequence storage types can refer to each other.
 
 template<typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage;
+
+
+// ==============================================================================================================
+// fixed_sequence_storage - This class provides fixed capacity storage (which may be static or dynamically allocated).
 
 template<typename T, sequence_traits TRAITS>
 class fixed_sequence_storage : public fixed_storage<T, TRAITS>
@@ -726,7 +727,7 @@ public:
 
 
 // ==============================================================================================================
-// dynamic_capacity
+// dynamic_capacity - This is the base class for dynamic_storage instantiations. It handles the raw capacity.
 
 template<typename T>
 class dynamic_capacity
@@ -776,8 +777,8 @@ protected:
 
 
 // ==============================================================================================================
-// dynamic_storage - This is the base class for the dynamic_sequence_storage class. It provides
-// the three different element management strategies for dynamic capacity sequences
+// dynamic_storage - This is the base class for the dynamic_sequence_storage class. It provides the three different
+// element management strategies for dynamic capacity sequences.
 
 template<typename T, sequence_traits TRAITS, location_modes LOC = TRAITS.location>
 class dynamic_storage
@@ -1138,7 +1139,7 @@ protected:
 
 private:
 
-	friend class dynamic_storage;
+//	friend class dynamic_storage;
 
 	// Moves the elements to the (approximate) center of the capacity to prepare for size growth.
 	// If the remaining space is odd, then the extra space will be at the front if we are making
@@ -1168,8 +1169,7 @@ private:
 
 
 // ==============================================================================================================
-// dynamic_sequence_storage - This class provides dynamically allocated capacity storage. It offers three element
-// management strategies.
+// dynamic_sequence_storage - This class provides dynamically allocated variable capacity storage.
 
 template<typename T, sequence_traits TRAITS>
 class dynamic_sequence_storage : public dynamic_storage<T, TRAITS>
@@ -1322,7 +1322,7 @@ public:
 
 
 // ==============================================================================================================
-// fixed_sequence_storage - These member functions are out here so they can see dynamic_sequence_storage.
+// fixed_sequence_storage - These member functions are implemented down here so they can see dynamic_sequence_storage.
 
 template<typename T, sequence_traits TRAITS>
 inline fixed_sequence_storage<T, TRAITS>::fixed_sequence_storage(const dynamic_sequence_storage<T, TRAITS>& rhs)
@@ -1547,7 +1547,7 @@ protected:
 
 private:
 
-	friend class sequence_storage;
+	//friend class sequence_storage;
 
 	std::unique_ptr<storage_type> m_storage;
 };
@@ -1639,7 +1639,7 @@ protected:
 
 private:
 
-	friend class sequence_storage;
+	//friend class sequence_storage;
 
 	dynamic_type m_storage;
 
@@ -1874,7 +1874,7 @@ protected:
 
 private:
 
-	friend class sequence_storage;
+	//friend class sequence_storage;
 
 	std::variant<fixed_type, dynamic_type> m_storage;
 

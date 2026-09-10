@@ -389,7 +389,7 @@ It offers three growth options:
 #### LINEAR
 The capacity grows by a fixed number of elements specified by `increment` (see below).
 #### GEOMETRIC
-The capacity grows exponentially by a factor specified by `factor` (see below).
+The capacity grows geometrically by a factor specified by `factor` (see below).
 #### VECTOR
 Capacity grows in the same way as `std::vector`. This behavior is implementation dependent.
 It is provided so that `sequence` can be used as an implementation of, or drop-in replacement
